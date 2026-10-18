@@ -87,6 +87,17 @@ class ScanTest(unittest.TestCase):
             )
             self.assertEqual(scan("--cache", str(cache), d)[0]["title"], "Real")
 
+    def test_non_utf8_filename_is_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            make_flac(Path(d) / "ok.flac", title="Ok")
+            make_flac(Path(d) / "tmp.flac", title="Bad")
+            os.rename(
+                os.path.join(os.fsencode(d), b"tmp.flac"),
+                os.path.join(os.fsencode(d), b"caf\xe9.flac"),
+            )
+            entries = scan(d)
+            self.assertEqual([e["path"] for e in entries], [str(Path(d) / "ok.flac")])
+
 
 if __name__ == "__main__":
     unittest.main()

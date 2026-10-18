@@ -86,6 +86,11 @@ def main(argv):
                     continue
                 path = os.path.join(root, name)
                 try:
+                    path.encode("utf-8")
+                except UnicodeEncodeError:
+                    print(f"omamusic-scan: skipping non-UTF-8 name {path!r}", file=sys.stderr)
+                    continue
+                try:
                     st = os.stat(path)
                 except OSError:
                     continue

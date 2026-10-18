@@ -23,8 +23,27 @@ qt_add_library(omacore STATIC
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network)
 
-qt_add_executable(omamusic src/main.cpp)
+qt_add_executable(omamusic src/main.cpp src/shell.cpp src/shell.h)
 target_link_libraries(omamusic PRIVATE omacore Qt6::Widgets Qt6::Quick Qt6::QuickControls2)
+
+qt_add_qml_module(omamusic
+    URI Omamusic
+    VERSION 1.0
+    QML_FILES
+        qml/Main.qml
+        qml/Panel.qml
+        qml/SeekBar.qml
+        qml/TransportButton.qml
+        qml/Fmt.js
+)
+
+qt_add_resources(omamusic icons
+    PREFIX /icons
+    BASE resources
+    FILES resources/omamusic-symbolic.svg
+)
+
+configure_file(bin/omamusic-scan ${CMAKE_BINARY_DIR}/omamusic-scan COPYONLY)
 
 enable_testing()
 add_subdirectory(tests)

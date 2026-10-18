@@ -1,23 +1,24 @@
 import QtQuick
+import "Scale.js" as S
 
 Item {
     id: root
     property real value: 0
     signal seeked(real fraction)
 
-    implicitHeight: 16
+    implicitHeight: S.sp(16)
 
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         width: parent.width
-        height: 4
-        radius: 2
+        height: S.sp(4)
+        radius: height / 2
         color: theme.selection
 
         Rectangle {
             width: parent.width * Math.max(0, Math.min(1, root.value))
             height: parent.height
-            radius: 2
+            radius: height / 2
             color: theme.accent
         }
     }

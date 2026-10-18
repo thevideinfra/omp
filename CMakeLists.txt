@@ -26,6 +26,9 @@ target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network)
 
 qt_add_executable(omamusic src/main.cpp src/shell.cpp src/shell.h)
 target_link_libraries(omamusic PRIVATE omacore Qt6::Widgets Qt6::Quick Qt6::QuickControls2)
+# Scale.js is a plain (non-pragma) script on purpose; it is only imported by path.
+set_source_files_properties(qml/Scale.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+
 
 qt_add_qml_module(omamusic
     URI Omamusic
@@ -37,6 +40,8 @@ qt_add_qml_module(omamusic
         qml/SeekBar.qml
         qml/TransportButton.qml
         qml/Fmt.js
+        qml/Scale.js
+        qml/UiText.qml
 )
 
 qt_add_resources(omamusic icons

@@ -1,4 +1,5 @@
 import QtQuick
+import "Scale.js" as S
 
 Rectangle {
     id: root
@@ -6,16 +7,15 @@ Rectangle {
     property bool big: false
     signal clicked()
 
-    implicitWidth: big ? 44 : 34
+    implicitWidth: big ? S.sp(44) : S.sp(34)
     implicitHeight: implicitWidth
     radius: width / 2
     color: area.containsMouse ? theme.selection : "transparent"
 
-    Text {
+    UiText {
         anchors.centerIn: parent
         text: root.glyph
-        color: theme.foreground
-        font.pixelSize: root.big ? 20 : 15
+        px: root.big ? 20 : 15
     }
 
     MouseArea {

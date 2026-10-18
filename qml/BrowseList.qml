@@ -1,4 +1,5 @@
 import QtQuick
+import "Scale.js" as S
 
 ListView {
     id: root
@@ -27,15 +28,15 @@ ListView {
         required property string cover
 
         width: ListView.view.width
-        height: 52
+        height: S.sp(52)
         color: ListView.isCurrentItem ? theme.selection : "transparent"
 
         Image {
             id: art
-            x: 8
+            x: S.sp(8)
             anchors.verticalCenter: parent.verticalCenter
-            width: cover !== "" ? 40 : 0
-            height: 40
+            width: cover !== "" ? S.sp(40) : 0
+            height: S.sp(40)
             source: cover
             sourceSize.width: 80
             sourceSize.height: 80
@@ -46,36 +47,36 @@ ListView {
         Column {
             anchors {
                 left: art.right
-                leftMargin: 10
+                leftMargin: S.sp(10)
                 right: metaText.left
-                rightMargin: 10
+                rightMargin: S.sp(10)
                 verticalCenter: parent.verticalCenter
             }
-            Text {
+            UiText {
                 width: parent.width
                 text: title
                 color: index === root.playingRow ? theme.accent : theme.foreground
                 elide: Text.ElideRight
             }
-            Text {
+            UiText {
                 width: parent.width
                 text: subtitle
                 color: theme.dimForeground
-                font.pixelSize: 12
+                px: 12
                 elide: Text.ElideRight
             }
         }
 
-        Text {
+        UiText {
             id: metaText
             anchors {
                 right: parent.right
-                rightMargin: 12
+                rightMargin: S.sp(12)
                 verticalCenter: parent.verticalCenter
             }
             text: meta
             color: theme.dimForeground
-            font.pixelSize: 12
+            px: 12
         }
 
         MouseArea {

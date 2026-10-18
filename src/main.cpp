@@ -15,6 +15,7 @@
 #include "library.h"
 #include "paths.h"
 #include "player.h"
+#include "settings.h"
 #include "shell.h"
 #include "theme.h"
 
@@ -72,6 +73,10 @@ int main(int argc, char *argv[])
     installQuitSignals();
 
     Theme theme;
+    Settings settings;
+    theme.setAccentChoice(settings.accent());
+    QObject::connect(&settings, &Settings::changed, &theme,
+                     [&settings, &theme] { theme.setAccentChoice(settings.accent()); });
     Player player;
     Library library(Config::folders(),
                     qEnvironmentVariable("OMAMUSIC_SCAN",
@@ -82,6 +87,7 @@ int main(int argc, char *argv[])
     Shell shell(engine, player);
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("theme", &theme);
+    ctx->setContextProperty("ui", &settings);
     ctx->setContextProperty("player", &player);
     ctx->setContextProperty("library", &library);
     ctx->setContextProperty("shell", &shell);

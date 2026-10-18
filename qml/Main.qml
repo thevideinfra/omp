@@ -55,6 +55,7 @@ ApplicationWindow {
     }
 
     Item {
+        id: keyRoot
         anchors.fill: parent
         focus: true
         Keys.onPressed: (e) => win.handleKey(e)
@@ -95,7 +96,7 @@ ApplicationWindow {
                                 }
                                 MouseArea {
                                     anchors.fill: parent
-                                    onClicked: { win.tab = index; searchField.text = "" }
+                                    onClicked: { win.tab = index; searchField.text = ""; keyRoot.forceActiveFocus() }
                                 }
                             }
                         }
@@ -122,8 +123,8 @@ ApplicationWindow {
                             selectByMouse: true
                             background: Rectangle { radius: 6; color: theme.surface }
                             onTextChanged: library.setQuery(text)
-                            Keys.onEscapePressed: { text = ""; parent.forceActiveFocus() }
-                            Keys.onReturnPressed: parent.forceActiveFocus()
+                            Keys.onEscapePressed: { text = ""; keyRoot.forceActiveFocus() }
+                            Keys.onReturnPressed: keyRoot.forceActiveFocus()
                         }
 
                         Rectangle {
@@ -133,7 +134,7 @@ ApplicationWindow {
                             radius: 6
                             color: upArea.containsMouse ? theme.selection : theme.surface
                             Text { anchors.centerIn: parent; text: qsTr("Up"); color: theme.foreground }
-                            MouseArea { id: upArea; anchors.fill: parent; hoverEnabled: true; onClicked: library.up() }
+                            MouseArea { id: upArea; anchors.fill: parent; hoverEnabled: true; onClicked: { library.up(); keyRoot.forceActiveFocus() } }
                         }
 
                         Rectangle {
@@ -143,7 +144,7 @@ ApplicationWindow {
                             radius: 6
                             color: clearArea.containsMouse ? theme.selection : theme.surface
                             Text { anchors.centerIn: parent; text: qsTr("Clear queue"); color: theme.foreground }
-                            MouseArea { id: clearArea; anchors.fill: parent; hoverEnabled: true; onClicked: player.clearQueue() }
+                            MouseArea { id: clearArea; anchors.fill: parent; hoverEnabled: true; onClicked: { player.clearQueue(); keyRoot.forceActiveFocus() } }
                         }
                     }
 
@@ -153,19 +154,22 @@ ApplicationWindow {
                         Layout.fillHeight: true
                         currentIndex: win.searching ? 4 : win.tab
 
-                        BrowseList {   // Albums
+                        BrowseList {
+                            onClicked: keyRoot.forceActiveFocus()   // Albums
                             model: library.albums
                             onActivated: (row) => player.playTracks(library.albumTracks(library.albums.get(row).key), 0)
                             onEnqueued: (row) => player.enqueueTracks(library.albumTracks(library.albums.get(row).key))
                         }
 
-                        BrowseList {   // Artists
+                        BrowseList {
+                            onClicked: keyRoot.forceActiveFocus()   // Artists
                             model: library.artists
                             onActivated: (row) => player.playTracks(library.artistTracks(library.artists.get(row).key), 0)
                             onEnqueued: (row) => player.enqueueTracks(library.artistTracks(library.artists.get(row).key))
                         }
 
-                        BrowseList {   // Folders
+                        BrowseList {
+                            onClicked: keyRoot.forceActiveFocus()   // Folders
                             id: folderList
                             model: library.folder
                             Connections {
@@ -189,13 +193,15 @@ ApplicationWindow {
                             }
                         }
 
-                        BrowseList {   // Queue
+                        BrowseList {
+                            onClicked: keyRoot.forceActiveFocus()   // Queue
                             model: player.queue
                             playingRow: player.currentIndex
                             onActivated: (row) => player.jumpTo(row)
                         }
 
-                        BrowseList {   // Search results
+                        BrowseList {
+                            onClicked: keyRoot.forceActiveFocus()   // Search results
                             model: library.results
                             onActivated: (row) => player.playTracks(library.results.all(), row)
                             onEnqueued: (row) => player.enqueue(library.results.get(row))
@@ -252,9 +258,9 @@ ApplicationWindow {
                         Row {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 8
-                            TransportButton { glyph: "◀◀"; onClicked: player.previous() }
-                            TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: player.togglePause() }
-                            TransportButton { glyph: "▶▶"; onClicked: player.next() }
+                            TransportButton { glyph: "◀◀"; onClicked: { player.previous(); keyRoot.forceActiveFocus() } }
+                            TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: { player.togglePause(); keyRoot.forceActiveFocus() } }
+                            TransportButton { glyph: "▶▶"; onClicked: { player.next(); keyRoot.forceActiveFocus() } }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -262,7 +268,7 @@ ApplicationWindow {
                             SeekBar {
                                 Layout.fillWidth: true
                                 value: player.duration > 0 ? player.position / player.duration : 0
-                                onSeeked: (f) => player.seekTo(f * player.duration)
+                                onSeeked: (f) => { player.seekTo(f * player.duration); keyRoot.forceActiveFocus() }
                             }
                             Text { text: Fmt.time(player.duration); color: theme.dimForeground; font.pixelSize: 12 }
                         }
@@ -274,7 +280,7 @@ ApplicationWindow {
                         SeekBar {
                             Layout.fillWidth: true
                             value: player.volume / 100
-                            onSeeked: (f) => player.volume = Math.round(f * 100)
+                            onSeeked: (f) => { player.volume = Math.round(f * 100); keyRoot.forceActiveFocus() }
                         }
                     }
                 }

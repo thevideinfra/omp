@@ -5,6 +5,7 @@ ListView {
     property int playingRow: -1
     signal activated(int row)
     signal enqueued(int row)
+    signal clicked()
 
     clip: true
     currentIndex: 0
@@ -79,8 +80,8 @@ ListView {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: root.currentIndex = index
-            onDoubleClicked: root.activated(index)
+            onClicked: { root.currentIndex = index; root.clicked() }
+            onDoubleClicked: { root.activated(index); root.clicked() }
         }
     }
 }

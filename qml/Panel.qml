@@ -19,8 +19,19 @@ Window {
     readonly property int footerHeight: S.sp(34)
     readonly property int headerHeight: S.sp(30)
     readonly property int maxHeight: Math.min(680, (panel.screen ? panel.screen.height : 1080) - 80)
+    // Sum of the visible children, not col.implicitHeight: positioners (like
+    // layouts) only update that in polish, which a hidden window never runs, so
+    // it would be stale when freeze() reads it.
+    readonly property real contentHeight: {
+        let h = 0, n = 0
+        for (const c of col.children) {
+            const ch = c.metricHeight !== undefined ? c.metricHeight : c.height
+            if (c.visible && ch > 0) { h += ch; n++ }
+        }
+        return h + Math.max(0, n - 1) * col.spacing
+    }
     readonly property int wantedHeight: Math.max(120, Math.min(maxHeight,
-        headerHeight + gap + col.implicitHeight + gap + footerHeight + 2 * margin))
+        headerHeight + gap + contentHeight + gap + footerHeight + 2 * margin))
     property int frozenHeight: 0
     height: frozenHeight > 0 ? frozenHeight : wantedHeight
     function freeze() { frozenHeight = wantedHeight }
@@ -88,16 +99,16 @@ Window {
             height: Math.max(0, panel.height - y - panel.gap - panel.footerHeight - panel.margin)
             clip: true
 
-            ColumnLayout {
+            Column {
                 id: col
                 width: parent.width
                 spacing: S.sp(10)
 
                 Rectangle {
                     visible: ui.panelCover
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: S.sp(200)
-                    Layout.preferredHeight: S.sp(200)
+                    x: (col.width - width) / 2
+                    width: S.sp(200)
+                    height: S.sp(200)
                     color: theme.surface
                     Image {
                         anchors.fill: parent
@@ -110,7 +121,7 @@ Window {
                 }
 
                 UiText {
-                    Layout.fillWidth: true
+                    width: col.width
                     horizontalAlignment: Text.AlignHCenter
                     text: player.current.title ?? qsTr("Nothing playing")
                     px: 16
@@ -118,44 +129,78 @@ Window {
                     elide: Text.ElideRight
                 }
                 UiText {
-                    Layout.fillWidth: true
+                    width: col.width
                     horizontalAlignment: Text.AlignHCenter
                     text: player.current.artist ?? ""
                     color: theme.dimForeground
                     elide: Text.ElideRight
                 }
 
-                RowLayout {
+                Item {
                     visible: ui.panelSeek
-                    Layout.fillWidth: true
-                    UiText { text: Fmt.time(player.position); color: theme.dimForeground; px: 12 }
+                    width: col.width
+                    height: Math.max(seekPos.metricHeight, seekBar.implicitHeight, seekDur.metricHeight)
+                    UiText {
+                        id: seekPos
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Fmt.time(player.position); color: theme.dimForeground; px: 12
+                    }
                     SeekBar {
-                        Layout.fillWidth: true
+                        id: seekBar
+                        anchors.left: seekPos.right
+                        anchors.right: seekDur.left
+                        anchors.leftMargin: S.sp(8)
+                        anchors.rightMargin: S.sp(8)
+                        anchors.verticalCenter: parent.verticalCenter
                         value: player.duration > 0 ? player.position / player.duration : 0
                         onSeeked: (f) => player.seekTo(f * player.duration)
                     }
-                    UiText { text: Fmt.time(player.duration); color: theme.dimForeground; px: 12 }
+                    UiText {
+                        id: seekDur
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Fmt.time(player.duration); color: theme.dimForeground; px: 12
+                    }
                 }
 
                 Row {
-                    Layout.alignment: Qt.AlignHCenter
+                    // Explicit size: a positioner's own implicit size only
+                    // updates in polish (see contentHeight).
+                    x: (col.width - width) / 2
+                    width: prevBtn.implicitWidth + playBtn.implicitWidth + nextBtn.implicitWidth + 2 * spacing
+                    height: Math.max(prevBtn.implicitHeight, playBtn.implicitHeight, nextBtn.implicitHeight)
                     spacing: S.sp(8)
-                    TransportButton { glyph: "◀◀"; onClicked: player.previous() }
-                    TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: player.togglePause() }
-                    TransportButton { glyph: "▶▶"; onClicked: player.next() }
+                    TransportButton { id: prevBtn; glyph: "◀◀"; onClicked: player.previous() }
+                    TransportButton { id: playBtn; glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: player.togglePause() }
+                    TransportButton { id: nextBtn; glyph: "▶▶"; onClicked: player.next() }
                 }
 
-                RowLayout {
+                Item {
                     visible: ui.panelVolume
-                    Layout.fillWidth: true
-                    UiText { text: qsTr("vol"); color: theme.dimForeground; px: 12 }
+                    width: col.width
+                    height: Math.max(volLabel.metricHeight, volBar.implicitHeight, volPct.metricHeight)
+                    UiText {
+                        id: volLabel
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("vol"); color: theme.dimForeground; px: 12
+                    }
                     SeekBar {
-                        Layout.fillWidth: true
+                        id: volBar
+                        anchors.left: volLabel.right
+                        anchors.right: volPct.left
+                        anchors.leftMargin: S.sp(8)
+                        anchors.rightMargin: S.sp(8)
+                        anchors.verticalCenter: parent.verticalCenter
                         value: player.volume / 100
                         onSeeked: (f) => player.volume = Math.round(f * 100)
                     }
                     UiText {
-                        Layout.preferredWidth: S.sp(40)
+                        id: volPct
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: S.sp(40)
                         horizontalAlignment: Text.AlignRight
                         text: player.volume + "%"
                         color: theme.dimForeground
@@ -178,7 +223,7 @@ Window {
                         readonly property bool upcoming: index > player.currentIndex
                                                          && index <= player.currentIndex + ui.panelUpNextCount
                         visible: upcoming
-                        Layout.fillWidth: true
+                        width: col.width
                         text: title + "  ·  " + subtitle
                         elide: Text.ElideRight
                     }

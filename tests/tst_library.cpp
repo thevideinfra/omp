@@ -196,6 +196,21 @@ private slots:
         QVERIFY(pid > 0);
         QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(QStringLiteral("/proc/%1").arg(pid)), 3000);
     }
+
+    void coverForEmptyPathIsEmpty()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile c(dir.filePath("cover.jpg"));
+        QVERIFY(c.open(QIODevice::WriteOnly));
+        c.close();
+        const QString old = QDir::currentPath();
+        QVERIFY(QDir::setCurrent(dir.path()));
+        Library lib({"/m"}, "unused", "unused");
+        const QString got = lib.coverFor(QString());
+        QDir::setCurrent(old);
+        QCOMPARE(got, QString());
+    }
 };
 
 QTEST_GUILESS_MAIN(TstLibrary)

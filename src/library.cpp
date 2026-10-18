@@ -339,6 +339,8 @@ void Library::setQuery(const QString &query)
 
 QString Library::coverFor(const QString &trackPath) const
 {
+    if (trackPath.isEmpty())
+        return QString();
     const QString dir = QFileInfo(trackPath).absolutePath();
     auto it = m_coverCache.constFind(dir);
     if (it != m_coverCache.cend())

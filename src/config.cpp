@@ -15,6 +15,8 @@ QStringList parseFolders(const QByteArray &text)
     bool inArray = false;
     for (const QByteArray &raw : text.split('\n')) {
         QString line = QString::fromUtf8(raw).trimmed();
+        if (inArray && line.startsWith(QLatin1Char('#')))
+            continue;
         if (!inArray) {
             const int eq = line.indexOf(QLatin1Char('='));
             if (eq < 0 || line.left(eq).trimmed() != QStringLiteral("folders"))

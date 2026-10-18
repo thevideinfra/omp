@@ -30,6 +30,13 @@ private slots:
         QCOMPARE(got, QStringList({QDir::homePath() + "/Music", "/mnt/nas"}));
     }
 
+    void skipsCommentLinesInsideArray()
+    {
+        const QStringList got = Config::parseFolders(
+            "folders = [\n  # density = \"normal\"\n  \"/mnt/nas\",\n  # \"/old\"\n]\n");
+        QCOMPARE(got, QStringList({"/mnt/nas"}));
+    }
+
     void ignoresKeysStartingWithFolders()
     {
         QCOMPARE(Config::parseFolders("foldersX = [\"/x\"]\n"),

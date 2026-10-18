@@ -1,5 +1,7 @@
 #include <QtTest>
 
+#include <QRegularExpression>
+
 #include "instance.h"
 
 class TstInstance : public QObject
@@ -34,6 +36,20 @@ private slots:
         Instance other(path);
         QVERIFY(!other.claimOrSend("quit"));
         QTRY_COMPARE(spy.count(), 1);
+    }
+
+    void listeningReflectsSocketState()
+    {
+        QTemporaryDir dir;
+        Instance ok(dir.filePath("ok.sock"));
+        QVERIFY(ok.claimOrSend("show"));
+        QVERIFY(ok.listening());
+
+        // Parent directory does not exist, so listen() must fail.
+        Instance broken(dir.filePath("missing/dir/broken.sock"));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression("single-instance socket failed"));
+        QVERIFY(broken.claimOrSend("show"));
+        QVERIFY(!broken.listening());
     }
 };
 

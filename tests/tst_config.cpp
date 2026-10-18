@@ -22,6 +22,21 @@ private slots:
         QCOMPARE(Config::parseFolders("other = [\"/x\"]\n"),
                  QStringList({QDir::homePath() + "/Music"}));
     }
+
+    void parsesMultiLineArray()
+    {
+        const QStringList got = Config::parseFolders(
+            "folders = [\n  \"~/Music\",\n  \"/mnt/nas\",\n]\n");
+        QCOMPARE(got, QStringList({QDir::homePath() + "/Music", "/mnt/nas"}));
+    }
+
+    void ignoresKeysStartingWithFolders()
+    {
+        QCOMPARE(Config::parseFolders("foldersX = [\"/x\"]\n"),
+                 QStringList({QDir::homePath() + "/Music"}));
+        QCOMPARE(Config::parseFolders("folders_old = [\"/x\"]\n"),
+                 QStringList({QDir::homePath() + "/Music"}));
+    }
 };
 
 QTEST_GUILESS_MAIN(TstConfig)

@@ -12,10 +12,17 @@ QStringList parseFolders(const QByteArray &text)
 {
     static const QRegularExpression quoted(QStringLiteral("\"([^\"]*)\""));
     QStringList out;
+    bool inArray = false;
     for (const QByteArray &raw : text.split('\n')) {
-        const QString line = QString::fromUtf8(raw).trimmed();
-        if (!line.startsWith(QStringLiteral("folders")))
-            continue;
+        QString line = QString::fromUtf8(raw).trimmed();
+        if (!inArray) {
+            const int eq = line.indexOf(QLatin1Char('='));
+            if (eq < 0 || line.left(eq).trimmed() != QStringLiteral("folders"))
+                continue;
+            inArray = true;
+            line = line.mid(eq + 1);
+        }
+        const bool closed = line.contains(QLatin1Char(']'));
         auto it = quoted.globalMatch(line);
         while (it.hasNext()) {
             QString path = it.next().captured(1);
@@ -23,6 +30,8 @@ QStringList parseFolders(const QByteArray &text)
                 path = QDir::homePath() + path.mid(1);
             out << QDir::cleanPath(path);
         }
+        if (closed)
+            inArray = false;
     }
     if (out.isEmpty())
         out << QDir::homePath() + QStringLiteral("/Music");

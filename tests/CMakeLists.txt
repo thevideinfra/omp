@@ -8,5 +8,4 @@ endfunction()
 
 oma_test(tst_paths)
 oma_test(tst_theme)
-
 oma_test(tst_config)

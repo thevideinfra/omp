@@ -6,13 +6,16 @@
 
 #include <QApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQmlContext>
+#include <QQuickWindow>
 #include <QQuickStyle>
 #include <QSocketNotifier>
 
 #include "config.h"
 #include "instance.h"
 #include "library.h"
+#include "lookscope.h"
 #include "paths.h"
 #include "player.h"
 #include "settings.h"
@@ -72,11 +75,18 @@ int main(int argc, char *argv[])
 
     installQuitSignals();
 
-    Theme theme;
+    Theme theme;        // the app's theme (accent from the app look)
+    Theme panelTheme;   // the tray panel's theme (accent from the panel look)
     Settings settings;
-    theme.setAccentChoice(settings.accent());
-    QObject::connect(&settings, &Settings::changed, &theme,
-                     [&settings, &theme] { theme.setAccentChoice(settings.accent()); });
+    LookScope appLook(&settings, false);
+    LookScope panelLook(&settings, true);
+    const auto syncAccents = [&] {
+        theme.setAccentChoice(settings.accent());
+        panelTheme.setAccentChoice(settings.panelAccent());
+    };
+    syncAccents();
+    QObject::connect(&settings, &Settings::changed, &theme, syncAccents);
+
     Player player;
     Library library(Config::folders(),
                     qEnvironmentVariable("OMAMUSIC_SCAN",
@@ -87,15 +97,29 @@ int main(int argc, char *argv[])
     Shell shell(engine, player);
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("theme", &theme);
-    ctx->setContextProperty("ui", &settings);
+    ctx->setContextProperty("ui", &appLook);
+    ctx->setContextProperty("panelLook", &panelLook);
     ctx->setContextProperty("player", &player);
     ctx->setContextProperty("library", &library);
     ctx->setContextProperty("shell", &shell);
 
     engine.loadFromModule("Omamusic", "Main");
-    engine.loadFromModule("Omamusic", "Panel");
-    if (engine.rootObjects().size() < 2)
+    if (engine.rootObjects().isEmpty())
         return 1;
+
+    // The panel gets its own look: in a child context `theme` and `ui` are the
+    // panel's, so every shared component renders with the panel's settings.
+    auto *panelCtx = new QQmlContext(ctx, &engine);
+    panelCtx->setContextProperty("theme", &panelTheme);
+    panelCtx->setContextProperty("ui", &panelLook);
+    QQmlComponent panelComponent(&engine, "Omamusic", "Panel");
+    QObject *panelObject = panelComponent.create(panelCtx);
+    if (!panelObject) {
+        std::fputs(qPrintable(panelComponent.errorString()), stderr);
+        return 1;
+    }
+    panelObject->setParent(&engine);
+    shell.setPanelWindow(qobject_cast<QQuickWindow *>(panelObject));
 
     QObject::connect(&instance, &Instance::verbReceived, &shell, &Shell::handleVerb);
     player.start();

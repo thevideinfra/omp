@@ -2,11 +2,12 @@
 
 #include <QMenu>
 #include <QObject>
+#include <QPointer>
+#include <QQuickWindow>
 #include <QSystemTrayIcon>
 
 class Player;
 class QQmlApplicationEngine;
-class QQuickWindow;
 
 class Shell : public QObject
 {
@@ -21,6 +22,8 @@ public:
     Q_INVOKABLE void togglePanel();
     Q_INVOKABLE void hidePanel();
     Q_INVOKABLE void quitApp();
+    Q_INVOKABLE void showSettings();
+    void setPanelWindow(QQuickWindow *panel) { m_panel = panel; }
 
 private:
     QQuickWindow *window(const QString &objectName) const;
@@ -29,4 +32,5 @@ private:
     Player &m_player;
     QSystemTrayIcon m_tray;
     QMenu m_menu;
+    QPointer<QQuickWindow> m_panel;
 };

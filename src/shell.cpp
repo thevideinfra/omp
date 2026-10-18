@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QIcon>
+#include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
@@ -33,6 +34,8 @@ Shell::Shell(QQmlApplicationEngine &engine, Player &player, QObject *parent)
 
 QQuickWindow *Shell::window(const QString &objectName) const
 {
+    if (objectName == QLatin1String("panelWindow"))
+        return m_panel;
     for (QObject *root : m_engine.rootObjects()) {
         if (root->objectName() == objectName)
             return qobject_cast<QQuickWindow *>(root);
@@ -78,9 +81,17 @@ void Shell::togglePanel()
     if (w->isVisible()) {
         w->hide();
     } else {
+        QMetaObject::invokeMethod(w, "freeze");   // fix the height before the window is mapped
         w->show();
         w->requestActivate();
     }
+}
+
+void Shell::showSettings()
+{
+    showMain();
+    if (QQuickWindow *w = window(QStringLiteral("mainWindow")))
+        QMetaObject::invokeMethod(w, "openSettings");
 }
 
 void Shell::hidePanel()

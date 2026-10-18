@@ -61,7 +61,7 @@ Panel: Esc hides the panel, Space play / pause.
 
 ## Hyprland panel rule
 
-Put this in your Hyprland Lua config (tested on Hyprland 0.56.2; places the panel top-right under the bar):
+Put this in your Hyprland Lua config (tested on Hyprland 0.56.2; opens the panel centered under the mouse cursor, i.e. under the tray icon you clicked, just below the bar):
 
 ```lua
 hl.window_rule({
@@ -69,7 +69,7 @@ hl.window_rule({
   match = { class = "^omamusic$", title = "^omamusic-panel$" },
   float = true,
   size = { 360, 540 },
-  move = { "(monitor_w-window_w-12)", 38 },
+  move = { "(cursor_x-window_w/2)", 38 },
 })
 ```
 

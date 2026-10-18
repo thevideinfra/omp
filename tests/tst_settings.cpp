@@ -162,6 +162,18 @@ private slots:
         s.set("density", "compact");
         s.save();
         QCOMPARE(s.density(), QString("compact"));
+
+        // the failed save keeps the key dirty, so a later save retries
+        QVERIFY(QFile::remove(dir.filePath("blocker")));
+        s.save();
+        QVERIFY(readFile(dir.filePath("blocker/sub/config.toml")).contains("density = \"compact\""));
+    }
+
+    void applyRewritesEveryDuplicateLine()
+    {
+        const QByteArray out = Settings::apply(
+            "density = \"normal\"\nx = 1\ndensity = \"comfortable\"\n", {{"density", "compact"}});
+        QCOMPARE(out, QByteArray("density = \"compact\"\nx = 1\ndensity = \"compact\"\n"));
     }
 };
 

@@ -149,7 +149,7 @@ QByteArray Settings::apply(const QByteArray &existing, const QVariantMap &update
     for (QByteArray &line : lines) {
         const QByteArray trimmed = line.trimmed();
         for (const Key &k : keys()) {
-            if (!updates.contains(k.prop) || done.contains(k.prop))
+            if (!updates.contains(k.prop))
                 continue;
             if (isKeyLine(trimmed, k.file)) {
                 line = formatLine(k, updates.value(k.prop));
@@ -231,7 +231,10 @@ void Settings::save()
     QVariantMap updates;
     for (const QString &prop : std::as_const(m_dirty))
         updates.insert(prop, m_values.value(prop));
+    const QSet<QString> pending = m_dirty;
     m_dirty.clear();
+    // A failed write leaves the keys dirty so the next save retries them.
+    auto fail = [&] { m_dirty.unite(pending); };
 
     QByteArray existing;
     QFile in(m_file);
@@ -240,14 +243,18 @@ void Settings::save()
 
     if (!QDir().mkpath(QFileInfo(m_file).absolutePath())) {
         qWarning() << "cannot create settings directory for" << m_file;
+        fail();
         return;
     }
     QSaveFile out(m_file);
     if (!out.open(QIODevice::WriteOnly)) {
         qWarning() << "cannot write settings" << m_file << out.errorString();
+        fail();
         return;
     }
     out.write(apply(existing, updates));
-    if (!out.commit())
+    if (!out.commit()) {
         qWarning() << "cannot write settings" << m_file << out.errorString();
+        fail();
+    }
 }

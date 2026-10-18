@@ -119,11 +119,11 @@ private slots:
         const QString f = dir.filePath("colors.toml");
         writeFile(f, "accent = \"#111111\"\n");
         {
-            Theme t(f);
+            Theme t(f, nullptr, QString());
             QCOMPARE(t.fontBase(), 12.0);   // no shell.toml
         }
         writeFile(dir.filePath("shell.toml"), "[bar]\ntext = \"#fff\"\n\n[font]\n# comment\nbase-size = 14\n");
-        Theme t(f);
+        Theme t(f, nullptr, QString());
         QCOMPARE(t.fontBase(), 14.0);
 
         writeFile(dir.filePath("shell.toml"), "[font]\nbase-size = 16\n");
@@ -131,6 +131,41 @@ private slots:
 
         writeFile(dir.filePath("shell.toml"), "[font]\nbase-size = 0\n");
         QTRY_COMPARE_WITH_TIMEOUT(t.fontBase(), 12.0, 3000);
+    }
+
+    void userShellFileOverridesThemeFontBase()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("colors.toml");
+        const QString user = dir.filePath("user/shell.toml");
+        QDir().mkpath(dir.filePath("user"));
+        writeFile(f, "accent = \"#111111\"\n");
+        writeFile(dir.filePath("shell.toml"), "[font]\nbase-size = 12\n");
+        writeFile(user, "[font]\nbase-size = 16\n");
+        Theme t(f, nullptr, user);
+        QCOMPARE(t.fontBase(), 16.0);
+
+        // user file without base-size, or invalid, falls back to the theme's
+        writeFile(user, "[font]\nfamily = \"x\"\n");
+        QTRY_COMPARE_WITH_TIMEOUT(t.fontBase(), 12.0, 3000);
+        writeFile(user, "[font]\nbase-size = 99\n");
+        QTest::qWait(300);
+        QCOMPARE(t.fontBase(), 12.0);
+        writeFile(user, "[font]\nbase-size = 14\n");
+        QTRY_COMPARE_WITH_TIMEOUT(t.fontBase(), 14.0, 3000);
+    }
+
+    void userShellFileCreatedLaterIsPickedUp()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("colors.toml");
+        const QString user = dir.filePath("user/shell.toml");
+        QDir().mkpath(dir.filePath("user"));
+        writeFile(f, "accent = \"#111111\"\n");
+        Theme t(f, nullptr, user);
+        QCOMPARE(t.fontBase(), 12.0);
+        writeFile(user, "[font]\nbase-size = 18\n");
+        QTRY_COMPARE_WITH_TIMEOUT(t.fontBase(), 18.0, 3000);
     }
 };
 

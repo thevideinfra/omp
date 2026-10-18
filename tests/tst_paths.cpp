@@ -14,6 +14,7 @@ private slots:
         QCOMPARE(Paths::configDir(), QString("/tmp/oma-config/omamusic"));
         QCOMPARE(Paths::omarchyThemeFile(),
                  QString("/tmp/oma-state/omarchy/current/theme/colors.toml"));
+        QCOMPARE(Paths::omarchyUserShellFile(), QString("/tmp/oma-config/omarchy/shell.toml"));
     }
 
     void runtimeDirIsCreated()

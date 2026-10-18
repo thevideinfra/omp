@@ -34,6 +34,11 @@ QString runtimeDir()
     return dir;
 }
 
+QString omarchyUserShellFile()
+{
+    return xdg("XDG_CONFIG_HOME", ".config") + QStringLiteral("/omarchy/shell.toml");
+}
+
 QString omarchyThemeFile()
 {
     return xdg("XDG_STATE_HOME", ".local/state")

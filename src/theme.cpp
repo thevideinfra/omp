@@ -46,9 +46,10 @@ const QHash<QString, QString> &keyMap()
 
 }
 
-Theme::Theme(const QString &file, QObject *parent)
+Theme::Theme(const QString &file, QObject *parent, const QString &userShellFile)
     : QObject(parent)
     , m_file(file)
+    , m_userShellFile(userShellFile)
     , m_colors(fallback())
 {
     m_debounce.setSingleShot(true);
@@ -107,11 +108,18 @@ void Theme::reload()
                 palette[name] = c;
         }
     }
-    QFile shell(shellFileFor(m_file));
-    if (shell.open(QIODevice::ReadOnly)) {
+    // The user's shell.toml wins over the theme's when it has a valid base-size.
+    for (const QString &path : {m_userShellFile, shellFileFor(m_file)}) {
+        if (path.isEmpty())
+            continue;
+        QFile shell(path);
+        if (!shell.open(QIODevice::ReadOnly))
+            continue;
         const double base = parse(shell.readAll()).value("base-size").toDouble();
-        if (base >= 6 && base <= 48)
+        if (base >= 6 && base <= 48) {
             fontBase = base;
+            break;
+        }
     }
 
     if (next != m_colors || palette != m_palette || fontBase != m_fontBase) {
@@ -128,7 +136,9 @@ void Theme::rewatch()
 {
     const QFileInfo info(m_file);
     const QString dir = info.absolutePath();
-    const QStringList wanted{m_file, shellFileFor(m_file), dir, QFileInfo(dir).absolutePath()};
+    QStringList wanted{m_file, shellFileFor(m_file), dir, QFileInfo(dir).absolutePath()};
+    if (!m_userShellFile.isEmpty())
+        wanted << m_userShellFile << QFileInfo(m_userShellFile).absolutePath();
     QStringList existing;
     for (const QString &p : wanted) {
         if (QFileInfo::exists(p))

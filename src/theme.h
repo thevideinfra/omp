@@ -7,6 +7,8 @@
 #include <QStringList>
 #include <QTimer>
 
+#include "paths.h"
+
 class Theme : public QObject
 {
     Q_OBJECT
@@ -24,7 +26,10 @@ class Theme : public QObject
     Q_PROPERTY(double fontBase READ fontBase NOTIFY changed)
 
 public:
-    explicit Theme(const QString &file = defaultPath(), QObject *parent = nullptr);
+    // userShellFile is the user's shell.toml override (wins over the theme's);
+    // pass an empty string to ignore it.
+    explicit Theme(const QString &file = defaultPath(), QObject *parent = nullptr,
+                   const QString &userShellFile = Paths::omarchyUserShellFile());
 
     static QString defaultPath();
     static QHash<QString, QString> parse(const QByteArray &text);
@@ -52,6 +57,7 @@ private:
     void rewatch();
 
     QString m_file;
+    QString m_userShellFile;
     QHash<QString, QColor> m_colors;
     QHash<QString, QColor> m_palette;   // blue, cyan, ... defined by the current theme
     QString m_accentChoice = QStringLiteral("theme");

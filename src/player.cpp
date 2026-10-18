@@ -2,6 +2,9 @@
 
 #include <QFile>
 
+#include <csignal>
+#include <sys/prctl.h>
+
 #include "paths.h"
 #include "track.h"
 
@@ -61,6 +64,8 @@ void Player::start()
                      "--replaygain=album",
                      "--input-ipc-server=" + m_socketPath};
     args += m_extraArgs;
+    // Have the kernel stop mpv if we die without running destructors.
+    m_proc.setChildProcessModifier([] { ::prctl(PR_SET_PDEATHSIG, SIGTERM); });
     m_proc.start(m_program, args);
     m_retry.start();
 }

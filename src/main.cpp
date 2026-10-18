@@ -1,9 +1,14 @@
+#include <csignal>
 #include <cstdio>
+
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QSocketNotifier>
 
 #include "config.h"
 #include "instance.h"
@@ -12,6 +17,36 @@
 #include "player.h"
 #include "shell.h"
 #include "theme.h"
+
+namespace {
+int g_signalFd[2] = {-1, -1};
+
+void onSignal(int)
+{
+    const char b = 1;
+    [[maybe_unused]] const ssize_t n = ::write(g_signalFd[0], &b, 1);
+}
+
+// Turns SIGTERM/SIGINT into QCoreApplication::quit() so destructors (and the
+// mpv shutdown in ~Player) run.
+void installQuitSignals()
+{
+    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, g_signalFd) != 0)
+        return;
+    auto *notifier = new QSocketNotifier(g_signalFd[1], QSocketNotifier::Read, qApp);
+    QObject::connect(notifier, &QSocketNotifier::activated, qApp, [] {
+        char b;
+        [[maybe_unused]] const ssize_t n = ::read(g_signalFd[1], &b, 1);
+        QCoreApplication::quit();
+    });
+    struct sigaction sa {};
+    sa.sa_handler = onSignal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    ::sigaction(SIGTERM, &sa, nullptr);
+    ::sigaction(SIGINT, &sa, nullptr);
+}
+}
 
 int main(int argc, char *argv[])
 {
@@ -33,6 +68,8 @@ int main(int argc, char *argv[])
         return 0;
     if (!instance.listening())
         std::fputs("omamusic: single-instance socket unavailable; later launches will not be forwarded\n", stderr);
+
+    installQuitSignals();
 
     Theme theme;
     Player player;

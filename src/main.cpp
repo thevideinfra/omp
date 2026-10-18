@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
     QQmlComponent panelComponent(&engine, "Omamusic", "Panel");
     QObject *panelObject = panelComponent.create(panelCtx);
     if (!panelObject) {
-        std::fputs(qPrintable(panelComponent.errorString()), stderr);
+        std::fprintf(stderr, "omamusic: panel failed to load:\n%s\n", qPrintable(panelComponent.errorString()));
         return 1;
     }
     panelObject->setParent(&engine);

@@ -45,6 +45,7 @@ ApplicationWindow {
         case Qt.Key_Return:
         case Qt.Key_Enter: currentList().activate(); break
         case Qt.Key_A: currentList().enqueue(); break
+        case Qt.Key_R: library.rescan(); break
         case Qt.Key_Backspace:
             if (win.tab === 2 && !win.searching)
                 library.up()
@@ -215,6 +216,20 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 84
                 color: theme.sunken
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.rightMargin: 10
+                    anchors.topMargin: 2
+                    font.pixelSize: 11
+                    color: theme.dimForeground
+                    elide: Text.ElideRight
+                    width: parent.width - 20
+                    horizontalAlignment: Text.AlignRight
+                    text: player.error !== "" ? player.error
+                          : library.scanning ? qsTr("Scanning…") : ""
+                }
 
                 RowLayout {
                     anchors.fill: parent

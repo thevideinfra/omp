@@ -47,6 +47,7 @@ Main window:
 | j / k, Down / Up | move selection |
 | Enter | play selection |
 | a | add selection to queue |
+| r | rescan the library |
 | Backspace | up one folder (Folders tab) |
 | Esc | clear search |
 

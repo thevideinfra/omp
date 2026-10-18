@@ -4,7 +4,7 @@ A Qt 6 music player for Omarchy. It browses local folders by album, artist, fold
 
 ## Dependencies
 
-Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`.
+Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `qt6-svg` (tray icon), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`.
 
 ## Build
 

@@ -9,7 +9,16 @@ Window {
     title: "omamusic-panel"
     flags: Qt.Tool | Qt.FramelessWindowHint
     width: 360
-    height: Math.max(120, Math.min(680, col.implicitHeight + S.sp(32)))
+    // The body (player sections / settings form) is clipped to what is left
+    // above the pinned footer, so the footer and its gear never leave the window.
+    readonly property int margin: S.sp(16)
+    readonly property int gap: S.sp(10)
+    readonly property int footerHeight: S.sp(34)
+    readonly property int maxHeight: Math.min(680, (panel.screen ? panel.screen.height : 1080) - 80)
+    readonly property int bodyImplicitHeight: editing ? Math.min(S.sp(440), form.implicitHeight)
+                                                      : col.implicitHeight
+    height: Math.max(120, Math.min(maxHeight,
+                bodyImplicitHeight + gap + footerHeight + 2 * margin))
     visible: false
     color: theme.background
 
@@ -40,17 +49,20 @@ Window {
             border.width: 1
         }
 
-        ColumnLayout {
-            id: col
-            x: S.sp(16)
-            y: S.sp(16)
-            width: parent.width - S.sp(32)
-            spacing: S.sp(10)
+        Item {
+            id: body
+            objectName: "panelBody"
+            x: panel.margin
+            y: panel.margin
+            width: parent.width - 2 * panel.margin
+            height: Math.max(0, panel.height - 2 * panel.margin - panel.gap - panel.footerHeight)
+            clip: true
 
             // player sections
             ColumnLayout {
+                id: col
                 visible: !panel.editing
-                Layout.fillWidth: true
+                width: parent.width
                 spacing: S.sp(10)
 
                 Rectangle {
@@ -141,51 +153,54 @@ Window {
 
             // settings view
             SettingsForm {
+                id: form
                 visible: panel.editing
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(S.sp(440), implicitHeight)
+                anchors.fill: parent
             }
+        }
 
-            // footer
-            RowLayout {
+        // footer
+        RowLayout {
+            objectName: "panelFooter"
+            x: panel.margin
+            y: parent.height - panel.margin - panel.footerHeight
+            width: parent.width - 2 * panel.margin
+            spacing: S.sp(8)
+
+            Rectangle {
                 Layout.fillWidth: true
-                spacing: S.sp(8)
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: S.sp(34)
-                    radius: S.sp(6)
-                    color: mainArea.containsMouse ? theme.selection : theme.surface
-                    UiText { anchors.centerIn: parent; text: panel.editing ? qsTr("Done") : qsTr("Open omamusic") }
-                    MouseArea {
-                        id: mainArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            if (panel.editing) {
-                                panel.editing = false
-                            } else {
-                                shell.showMain()
-                                shell.hidePanel()
-                            }
+                Layout.preferredHeight: panel.footerHeight
+                radius: S.sp(6)
+                color: mainArea.containsMouse ? theme.selection : theme.surface
+                UiText { anchors.centerIn: parent; text: panel.editing ? qsTr("Done") : qsTr("Open omamusic") }
+                MouseArea {
+                    id: mainArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        if (panel.editing) {
+                            panel.editing = false
+                        } else {
+                            shell.showMain()
+                            shell.hidePanel()
                         }
                     }
                 }
+            }
 
-                Rectangle {
-                    Layout.preferredWidth: S.sp(34)
-                    Layout.preferredHeight: S.sp(34)
-                    radius: S.sp(6)
-                    color: panel.editing ? theme.selection : (gearArea.containsMouse ? theme.selection : theme.surface)
-                    border.color: panel.editing ? theme.accent : "transparent"
-                    border.width: 1
-                    UiText { anchors.centerIn: parent; text: "⚙"; px: 16 }
-                    MouseArea {
-                        id: gearArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: panel.editing = !panel.editing
-                    }
+            Rectangle {
+                Layout.preferredWidth: panel.footerHeight
+                Layout.preferredHeight: panel.footerHeight
+                radius: S.sp(6)
+                color: panel.editing ? theme.selection : (gearArea.containsMouse ? theme.selection : theme.surface)
+                border.color: panel.editing ? theme.accent : "transparent"
+                border.width: 1
+                UiText { anchors.centerIn: parent; text: "⚙"; px: 16 }
+                MouseArea {
+                    id: gearArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: panel.editing = !panel.editing
                 }
             }
         }

@@ -28,7 +28,7 @@ ListView {
         required property string cover
 
         width: ListView.view.width
-        height: S.sp(52)
+        height: Math.max(S.sp(52), textColumn.implicitHeight + S.sp(8))
         color: ListView.isCurrentItem ? theme.selection : "transparent"
 
         Image {
@@ -45,6 +45,7 @@ ListView {
         }
 
         Column {
+            id: textColumn
             anchors {
                 left: art.right
                 leftMargin: S.sp(10)

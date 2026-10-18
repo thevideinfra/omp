@@ -35,7 +35,9 @@ One-line or multi-line arrays both work. Defaults to `~/Music` when unset.
 
 ## Settings
 
-The Settings tab (last in the Tab cycle) and the gear in the tray panel both edit the appearance and panel options. Changes apply live and are saved to `~/.config/omamusic/config.toml`. Only the keys below are written; `folders` is left untouched. Managed keys must be plain `key = "value"` lines with no trailing comments. The font family applies to the app's text, not the tray menu.
+The Settings tab (last in the Tab cycle) edits the appearance and panel options. It has two sections: **App** (the main window) and **Tray panel**. Each has its own density, font size, font and accent. The Tray panel section also has the section toggles and the up-next count. The gear at the top right of the tray panel opens this tab. Changes apply live and are saved to `~/.config/omamusic/config.toml`. Only the keys below are written; `folders` is left untouched. Managed keys must be plain `key = "value"` lines with no trailing comments. The font family applies to the app's text, not the tray menu.
+
+Tray panel changes show the next time the panel opens, because Hyprland does not let a floating window resize itself while it is open.
 
 | Key | Values | Default |
 |---|---|---|
@@ -43,13 +45,17 @@ The Settings tab (last in the Tab cycle) and the gear in the tray panel both edi
 | `font_size` | `small`, `normal`, `large` | `normal` |
 | `font_family` | any installed family | system default (empty) |
 | `accent` | `theme` or a palette colour name | `theme` |
+| `panel_density` | `compact`, `normal`, `comfortable` | `normal` |
+| `panel_font_size` | `small`, `normal`, `large` | `normal` |
+| `panel_font_family` | any installed family | system default (empty) |
+| `panel_accent` | `theme` or a palette colour name | `theme` |
 | `panel_cover` | `true` / `false` | `true` |
 | `panel_seek` | `true` / `false` | `true` |
 | `panel_volume` | `true` / `false` | `true` |
 | `panel_up_next` | `true` / `false` | `true` |
 | `panel_up_next_count` | `0`-`10` | `4` |
 
-The font base size comes from the Omarchy shell's `[font] base-size`: your `~/.config/omarchy/shell.toml` wins, otherwise the theme's `shell.toml` next to the colours file. The panel's sections are toggled in the gear view; the panel sizes itself to its content.
+The font base size comes from the Omarchy shell's `[font] base-size`: your `~/.config/omarchy/shell.toml` wins, otherwise the theme's `shell.toml` next to the colours file. The panel's sections are toggled in the Tray panel section of the Settings tab. The panel sizes itself to its content when it opens; the volume row shows the volume percentage.
 
 ## Keys
 

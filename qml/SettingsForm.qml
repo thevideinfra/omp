@@ -73,7 +73,9 @@ Flickable {
             }
         }
         UiText {
-            text: ui.accent === "theme" ? qsTr("Accent: theme") : qsTr("Accent: %1").arg(ui.accent)
+            text: ui.accent === "theme" ? qsTr("Accent: theme")
+                  : theme.accentChoices.indexOf(ui.accent) >= 0 ? qsTr("Accent: %1").arg(ui.accent)
+                  : qsTr("Accent: %1 (not in this theme)").arg(ui.accent)
             color: theme.dimForeground
             px: 12
         }

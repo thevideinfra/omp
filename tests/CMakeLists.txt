@@ -7,3 +7,4 @@ function(oma_test name)
 endfunction()
 
 oma_test(tst_paths)
+oma_test(tst_theme)

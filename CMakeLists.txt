@@ -11,6 +11,7 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_library(omacore STATIC
     src/paths.cpp src/paths.h
+    src/theme.cpp src/theme.h
 )
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network)

@@ -2,10 +2,22 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QStringList>
 
 #include "paths.h"
 
 namespace {
+
+const QStringList &accentNames()
+{
+    static const QStringList names{"blue", "cyan", "green", "magenta", "yellow", "red", "orange"};
+    return names;
+}
+
+QString shellFileFor(const QString &colorsFile)
+{
+    return QFileInfo(colorsFile).absolutePath() + QStringLiteral("/shell.toml");
+}
 
 const QHash<QString, QColor> &fallback()
 {
@@ -78,6 +90,9 @@ QHash<QString, QString> Theme::parse(const QByteArray &text)
 void Theme::reload()
 {
     QHash<QString, QColor> next = fallback();
+    QHash<QString, QColor> palette;
+    double fontBase = 12;
+
     QFile f(m_file);
     if (f.open(QIODevice::ReadOnly)) {
         const auto kv = parse(f.readAll());
@@ -86,9 +101,23 @@ void Theme::reload()
             if (c.isValid())
                 next[it.value()] = c;
         }
+        for (const QString &name : accentNames()) {
+            const QColor c(kv.value(name));
+            if (c.isValid())
+                palette[name] = c;
+        }
     }
-    if (next != m_colors) {
+    QFile shell(shellFileFor(m_file));
+    if (shell.open(QIODevice::ReadOnly)) {
+        const double base = parse(shell.readAll()).value("base-size").toDouble();
+        if (base >= 6 && base <= 48)
+            fontBase = base;
+    }
+
+    if (next != m_colors || palette != m_palette || fontBase != m_fontBase) {
         m_colors = next;
+        m_palette = palette;
+        m_fontBase = fontBase;
         emit changed();
     }
 }
@@ -99,11 +128,47 @@ void Theme::rewatch()
 {
     const QFileInfo info(m_file);
     const QString dir = info.absolutePath();
-    const QStringList wanted{m_file, dir, QFileInfo(dir).absolutePath()};
+    const QStringList wanted{m_file, shellFileFor(m_file), dir, QFileInfo(dir).absolutePath()};
     QStringList existing;
     for (const QString &p : wanted) {
         if (QFileInfo::exists(p))
             existing << p;
     }
     m_watcher.addPaths(existing);
+}
+
+QColor Theme::accent() const
+{
+    if (m_accentChoice != QLatin1String("theme")) {
+        const QColor c = m_palette.value(m_accentChoice);
+        if (c.isValid())
+            return c;
+    }
+    return m_colors.value("accent");
+}
+
+QStringList Theme::accentChoices() const
+{
+    QStringList out{QStringLiteral("theme")};
+    for (const QString &name : accentNames()) {
+        if (m_palette.contains(name))
+            out << name;
+    }
+    return out;
+}
+
+QColor Theme::paletteColor(const QString &name) const
+{
+    if (name == QLatin1String("theme"))
+        return m_colors.value("accent");
+    return m_palette.value(name);
+}
+
+void Theme::setAccentChoice(const QString &name)
+{
+    const QString next = name.isEmpty() ? QStringLiteral("theme") : name;
+    if (next == m_accentChoice)
+        return;
+    m_accentChoice = next;
+    emit changed();
 }

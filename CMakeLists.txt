@@ -48,6 +48,7 @@ qt_add_qml_module(omamusic
         qml/Stepper.qml
         qml/FontPicker.qml
         qml/SettingsForm.qml
+        qml/LookForm.qml
 )
 
 qt_add_resources(omamusic icons

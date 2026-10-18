@@ -9,20 +9,24 @@ Window {
     title: "omamusic-panel"
     flags: Qt.Tool | Qt.FramelessWindowHint
     width: 360
-    // The body (player sections / settings form) is clipped to what is left
-    // above the pinned footer, so the footer and its gear never leave the window.
+
+    // Hyprland ignores a floating window's own resizes after it is mapped, so
+    // the height is fixed by freeze() just before the panel is shown and stays
+    // put while it is open; anything that does not fit is clipped above the
+    // pinned footer.
     readonly property int margin: S.sp(16)
     readonly property int gap: S.sp(10)
     readonly property int footerHeight: S.sp(34)
+    readonly property int headerHeight: S.sp(30)
     readonly property int maxHeight: Math.min(680, (panel.screen ? panel.screen.height : 1080) - 80)
-    readonly property int bodyImplicitHeight: editing ? Math.min(S.sp(440), form.implicitHeight)
-                                                      : col.implicitHeight
-    height: Math.max(120, Math.min(maxHeight,
-                bodyImplicitHeight + gap + footerHeight + 2 * margin))
+    readonly property int wantedHeight: Math.max(120, Math.min(maxHeight,
+        headerHeight + gap + col.implicitHeight + gap + footerHeight + 2 * margin))
+    property int frozenHeight: 0
+    height: frozenHeight > 0 ? frozenHeight : wantedHeight
+    function freeze() { frozenHeight = wantedHeight }
+
     visible: false
     color: theme.background
-
-    property bool editing: false
 
     // Close on focus loss, but only after the window has been active once.
     property bool wasActive: false
@@ -34,12 +38,12 @@ Window {
             visible = false
         }
     }
-    onVisibleChanged: if (!visible) editing = false
+    onVisibleChanged: if (!visible) frozenHeight = 0
 
     Item {
         anchors.fill: parent
         focus: true
-        Keys.onEscapePressed: { if (panel.editing) panel.editing = false; else panel.visible = false }
+        Keys.onEscapePressed: panel.visible = false
         Keys.onSpacePressed: player.togglePause()
 
         Rectangle {
@@ -49,19 +53,43 @@ Window {
             border.width: 1
         }
 
+        // header: the settings gear, top right
+        Item {
+            id: header
+            x: panel.margin
+            y: panel.margin
+            width: parent.width - 2 * panel.margin
+            height: panel.headerHeight
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: panel.headerHeight
+                height: panel.headerHeight
+                radius: S.sp(6)
+                color: gearArea.containsMouse ? theme.selection : theme.surface
+                UiText { anchors.centerIn: parent; text: "⚙"; px: 16 }
+                MouseArea {
+                    id: gearArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: { shell.showSettings(); shell.hidePanel() }
+                }
+            }
+        }
+
         Item {
             id: body
             objectName: "panelBody"
             x: panel.margin
-            y: panel.margin
+            y: panel.margin + panel.headerHeight + panel.gap
             width: parent.width - 2 * panel.margin
-            height: Math.max(0, panel.height - 2 * panel.margin - panel.gap - panel.footerHeight)
+            height: Math.max(0, panel.height - y - panel.gap - panel.footerHeight - panel.margin)
             clip: true
 
-            // player sections
             ColumnLayout {
                 id: col
-                visible: !panel.editing
                 width: parent.width
                 spacing: S.sp(10)
 
@@ -126,6 +154,13 @@ Window {
                         value: player.volume / 100
                         onSeeked: (f) => player.volume = Math.round(f * 100)
                     }
+                    UiText {
+                        Layout.preferredWidth: S.sp(40)
+                        horizontalAlignment: Text.AlignRight
+                        text: player.volume + "%"
+                        color: theme.dimForeground
+                        px: 12
+                    }
                 }
 
                 UiText {
@@ -144,64 +179,28 @@ Window {
                                                          && index <= player.currentIndex + ui.panelUpNextCount
                         visible: upcoming
                         Layout.fillWidth: true
-                        Layout.preferredHeight: upcoming ? implicitHeight : 0
                         text: title + "  ·  " + subtitle
                         elide: Text.ElideRight
                     }
                 }
             }
-
-            // settings view
-            SettingsForm {
-                id: form
-                visible: panel.editing
-                anchors.fill: parent
-            }
         }
 
         // footer
-        RowLayout {
+        Rectangle {
             objectName: "panelFooter"
             x: panel.margin
             y: parent.height - panel.margin - panel.footerHeight
             width: parent.width - 2 * panel.margin
-            spacing: S.sp(8)
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: panel.footerHeight
-                radius: S.sp(6)
-                color: mainArea.containsMouse ? theme.selection : theme.surface
-                UiText { anchors.centerIn: parent; text: panel.editing ? qsTr("Done") : qsTr("Open omamusic") }
-                MouseArea {
-                    id: mainArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        if (panel.editing) {
-                            panel.editing = false
-                        } else {
-                            shell.showMain()
-                            shell.hidePanel()
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.preferredWidth: panel.footerHeight
-                Layout.preferredHeight: panel.footerHeight
-                radius: S.sp(6)
-                color: panel.editing ? theme.selection : (gearArea.containsMouse ? theme.selection : theme.surface)
-                border.color: panel.editing ? theme.accent : "transparent"
-                border.width: 1
-                UiText { anchors.centerIn: parent; text: "⚙"; px: 16 }
-                MouseArea {
-                    id: gearArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: panel.editing = !panel.editing
-                }
+            height: panel.footerHeight
+            radius: S.sp(6)
+            color: mainArea.containsMouse ? theme.selection : theme.surface
+            UiText { anchors.centerIn: parent; text: qsTr("Open omamusic") }
+            MouseArea {
+                id: mainArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: { shell.showMain(); shell.hidePanel() }
             }
         }
     }

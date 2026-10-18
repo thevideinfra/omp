@@ -25,6 +25,13 @@ ApplicationWindow {
         return stack.children[stack.currentIndex]
     }
 
+    // Called by Shell::showSettings() (the panel's gear).
+    function openSettings() {
+        win.tab = tabNames.indexOf("Settings")
+        searchField.text = ""
+        keyRoot.forceActiveFocus()
+    }
+
     function handleKey(e) {
         if (e.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) {
             e.accepted = false
@@ -294,12 +301,19 @@ ApplicationWindow {
                     }
 
                     RowLayout {
-                        Layout.preferredWidth: S.sp(150)
+                        Layout.preferredWidth: S.sp(200)
                         UiText { text: qsTr("vol"); color: theme.dimForeground; px: 12 }
                         SeekBar {
                             Layout.fillWidth: true
                             value: player.volume / 100
                             onSeeked: (f) => { player.volume = Math.round(f * 100); keyRoot.forceActiveFocus() }
+                        }
+                        UiText {
+                            Layout.preferredWidth: S.sp(40)
+                            horizontalAlignment: Text.AlignRight
+                            text: player.volume + "%"
+                            color: theme.dimForeground
+                            px: 12
                         }
                     }
                 }

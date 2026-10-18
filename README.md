@@ -35,7 +35,7 @@ One-line or multi-line arrays both work. Defaults to `~/Music` when unset.
 
 ## Settings
 
-The Settings tab (last in the Tab cycle) and the gear in the tray panel both edit the appearance and panel options. Changes apply live and are saved to `~/.config/omamusic/config.toml`. Only the keys below are written; `folders` is left untouched.
+The Settings tab (last in the Tab cycle) and the gear in the tray panel both edit the appearance and panel options. Changes apply live and are saved to `~/.config/omamusic/config.toml`. Only the keys below are written; `folders` is left untouched. Managed keys must be plain `key = "value"` lines with no trailing comments. The font family applies to the app's text, not the tray menu.
 
 | Key | Values | Default |
 |---|---|---|
@@ -49,7 +49,7 @@ The Settings tab (last in the Tab cycle) and the gear in the tray panel both edi
 | `panel_up_next` | `true` / `false` | `true` |
 | `panel_up_next_count` | `0`-`10` | `4` |
 
-The font base size comes from the Omarchy shell's `[font] base-size` in `shell.toml`, next to the colours file. The panel's sections are toggled in the gear view; the panel sizes itself to its content.
+The font base size comes from the Omarchy shell's `[font] base-size`: your `~/.config/omarchy/shell.toml` wins, otherwise the theme's `shell.toml` next to the colours file. The panel's sections are toggled in the gear view; the panel sizes itself to its content.
 
 ## Keys
 

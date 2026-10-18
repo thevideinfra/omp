@@ -110,6 +110,15 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     });
 }
 
+Library::~Library()
+{
+    m_scan.disconnect(this);
+    if (m_scan.state() != QProcess::NotRunning) {
+        m_scan.kill();
+        m_scan.waitForFinished(1000);
+    }
+}
+
 void Library::start()
 {
     loadCache();

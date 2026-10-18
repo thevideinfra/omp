@@ -23,6 +23,7 @@ class Library : public QObject
 public:
     Library(const QStringList &roots, const QString &scanProgram, const QString &cacheFile,
             QObject *parent = nullptr);
+    ~Library() override;
 
     void setTracks(QVector<Track> tracks);
     void start();

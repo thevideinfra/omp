@@ -170,6 +170,32 @@ private slots:
         QCOMPARE(lib.trackCount(), 4);
         QVERIFY(!lib.scanning());
     }
+
+    void destroyedWhileScanningKillsScanner()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString script = dir.filePath("slowscan");
+        const QString pidFile = dir.filePath("pid");
+        QFile f(script);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(QStringLiteral("#!/bin/sh\necho $$ > '%1'\nexec sleep 30\n").arg(pidFile).toUtf8());
+        f.close();
+        f.setPermissions(f.permissions() | QFileDevice::ExeOwner);
+
+        {
+            Library lib({dir.path()}, script, dir.filePath("cache"));
+            lib.rescan();
+            QTRY_VERIFY_WITH_TIMEOUT(QFileInfo(pidFile).size() > 0, 5000);
+            QVERIFY(lib.scanning());
+        }   // destructor must not crash
+
+        QFile pf(pidFile);
+        QVERIFY(pf.open(QIODevice::ReadOnly));
+        const qint64 pid = pf.readAll().trimmed().toLongLong();
+        QVERIFY(pid > 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(QStringLiteral("/proc/%1").arg(pid)), 3000);
+    }
 };
 
 QTEST_GUILESS_MAIN(TstLibrary)

@@ -1,5 +1,6 @@
 #include <QtTest>
 
+#include "lookscope.h"
 #include "settings.h"
 
 static void writeFile(const QString &path, const QByteArray &data)
@@ -174,6 +175,99 @@ private slots:
         const QByteArray out = Settings::apply(
             "density = \"normal\"\nx = 1\ndensity = \"comfortable\"\n", {{"density", "compact"}});
         QCOMPARE(out, QByteArray("density = \"compact\"\nx = 1\ndensity = \"compact\"\n"));
+    }
+
+    void panelLookKeysParseAndValidate()
+    {
+        const QVariantMap d = Settings::parse("");
+        QCOMPARE(d.value("panelDensity").toString(), QString("normal"));
+        QCOMPARE(d.value("panelFontSize").toString(), QString("normal"));
+        QCOMPARE(d.value("panelFontFamily").toString(), QString());
+        QCOMPARE(d.value("panelAccent").toString(), QString("theme"));
+
+        const QVariantMap m = Settings::parse(
+            "density = \"compact\"\npanel_density = \"comfortable\"\npanel_font_size = \"huge\"\n"
+            "panel_font_family = \"JetBrains Mono\"\npanel_accent = \"red\"\n");
+        QCOMPARE(m.value("density").toString(), QString("compact"));            // app unaffected
+        QCOMPARE(m.value("panelDensity").toString(), QString("comfortable"));
+        QCOMPARE(m.value("panelFontSize").toString(), QString("normal"));       // invalid -> default
+        QCOMPARE(m.value("panelFontFamily").toString(), QString("JetBrains Mono"));
+        QCOMPARE(m.value("panelAccent").toString(), QString("red"));
+    }
+
+    void applyKeepsAppAndPanelKeysApart()
+    {
+        const QByteArray in = "density = \"normal\"\nfont_size = \"normal\"\naccent = \"theme\"\n";
+        const QByteArray out = Settings::apply(in, {{"panelDensity", "compact"}, {"panelFontSize", "large"},
+                                                    {"panelAccent", "blue"}, {"density", "comfortable"}});
+        QCOMPARE(out, QByteArray("density = \"comfortable\"\nfont_size = \"normal\"\naccent = \"theme\"\n\n"
+                                 "# omamusic settings\npanel_density = \"compact\"\npanel_font_size = \"large\"\n"
+                                 "panel_accent = \"blue\"\n"));
+        // replacing an existing panel key in place must not touch the app key with a similar name
+        const QByteArray again = Settings::apply(out, {{"panelDensity", "normal"}});
+        QVERIFY(again.contains("density = \"comfortable\"\n"));
+        QVERIFY(again.contains("panel_density = \"normal\"\n"));
+    }
+
+    void settingsExposesPanelScales()
+    {
+        QTemporaryDir dir;
+        Settings s(dir.filePath("config.toml"));
+        QCOMPARE(s.panelDensityScale(), 1.0);
+        s.set("panelDensity", "compact");
+        s.set("panelFontSize", "large");
+        QCOMPARE(s.panelDensityScale(), 0.8);
+        QCOMPARE(s.panelFontScale(), 1.15);
+        QCOMPARE(s.densityScale(), 1.0);   // app scope independent
+        QCOMPARE(s.fontScale(), 1.0);
+    }
+
+    void lookScopeMapsToTheRightKeys()
+    {
+        QTemporaryDir dir;
+        Settings s(dir.filePath("config.toml"));
+        LookScope app(&s, false);
+        LookScope panel(&s, true);
+        QSignalSpy appSpy(&app, &LookScope::changed);
+        QSignalSpy panelSpy(&panel, &LookScope::changed);
+
+        panel.set("density", "compact");
+        QCOMPARE(s.panelDensity(), QString("compact"));
+        QCOMPARE(s.density(), QString("normal"));
+        QCOMPARE(panel.density(), QString("compact"));
+        QCOMPARE(panel.densityScale(), 0.8);
+        QCOMPARE(app.density(), QString("normal"));
+        QCOMPARE(app.densityScale(), 1.0);
+        QCOMPARE(panelSpy.count(), 1);
+        QCOMPARE(appSpy.count(), 1);   // both scopes re-evaluate on any Settings change
+
+        app.set("accent", "blue");
+        QCOMPARE(s.accent(), QString("blue"));
+        QCOMPARE(s.panelAccent(), QString("theme"));
+        QCOMPARE(app.accent(), QString("blue"));
+        QCOMPARE(panel.accent(), QString("theme"));
+
+        app.set("fontSize", "small");
+        panel.set("fontFamily", "DejaVu Sans");
+        QCOMPARE(app.fontScale(), 0.9);
+        QCOMPARE(panel.fontScale(), 1.0);
+        QCOMPARE(app.fontFamily(), QString());
+        QCOMPARE(panel.fontFamily(), QString("DejaVu Sans"));
+    }
+
+    void lookScopeForwardsPanelOptions()
+    {
+        QTemporaryDir dir;
+        Settings s(dir.filePath("config.toml"));
+        LookScope app(&s, false);
+        LookScope panel(&s, true);
+        panel.set("panelCover", false);
+        panel.set("panelUpNextCount", 7);
+        QCOMPARE(s.panelCover(), false);
+        QCOMPARE(panel.panelCover(), false);
+        QCOMPARE(app.panelCover(), false);   // same underlying value
+        QCOMPARE(panel.panelUpNextCount(), 7);
+        // fontFamilies() needs a QGuiApplication (QFontDatabase); this suite is guiless, so it is not called here.
     }
 };
 

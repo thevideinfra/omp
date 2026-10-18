@@ -19,6 +19,12 @@ class Settings : public QObject
     Q_PROPERTY(int panelUpNextCount READ panelUpNextCount NOTIFY changed)
     Q_PROPERTY(double densityScale READ densityScale NOTIFY changed)
     Q_PROPERTY(double fontScale READ fontScale NOTIFY changed)
+    Q_PROPERTY(QString panelDensity READ panelDensity NOTIFY changed)
+    Q_PROPERTY(QString panelFontSize READ panelFontSize NOTIFY changed)
+    Q_PROPERTY(QString panelFontFamily READ panelFontFamily NOTIFY changed)
+    Q_PROPERTY(QString panelAccent READ panelAccent NOTIFY changed)
+    Q_PROPERTY(double panelDensityScale READ panelDensityScale NOTIFY changed)
+    Q_PROPERTY(double panelFontScale READ panelFontScale NOTIFY changed)
 
 public:
     explicit Settings(const QString &file = defaultPath(), QObject *parent = nullptr);
@@ -41,6 +47,12 @@ public:
     int panelUpNextCount() const { return m_values.value("panelUpNextCount").toInt(); }
     double densityScale() const { return densityScaleFor(density()); }
     double fontScale() const { return fontScaleFor(fontSize()); }
+    QString panelDensity() const { return m_values.value("panelDensity").toString(); }
+    QString panelFontSize() const { return m_values.value("panelFontSize").toString(); }
+    QString panelFontFamily() const { return m_values.value("panelFontFamily").toString(); }
+    QString panelAccent() const { return m_values.value("panelAccent").toString(); }
+    double panelDensityScale() const { return densityScaleFor(panelDensity()); }
+    double panelFontScale() const { return fontScaleFor(panelFontSize()); }
 
     Q_INVOKABLE void set(const QString &prop, const QVariant &value);
     Q_INVOKABLE QStringList fontFamilies() const;

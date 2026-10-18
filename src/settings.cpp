@@ -32,6 +32,10 @@ const QVector<Key> &keys()
         {"fontSize", "font_size", Type::Enum, QString("normal"), {"small", "normal", "large"}},
         {"fontFamily", "font_family", Type::String, QString(), {}},
         {"accent", "accent", Type::String, QString("theme"), {}},
+        {"panelDensity", "panel_density", Type::Enum, QString("normal"), {"compact", "normal", "comfortable"}},
+        {"panelFontSize", "panel_font_size", Type::Enum, QString("normal"), {"small", "normal", "large"}},
+        {"panelFontFamily", "panel_font_family", Type::String, QString(), {}},
+        {"panelAccent", "panel_accent", Type::String, QString("theme"), {}},
         {"panelCover", "panel_cover", Type::Bool, true, {}},
         {"panelSeek", "panel_seek", Type::Bool, true, {}},
         {"panelVolume", "panel_volume", Type::Bool, true, {}},
@@ -62,7 +66,7 @@ QVariant validated(const Key &k, const QVariant &v)
         const QString s = v.toString().trimmed();
         if (s.contains('"') || s.contains('\\') || s.contains('\n'))
             return {};
-        if (k.prop == QLatin1String("accent") && s.isEmpty())
+        if ((k.prop == QLatin1String("accent") || k.prop == QLatin1String("panelAccent")) && s.isEmpty())
             return {};
         return s;
     }

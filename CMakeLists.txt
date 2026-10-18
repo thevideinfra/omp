@@ -20,6 +20,7 @@ qt_add_library(omacore STATIC
     src/player.cpp src/player.h
     src/instance.cpp src/instance.h
     src/settings.cpp src/settings.h
+    src/lookscope.cpp src/lookscope.h
 )
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network)

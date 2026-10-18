@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import "Fmt.js" as Fmt
+import "Scale.js" as S
 
 ApplicationWindow {
     id: win
@@ -14,7 +15,7 @@ ApplicationWindow {
     visible: false
     color: theme.background
 
-    readonly property var tabNames: ["Albums", "Artists", "Folders", "Queue"]
+    readonly property var tabNames: ["Albums", "Artists", "Folders", "Queue", "Settings"]
     property int tab: 0
     readonly property bool searching: searchField.text.length > 0
 
@@ -37,7 +38,7 @@ ApplicationWindow {
         case Qt.Key_H: player.seekBy(-10); break
         case Qt.Key_L: player.seekBy(10); break
         case Qt.Key_Slash: searchField.forceActiveFocus(); break
-        case Qt.Key_Tab: win.tab = (win.tab + 1) % 4; searchField.text = ""; break
+        case Qt.Key_Tab: win.tab = (win.tab + 1) % win.tabNames.length; searchField.text = ""; break
         case Qt.Key_J:
         case Qt.Key_Down: currentList().move(1); break
         case Qt.Key_K:
@@ -73,25 +74,25 @@ ApplicationWindow {
                 // left rail
                 Rectangle {
                     Layout.fillHeight: true
-                    Layout.preferredWidth: 140
+                    Layout.preferredWidth: S.sp(140)
                     color: theme.sunken
 
                     Column {
                         anchors.fill: parent
-                        anchors.margins: 8
-                        spacing: 4
+                        anchors.margins: S.sp(8)
+                        spacing: S.sp(4)
                         Repeater {
                             model: win.tabNames
                             delegate: Rectangle {
                                 required property int index
                                 required property string modelData
                                 width: parent.width
-                                height: 36
-                                radius: 6
+                                height: S.sp(36)
+                                radius: S.sp(6)
                                 color: win.tab === index && !win.searching ? theme.selection : "transparent"
-                                Text {
+                                UiText {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    x: 10
+                                    x: S.sp(10)
                                     text: modelData
                                     color: win.tab === index ? theme.accent : theme.foreground
                                 }
@@ -112,8 +113,8 @@ ApplicationWindow {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Layout.margins: 8
-                        spacing: 8
+                        Layout.margins: S.sp(8)
+                        spacing: S.sp(8)
 
                         TextField {
                             id: searchField
@@ -122,7 +123,9 @@ ApplicationWindow {
                             color: theme.foreground
                             placeholderTextColor: theme.muted
                             selectByMouse: true
-                            background: Rectangle { radius: 6; color: theme.surface }
+                            font.pixelSize: S.fs(13)
+                            font.family: ui.fontFamily !== "" ? ui.fontFamily : Qt.application.font.family
+                            background: Rectangle { radius: S.sp(6); color: theme.surface }
                             onTextChanged: library.setQuery(text)
                             Keys.onEscapePressed: { text = ""; keyRoot.forceActiveFocus() }
                             Keys.onReturnPressed: keyRoot.forceActiveFocus()
@@ -130,21 +133,21 @@ ApplicationWindow {
 
                         Rectangle {
                             visible: win.tab === 2 && !win.searching
-                            Layout.preferredWidth: 60
+                            Layout.preferredWidth: S.sp(60)
                             Layout.preferredHeight: searchField.height
-                            radius: 6
+                            radius: S.sp(6)
                             color: upArea.containsMouse ? theme.selection : theme.surface
-                            Text { anchors.centerIn: parent; text: qsTr("Up"); color: theme.foreground }
+                            UiText { anchors.centerIn: parent; text: qsTr("Up") }
                             MouseArea { id: upArea; anchors.fill: parent; hoverEnabled: true; onClicked: { library.up(); keyRoot.forceActiveFocus() } }
                         }
 
                         Rectangle {
                             visible: win.tab === 3 && !win.searching
-                            Layout.preferredWidth: 110
+                            Layout.preferredWidth: S.sp(110)
                             Layout.preferredHeight: searchField.height
-                            radius: 6
+                            radius: S.sp(6)
                             color: clearArea.containsMouse ? theme.selection : theme.surface
-                            Text { anchors.centerIn: parent; text: qsTr("Clear queue"); color: theme.foreground }
+                            UiText { anchors.centerIn: parent; text: qsTr("Clear queue") }
                             MouseArea { id: clearArea; anchors.fill: parent; hoverEnabled: true; onClicked: { player.clearQueue(); keyRoot.forceActiveFocus() } }
                         }
                     }
@@ -153,7 +156,7 @@ ApplicationWindow {
                         id: stack
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        currentIndex: win.searching ? 4 : win.tab
+                        currentIndex: win.searching ? 5 : win.tab
 
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Albums
@@ -201,6 +204,8 @@ ApplicationWindow {
                             onActivated: (row) => player.jumpTo(row)
                         }
 
+                        SettingsForm { }   // Settings
+
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Search results
                             model: library.results
@@ -214,18 +219,18 @@ ApplicationWindow {
             // bottom playback bar
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 84
+                Layout.preferredHeight: S.sp(84)
                 color: theme.sunken
 
-                Text {
+                UiText {
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.rightMargin: 10
-                    anchors.topMargin: 2
-                    font.pixelSize: 11
+                    anchors.rightMargin: S.sp(10)
+                    anchors.topMargin: S.sp(2)
+                    px: 11
                     color: theme.dimForeground
                     elide: Text.ElideRight
-                    width: parent.width - 20
+                    width: parent.width - S.sp(20)
                     horizontalAlignment: Text.AlignRight
                     text: player.error !== "" ? player.error
                           : library.scanning ? qsTr("Scanning…") : ""
@@ -233,12 +238,12 @@ ApplicationWindow {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 14
+                    anchors.margins: S.sp(10)
+                    spacing: S.sp(14)
 
                     Rectangle {
-                        Layout.preferredWidth: 64
-                        Layout.preferredHeight: 64
+                        Layout.preferredWidth: S.sp(64)
+                        Layout.preferredHeight: S.sp(64)
                         color: theme.surface
                         Image {
                             anchors.fill: parent
@@ -251,15 +256,14 @@ ApplicationWindow {
                     }
 
                     Column {
-                        Layout.preferredWidth: 220
-                        Text {
+                        Layout.preferredWidth: S.sp(220)
+                        UiText {
                             width: parent.width
                             text: player.current.title ?? qsTr("Nothing playing")
-                            color: theme.foreground
                             font.bold: true
                             elide: Text.ElideRight
                         }
-                        Text {
+                        UiText {
                             width: parent.width
                             text: player.current.artist ?? ""
                             color: theme.dimForeground
@@ -269,29 +273,29 @@ ApplicationWindow {
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: S.sp(2)
                         Row {
                             Layout.alignment: Qt.AlignHCenter
-                            spacing: 8
+                            spacing: S.sp(8)
                             TransportButton { glyph: "◀◀"; onClicked: { player.previous(); keyRoot.forceActiveFocus() } }
                             TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: { player.togglePause(); keyRoot.forceActiveFocus() } }
                             TransportButton { glyph: "▶▶"; onClicked: { player.next(); keyRoot.forceActiveFocus() } }
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: Fmt.time(player.position); color: theme.dimForeground; font.pixelSize: 12 }
+                            UiText { text: Fmt.time(player.position); color: theme.dimForeground; px: 12 }
                             SeekBar {
                                 Layout.fillWidth: true
                                 value: player.duration > 0 ? player.position / player.duration : 0
                                 onSeeked: (f) => { player.seekTo(f * player.duration); keyRoot.forceActiveFocus() }
                             }
-                            Text { text: Fmt.time(player.duration); color: theme.dimForeground; font.pixelSize: 12 }
+                            UiText { text: Fmt.time(player.duration); color: theme.dimForeground; px: 12 }
                         }
                     }
 
                     RowLayout {
-                        Layout.preferredWidth: 150
-                        Text { text: qsTr("vol"); color: theme.dimForeground; font.pixelSize: 12 }
+                        Layout.preferredWidth: S.sp(150)
+                        UiText { text: qsTr("vol"); color: theme.dimForeground; px: 12 }
                         SeekBar {
                             Layout.fillWidth: true
                             value: player.volume / 100

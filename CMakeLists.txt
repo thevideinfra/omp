@@ -42,6 +42,11 @@ qt_add_qml_module(omamusic
         qml/Fmt.js
         qml/Scale.js
         qml/UiText.qml
+        qml/Segmented.qml
+        qml/ToggleRow.qml
+        qml/Stepper.qml
+        qml/FontPicker.qml
+        qml/SettingsForm.qml
 )
 
 qt_add_resources(omamusic icons

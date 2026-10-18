@@ -17,6 +17,7 @@ qt_add_library(omacore STATIC
     src/rowsmodel.cpp src/rowsmodel.h
     src/library.cpp src/library.h
     src/mpvclient.cpp src/mpvclient.h
+    src/player.cpp src/player.h
 )
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network)

@@ -2,11 +2,13 @@
 
 #include <algorithm>
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QMap>
 #include <QSaveFile>
+#include <QSet>
 #include <QUrl>
 
 namespace {
@@ -165,15 +167,21 @@ void Library::loadCache()
 
 void Library::writeCache() const
 {
-    QDir().mkpath(QFileInfo(m_cacheFile).absolutePath());
-    QSaveFile f(m_cacheFile);
-    if (!f.open(QIODevice::WriteOnly))
+    if (!QDir().mkpath(QFileInfo(m_cacheFile).absolutePath())) {
+        qWarning() << "cannot create index cache directory for" << m_cacheFile;
         return;
+    }
+    QSaveFile f(m_cacheFile);
+    if (!f.open(QIODevice::WriteOnly)) {
+        qWarning() << "cannot write index cache" << m_cacheFile << f.errorString();
+        return;
+    }
     for (const Track &t : m_tracks) {
         f.write(t.toJsonLine());
         f.write("\n");
     }
-    f.commit();
+    if (!f.commit())
+        qWarning() << "cannot write index cache (commit failed)" << m_cacheFile << f.errorString();
 }
 
 void Library::setTracks(QVector<Track> tracks)

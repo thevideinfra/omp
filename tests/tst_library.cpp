@@ -139,6 +139,28 @@ private slots:
         QCOMPARE(again.trackCount(), 2);  // loaded from cache, scanner failed to start
     }
 
+    void unwritableCacheWarns()
+    {
+        QTemporaryDir music;
+        QTemporaryDir state;
+        QProcess ff;
+        ff.start("ffmpeg", {"-v", "error", "-f", "lavfi", "-i", "sine=d=0.3",
+                            "-metadata", "artist=Amy", "-metadata", "album=Beta",
+                            music.filePath("one.flac")});
+        QVERIFY(ff.waitForFinished(10000));
+        QCOMPARE(ff.exitCode(), 0);
+        QFile blocker(state.filePath("blocker"));
+        QVERIFY(blocker.open(QIODevice::WriteOnly));
+        blocker.close();
+        const QString cache = state.filePath("blocker/sub/index.jsonl");
+
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression("cannot (create index cache|write index cache)"));
+        Library lib({music.path()}, OMA_SCAN_PROGRAM, cache);
+        lib.rescan();
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 1, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+    }
+
     void failedScanKeepsOldIndex()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

@@ -27,6 +27,7 @@ Flickable {
 
         UiText { text: qsTr("Density"); color: theme.dimForeground; px: 12 }
         Segmented {
+            Layout.fillWidth: true
             options: ["compact", "normal", "comfortable"]
             selected: ui.density
             onPicked: (v) => ui.set("density", v)
@@ -34,6 +35,7 @@ Flickable {
 
         UiText { text: qsTr("Font size"); color: theme.dimForeground; px: 12 }
         Segmented {
+            Layout.fillWidth: true
             options: ["small", "normal", "large"]
             selected: ui.fontSize
             onPicked: (v) => ui.set("fontSize", v)

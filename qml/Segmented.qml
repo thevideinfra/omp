@@ -1,7 +1,7 @@
 import QtQuick
 import "Scale.js" as S
 
-Row {
+Flow {
     id: root
     property var options: []
     property string selected: ""

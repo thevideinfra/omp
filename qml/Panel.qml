@@ -19,13 +19,14 @@ Window {
     readonly property int footerHeight: S.sp(34)
     readonly property int headerHeight: S.sp(30)
     readonly property int maxHeight: Math.min(680, (panel.screen ? panel.screen.height : 1080) - 80)
-    // Sum of the visible children, not col.implicitHeight: positioners (like
-    // layouts) only update that in polish, which a hidden window never runs, so
-    // it would be stale when freeze() reads it.
+    // Sum of the visible children rather than col.implicitHeight: a positioner
+    // only updates its own size when it is polished, which a hidden window never
+    // is, so freeze() would read a stale value. Text.implicitHeight is current
+    // even while hidden.
     readonly property real contentHeight: {
         let h = 0, n = 0
         for (const c of col.children) {
-            const ch = c.metricHeight !== undefined ? c.metricHeight : c.height
+            const ch = c.px !== undefined ? c.implicitHeight : c.height   // UiText or explicit
             if (c.visible && ch > 0) { h += ch; n++ }
         }
         return h + Math.max(0, n - 1) * col.spacing
@@ -99,6 +100,8 @@ Window {
             height: Math.max(0, panel.height - y - panel.gap - panel.footerHeight - panel.margin)
             clip: true
 
+            // Children must be UiText (single-line, elided) or have an explicit
+            // height that does not depend on polish.
             Column {
                 id: col
                 width: parent.width
@@ -139,7 +142,7 @@ Window {
                 Item {
                     visible: ui.panelSeek
                     width: col.width
-                    height: Math.max(seekPos.metricHeight, seekBar.implicitHeight, seekDur.metricHeight)
+                    height: Math.max(seekPos.implicitHeight, seekBar.implicitHeight, seekDur.implicitHeight)
                     UiText {
                         id: seekPos
                         anchors.left: parent.left
@@ -165,8 +168,8 @@ Window {
                 }
 
                 Row {
-                    // Explicit size: a positioner's own implicit size only
-                    // updates in polish (see contentHeight).
+                    // Explicit size: a positioner's own size only updates in
+                    // polish (see contentHeight).
                     x: (col.width - width) / 2
                     width: prevBtn.implicitWidth + playBtn.implicitWidth + nextBtn.implicitWidth + 2 * spacing
                     height: Math.max(prevBtn.implicitHeight, playBtn.implicitHeight, nextBtn.implicitHeight)
@@ -179,7 +182,7 @@ Window {
                 Item {
                     visible: ui.panelVolume
                     width: col.width
-                    height: Math.max(volLabel.metricHeight, volBar.implicitHeight, volPct.metricHeight)
+                    height: Math.max(volLabel.implicitHeight, volBar.implicitHeight, volPct.implicitHeight)
                     UiText {
                         id: volLabel
                         anchors.left: parent.left
@@ -214,17 +217,22 @@ Window {
                     color: theme.dimForeground
                     px: 12
                 }
+                // Only the upcoming rows get a delegate (at most 10), so a long
+                // queue costs nothing.
                 Repeater {
-                    model: ui.panelUpNext ? player.queue : null
+                    model: ui.panelUpNext
+                        ? Math.max(0, Math.min(10, ui.panelUpNextCount,
+                                               player.queue.count - player.currentIndex - 1))
+                        : 0
                     delegate: UiText {
                         required property int index
-                        required property string title
-                        required property string subtitle
-                        readonly property bool upcoming: index > player.currentIndex
-                                                         && index <= player.currentIndex + ui.panelUpNextCount
-                        visible: upcoming
+                        // get() is not tracked: read what changes when rows change.
+                        readonly property var row: {
+                            player.current; player.queue.count
+                            return player.queue.get(player.currentIndex + 1 + index)
+                        }
                         width: col.width
-                        text: title + "  ·  " + subtitle
+                        text: (row.title ?? "") + "  ·  " + (row.subtitle ?? "")
                         elide: Text.ElideRight
                     }
                 }

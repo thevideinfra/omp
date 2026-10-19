@@ -41,7 +41,12 @@ public:
             QObject *parent = nullptr);
     ~Library() override;
 
+    // The local songs (the scanned index).
     void setTracks(QVector<Track> tracks);
+    // The songs of a Subsonic server, listed beside the local ones; they never appear in the folder tree.
+    void setRemoteTracks(QVector<Track> tracks);
+    void loadRemoteCache();
+    void writeRemoteCache() const;
     void start();
     // Replaces the music folders and rescans (after the running scan, if any).
     void setRoots(const QStringList &roots);
@@ -110,6 +115,8 @@ private:
     bool isOnline(const QString &path) const;
     void finishScan();
     void rebuildSongs();
+    void combine();
+    QString remoteCacheFile() const;
     void rebuildAlbums();
     void rebuildArtists();
     QString coverCacheDir() const;
@@ -122,7 +129,9 @@ private:
     QString m_scanProgram;
     QString m_cacheFile;
 
-    QVector<Track> m_tracks;
+    QVector<Track> m_local;    // scanned from the music folders
+    QVector<Track> m_remote;   // from a Subsonic server
+    QVector<Track> m_tracks;   // both, what the lists are built from
     QHash<QString, QVector<Track>> m_byAlbum;    // album key -> tracks
     QHash<QString, Track> m_byPath;
     QHash<QString, QVector<Track>> m_byArtist;   // album artist -> tracks

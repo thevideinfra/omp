@@ -26,7 +26,8 @@ QString fold(const QString &s)
 
 QString albumKey(const Track &t)
 {
-    return fold(t.albumArtist) + QChar(0x1f) + fold(t.album);
+    // A server album never merges with a local album of the same name.
+    return fold(t.albumArtist) + QChar(0x1f) + fold(t.album) + (t.isRemote() ? QStringLiteral("\x1f""S") : QString());
 }
 
 bool trackLess(const Track &a, const Track &b)
@@ -278,7 +279,7 @@ void Library::finishScan()
         if (!offline)
             merged.append(t);
     }
-    for (const Track &t : std::as_const(m_tracks)) {
+    for (const Track &t : std::as_const(m_local)) {
         for (const QString &r : std::as_const(m_pendingOffline)) {
             if (under(t.path, r)) {
                 merged.append(t);
@@ -445,7 +446,7 @@ void Library::writeCache() const
         qWarning() << "cannot write index cache" << m_cacheFile << f.errorString();
         return;
     }
-    for (const Track &t : m_tracks) {
+    for (const Track &t : m_local) {
         f.write(t.toJsonLine());
         f.write("\n");
     }
@@ -455,7 +456,60 @@ void Library::writeCache() const
 
 void Library::setTracks(QVector<Track> tracks)
 {
-    m_tracks = std::move(tracks);
+    m_local = std::move(tracks);
+    combine();
+}
+
+void Library::setRemoteTracks(QVector<Track> tracks)
+{
+    m_remote = std::move(tracks);
+    combine();
+}
+
+QString Library::remoteCacheFile() const
+{
+    return QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/subsonic.jsonl");
+}
+
+void Library::loadRemoteCache()
+{
+    QFile f(remoteCacheFile());
+    if (!f.open(QIODevice::ReadOnly))
+        return;
+    QVector<Track> tracks;
+    while (!f.atEnd()) {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(f.readLine(), &ok);
+        if (ok && t.isRemote())
+            tracks.append(t);
+    }
+    if (!tracks.isEmpty())
+        setRemoteTracks(tracks);
+}
+
+void Library::writeRemoteCache() const
+{
+    const QString file = remoteCacheFile();
+    if (!QDir().mkpath(QFileInfo(file).absolutePath())) {
+        qWarning() << "cannot create the cache directory for" << file;
+        return;
+    }
+    QSaveFile f(file);
+    if (!f.open(QIODevice::WriteOnly)) {
+        qWarning() << "cannot write the server cache" << file << f.errorString();
+        return;
+    }
+    for (const Track &t : m_remote) {
+        f.write(t.toJsonLine());
+        f.write("\n");
+    }
+    if (!f.commit())
+        qWarning() << "cannot write the server cache (commit failed)" << file << f.errorString();
+}
+
+void Library::combine()
+{
+    m_tracks = m_local + m_remote;
     m_coverCache.clear();
     rebuildGroups();
     browse(m_folderPath);
@@ -668,7 +722,7 @@ void Library::browse(const QString &dir)
         const QString prefix = dir.endsWith('/') ? dir : dir + '/';
         QMap<QString, QString> dirs;
         QVector<Track> files;
-        for (const Track &t : std::as_const(m_tracks)) {
+        for (const Track &t : std::as_const(m_local)) {
             if (!t.path.startsWith(prefix))
                 continue;
             const QString rest = t.path.mid(prefix.size());

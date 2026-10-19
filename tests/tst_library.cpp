@@ -345,6 +345,57 @@ private slots:
         QCOMPARE(lib.albumSort(), QString("added"));
     }
 
+    void serverSongsMergeIntoTheListsButNotTheFolders()
+    {
+        QTemporaryDir state;
+        Library lib({"/m"}, "/nonexistent-scanner", state.filePath("index.jsonl"));
+        lib.setTracks(fixture());   // Zed/Alpha, Amy/Beta, Amy/Singles
+        Track r = mk("subsonic:7", "Far", "Amy", "Beta", 1);   // same album name as a local one
+        r.coverId = "al-1";
+        Track r2 = mk("subsonic:8", "Away", "Amy", "Remote Only", 1);
+        lib.setRemoteTracks({r, r2});
+
+        QCOMPARE(lib.songs()->rowCount(), 6);                     // 4 local + 2 server
+        QStringList albums;
+        for (int i = 0; i < lib.albums()->rowCount(); ++i)
+            albums << lib.albums()->get(i).value("title").toString();
+        QCOMPARE(albums.count("Beta"), 2);                       // never merged with the local Beta
+        QCOMPARE(albums.size(), 5);
+        QCOMPARE(lib.artists()->rowCount(), 2);                  // Amy and Zed: one Amy for both sources
+        QCOMPARE(lib.tracksForPaths({"subsonic:7"}).size(), 1);
+        lib.setQuery("away");
+        QCOMPARE(lib.results()->rowCount(), 1);
+        lib.setQuery("");
+
+        lib.browse("/m");                                        // the folder tree is local only
+        for (int i = 0; i < lib.folder()->rowCount(); ++i)
+            QVERIFY(!lib.folder()->get(i).value("path").toString().startsWith("subsonic:"));
+
+        lib.setRemoteTracks({});                                 // removing the server
+        QCOMPARE(lib.songs()->rowCount(), 4);
+    }
+
+    void serverSongsSurviveARestartThroughTheirOwnCache()
+    {
+        QTemporaryDir state;
+        const QString cache = state.filePath("index.jsonl");
+        {
+            Library lib({"/m"}, "/nonexistent-scanner", cache);
+            Track r = mk("subsonic:7", "Far", "Amy", "Beta", 1);
+            r.coverId = "al-1";
+            r.starred = true;
+            lib.setRemoteTracks({r});
+            lib.writeRemoteCache();
+            QVERIFY(QFileInfo::exists(state.filePath("subsonic.jsonl")));
+            QVERIFY(!QFileInfo::exists(cache));                  // the local index is not touched
+        }
+        Library again({"/m"}, "/nonexistent-scanner", cache);
+        again.loadRemoteCache();
+        QCOMPARE(again.songs()->rowCount(), 1);
+        QCOMPARE(again.songs()->get(0).value("coverId").toString(), QString("al-1"));
+        QVERIFY(again.songs()->get(0).value("starred").toBool());
+    }
+
     void albumRowsDoNotTouchTheDiskForCovers()
     {
         QTemporaryDir dir;

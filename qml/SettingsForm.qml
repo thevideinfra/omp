@@ -12,9 +12,22 @@ Item {
 
     implicitHeight: flick.contentHeight
 
+    // 0 = the app, 1 = the tray panel.
+    property int section: 0
+
+    Segmented {
+        id: sectionTabs
+        x: S.sp(16)
+        y: S.sp(12)
+        options: [qsTr("App"), qsTr("Tray panel")]
+        selected: options[root.section]
+        onPicked: (v) => { root.section = options.indexOf(v); flick.contentY = 0 }
+    }
+
     Flickable {
         id: flick
         anchors.fill: parent
+        anchors.topMargin: sectionTabs.y + sectionTabs.height + S.sp(4)
         contentWidth: width
         contentHeight: column.implicitHeight + S.sp(24)
         clip: true
@@ -24,23 +37,21 @@ Item {
             id: column
             x: S.sp(16)
             y: S.sp(12)
-            width: flick.width - S.sp(32)
+            width: Math.min(flick.width - S.sp(32), S.sp(460))
             spacing: S.sp(14)
 
-            UiText { text: qsTr("App"); font.bold: true; color: theme.accent }
-            LookForm { Layout.fillWidth: true; target: ui }
+            LookForm { Layout.fillWidth: true; visible: root.section === 0; target: ui }
+            LookForm { Layout.fillWidth: true; visible: root.section === 1; target: panelLook }
 
-            UiText { text: qsTr("Tray panel"); font.bold: true; color: theme.accent; Layout.topMargin: S.sp(10) }
-            LookForm { Layout.fillWidth: true; target: panelLook }
+            UiText { visible: root.section === 1; text: qsTr("Panel sections"); color: theme.dimForeground; px: 12 }
+            ToggleRow { visible: root.section === 1; Layout.fillWidth: true; label: qsTr("Cover"); checked: panelLook.panelCover; onToggled: (v) => panelLook.set("panelCover", v) }
+            ToggleRow { visible: root.section === 1; Layout.fillWidth: true; label: qsTr("Seek bar"); checked: panelLook.panelSeek; onToggled: (v) => panelLook.set("panelSeek", v) }
+            ToggleRow { visible: root.section === 1; Layout.fillWidth: true; label: qsTr("Volume"); checked: panelLook.panelVolume; onToggled: (v) => panelLook.set("panelVolume", v) }
+            ToggleRow { visible: root.section === 1; Layout.fillWidth: true; label: qsTr("Up next list"); checked: panelLook.panelUpNext; onToggled: (v) => panelLook.set("panelUpNext", v) }
 
-            UiText { text: qsTr("Panel sections"); color: theme.dimForeground; px: 12 }
-            ToggleRow { Layout.fillWidth: true; label: qsTr("Cover"); checked: panelLook.panelCover; onToggled: (v) => panelLook.set("panelCover", v) }
-            ToggleRow { Layout.fillWidth: true; label: qsTr("Seek bar"); checked: panelLook.panelSeek; onToggled: (v) => panelLook.set("panelSeek", v) }
-            ToggleRow { Layout.fillWidth: true; label: qsTr("Volume"); checked: panelLook.panelVolume; onToggled: (v) => panelLook.set("panelVolume", v) }
-            ToggleRow { Layout.fillWidth: true; label: qsTr("Up next list"); checked: panelLook.panelUpNext; onToggled: (v) => panelLook.set("panelUpNext", v) }
-
-            UiText { text: qsTr("Up next rows"); color: theme.dimForeground; px: 12 }
+            UiText { visible: root.section === 1; text: qsTr("Up next rows"); color: theme.dimForeground; px: 12 }
             Stepper {
+                visible: root.section === 1
                 value: panelLook.panelUpNextCount
                 from: 0
                 to: 10

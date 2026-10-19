@@ -12,6 +12,8 @@ class Settings : public QObject
     Q_PROPERTY(QString fontSize READ fontSize NOTIFY changed)
     Q_PROPERTY(QString fontFamily READ fontFamily NOTIFY changed)
     Q_PROPERTY(QString accent READ accent NOTIFY changed)
+    Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
+    Q_PROPERTY(bool panelShowAccent READ panelShowAccent NOTIFY changed)
     Q_PROPERTY(bool panelCover READ panelCover NOTIFY changed)
     Q_PROPERTY(bool panelSeek READ panelSeek NOTIFY changed)
     Q_PROPERTY(bool panelVolume READ panelVolume NOTIFY changed)
@@ -40,6 +42,8 @@ public:
     QString fontSize() const { return m_values.value("fontSize").toString(); }
     QString fontFamily() const { return m_values.value("fontFamily").toString(); }
     QString accent() const { return m_values.value("accent").toString(); }
+    bool showAccent() const { return m_values.value("showAccent").toBool(); }
+    bool panelShowAccent() const { return m_values.value("panelShowAccent").toBool(); }
     bool panelCover() const { return m_values.value("panelCover").toBool(); }
     bool panelSeek() const { return m_values.value("panelSeek").toBool(); }
     bool panelVolume() const { return m_values.value("panelVolume").toBool(); }

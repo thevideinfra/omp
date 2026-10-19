@@ -100,6 +100,15 @@ private slots:
         QCOMPARE(t.accentChoice(), QString("theme"));
     }
 
+    void accentOffUsesForeground()
+    {
+        Theme t("/nonexistent/colors.toml");
+        t.setAccentEnabled(false);
+        QCOMPARE(t.accent(), t.foreground());
+        t.setAccentEnabled(true);
+        QVERIFY(t.accent() != t.foreground());
+    }
+
     void accentChoiceFollowsThemeSwitch()
     {
         QTemporaryDir dir;

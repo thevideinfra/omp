@@ -16,6 +16,7 @@ class LookScope : public QObject
     Q_PROPERTY(QString fontSize READ fontSize NOTIFY changed)
     Q_PROPERTY(QString fontFamily READ fontFamily NOTIFY changed)
     Q_PROPERTY(QString accent READ accent NOTIFY changed)
+    Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
     Q_PROPERTY(double densityScale READ densityScale NOTIFY changed)
     Q_PROPERTY(double fontScale READ fontScale NOTIFY changed)
     Q_PROPERTY(bool panelCover READ panelCover NOTIFY changed)
@@ -31,6 +32,7 @@ public:
     QString fontSize() const;
     QString fontFamily() const;
     QString accent() const;
+    bool showAccent() const;
     double densityScale() const;
     double fontScale() const;
     bool panelCover() const;

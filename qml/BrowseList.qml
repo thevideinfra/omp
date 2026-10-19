@@ -29,7 +29,7 @@ ListView {
 
         width: ListView.view.width
         height: Math.max(S.sp(52), textColumn.implicitHeight + S.sp(8))
-        color: ListView.isCurrentItem ? theme.selection : "transparent"
+        color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12) : "transparent"
 
         Image {
             id: art

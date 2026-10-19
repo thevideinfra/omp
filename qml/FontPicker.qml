@@ -53,7 +53,7 @@ Item {
             required property string modelData
             width: ListView.view.width
             height: S.sp(28)
-            color: modelData === root.selected ? theme.selection
+            color: modelData === root.selected ? Qt.alpha(theme.accent, 0.12)
                    : (area.containsMouse ? theme.surface : "transparent")
 
             UiText {

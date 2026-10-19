@@ -96,7 +96,9 @@ ApplicationWindow {
                                 width: parent.width
                                 height: S.sp(36)
                                 radius: S.sp(6)
-                                color: win.tab === index && !win.searching ? theme.selection : "transparent"
+                                color: win.tab === index && !win.searching ? Qt.alpha(theme.accent, 0.12) : "transparent"
+                                border.width: win.tab === index && !win.searching ? 1 : 0
+                                border.color: Qt.alpha(theme.accent, 0.45)
                                 UiText {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x: S.sp(10)
@@ -143,7 +145,9 @@ ApplicationWindow {
                             Layout.preferredWidth: S.sp(60)
                             Layout.preferredHeight: searchField.height
                             radius: S.sp(6)
-                            color: upArea.containsMouse ? theme.selection : theme.surface
+                            color: upArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                            border.width: 1
+                            border.color: upArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
                             UiText { anchors.centerIn: parent; text: qsTr("Up") }
                             MouseArea { id: upArea; anchors.fill: parent; hoverEnabled: true; onClicked: { library.up(); keyRoot.forceActiveFocus() } }
                         }
@@ -153,7 +157,9 @@ ApplicationWindow {
                             Layout.preferredWidth: S.sp(110)
                             Layout.preferredHeight: searchField.height
                             radius: S.sp(6)
-                            color: clearArea.containsMouse ? theme.selection : theme.surface
+                            color: clearArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                            border.width: 1
+                            border.color: clearArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
                             UiText { anchors.centerIn: parent; text: qsTr("Clear queue") }
                             MouseArea { id: clearArea; anchors.fill: parent; hoverEnabled: true; onClicked: { player.clearQueue(); keyRoot.forceActiveFocus() } }
                         }

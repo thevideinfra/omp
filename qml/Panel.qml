@@ -61,7 +61,7 @@ Window {
         Rectangle {
             anchors.fill: parent
             color: "transparent"
-            border.color: theme.selection
+            border.color: Qt.alpha(theme.accent, 0.45)
             border.width: 1
         }
 
@@ -79,7 +79,9 @@ Window {
                 width: panel.headerHeight
                 height: panel.headerHeight
                 radius: S.sp(6)
-                color: gearArea.containsMouse ? theme.selection : theme.surface
+                color: gearArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                border.width: 1
+                border.color: gearArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
                 UiText { anchors.centerIn: parent; text: "⚙"; px: 16 }
                 MouseArea {
                     id: gearArea
@@ -247,7 +249,9 @@ Window {
             width: parent.width - 2 * panel.margin
             height: panel.footerHeight
             radius: S.sp(6)
-            color: mainArea.containsMouse ? theme.selection : theme.surface
+            color: mainArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+            border.width: 1
+            border.color: mainArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
             UiText { anchors.centerIn: parent; text: qsTr("Open omamusic") }
             MouseArea {
                 id: mainArea

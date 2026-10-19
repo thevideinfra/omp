@@ -45,6 +45,8 @@ Tray panel changes show the next time the panel opens, because Hyprland does not
 | `font_size` | `small`, `normal`, `large` | `normal` |
 | `font_family` | any installed family | system default (empty) |
 | `accent` | `theme` or a palette colour name | `theme` |
+| `show_accent` | `true` / `false` (off = neutral foreground instead of accent) | `true` |
+| `panel_show_accent` | `true` / `false` | `true` |
 | `panel_density` | `compact`, `normal`, `comfortable` | `normal` |
 | `panel_font_size` | `small`, `normal`, `large` | `normal` |
 | `panel_font_family` | any installed family | system default (empty) |

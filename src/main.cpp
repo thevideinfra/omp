@@ -83,6 +83,8 @@ int main(int argc, char *argv[])
     const auto syncAccents = [&] {
         theme.setAccentChoice(settings.accent());
         panelTheme.setAccentChoice(settings.panelAccent());
+        theme.setAccentEnabled(settings.showAccent());
+        panelTheme.setAccentEnabled(settings.panelShowAccent());
     };
     syncAccents();
     QObject::connect(&settings, &Settings::changed, &theme, syncAccents);

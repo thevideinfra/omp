@@ -184,6 +184,9 @@ private slots:
         QCOMPARE(d.value("panelFontSize").toString(), QString("normal"));
         QCOMPARE(d.value("panelFontFamily").toString(), QString());
         QCOMPARE(d.value("panelAccent").toString(), QString("theme"));
+        QCOMPARE(d.value("showAccent").toBool(), true);
+        QCOMPARE(d.value("panelShowAccent").toBool(), true);
+        QCOMPARE(Settings::parse("show_accent = false\npanel_show_accent = false\n").value("panelShowAccent").toBool(), false);
 
         const QVariantMap m = Settings::parse(
             "density = \"compact\"\npanel_density = \"comfortable\"\npanel_font_size = \"huge\"\n"

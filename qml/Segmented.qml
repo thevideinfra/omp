@@ -17,15 +17,16 @@ Flow {
             width: label.implicitWidth + S.sp(20)
             height: S.sp(30)
             radius: S.sp(6)
-            color: on ? theme.selection : theme.surface
-            border.color: on ? theme.accent : "transparent"
-            border.width: 1
+            color: on ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+            border.color: on ? theme.accent : Qt.alpha(theme.foreground, 0.12)
+            border.width: on ? 2 : 1
 
             UiText {
                 id: label
                 anchors.centerIn: parent
                 text: modelData
                 color: parent.on ? theme.accent : theme.foreground
+                font.bold: parent.on
             }
             MouseArea {
                 anchors.fill: parent

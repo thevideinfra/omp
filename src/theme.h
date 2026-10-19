@@ -22,6 +22,7 @@ class Theme : public QObject
     Q_PROPERTY(QColor muted READ muted NOTIFY changed)
     Q_PROPERTY(QColor danger READ danger NOTIFY changed)
     Q_PROPERTY(QStringList accentChoices READ accentChoices NOTIFY changed)
+    Q_PROPERTY(bool accentEnabled READ accentEnabled NOTIFY changed)
     Q_PROPERTY(QString accentChoice READ accentChoice NOTIFY changed)
     Q_PROPERTY(double fontBase READ fontBase NOTIFY changed)
 
@@ -42,9 +43,11 @@ public:
     QColor accent() const;
     QStringList accentChoices() const;
     QString accentChoice() const { return m_accentChoice; }
+    bool accentEnabled() const { return m_accentEnabled; }
     double fontBase() const { return m_fontBase; }
     Q_INVOKABLE QColor paletteColor(const QString &name) const;
     Q_INVOKABLE void setAccentChoice(const QString &name);
+    void setAccentEnabled(bool on);
     QColor selection() const { return m_colors.value("selection"); }
     QColor muted() const { return m_colors.value("muted"); }
     QColor danger() const { return m_colors.value("danger"); }
@@ -61,6 +64,7 @@ private:
     QHash<QString, QColor> m_colors;
     QHash<QString, QColor> m_palette;   // blue, cyan, ... defined by the current theme
     QString m_accentChoice = QStringLiteral("theme");
+    bool m_accentEnabled = true;
     double m_fontBase = 12;
     QFileSystemWatcher m_watcher;
     QTimer m_debounce;

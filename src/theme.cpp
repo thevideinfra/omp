@@ -149,6 +149,8 @@ void Theme::rewatch()
 
 QColor Theme::accent() const
 {
+    if (!m_accentEnabled)
+        return m_colors.value("foreground");
     if (m_accentChoice != QLatin1String("theme")) {
         const QColor c = m_palette.value(m_accentChoice);
         if (c.isValid())
@@ -180,5 +182,13 @@ void Theme::setAccentChoice(const QString &name)
     if (next == m_accentChoice)
         return;
     m_accentChoice = next;
+    emit changed();
+}
+
+void Theme::setAccentEnabled(bool on)
+{
+    if (on == m_accentEnabled)
+        return;
+    m_accentEnabled = on;
     emit changed();
 }

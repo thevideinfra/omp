@@ -46,6 +46,9 @@ public:
     QString folderPath() const { return m_folderPath; }
 
     Q_INVOKABLE void rescan();
+    // The known tracks for these paths, in order, each with "playlistIndex" set
+    // to its position in `paths`; unknown paths are skipped.
+    Q_INVOKABLE QVariantList tracksForPaths(const QStringList &paths) const;
     Q_INVOKABLE QVariantList albumTracks(const QString &key) const;
     Q_INVOKABLE QVariantList artistTracks(const QString &key) const;
     Q_INVOKABLE void browse(const QString &dir);
@@ -84,6 +87,7 @@ private:
 
     QVector<Track> m_tracks;
     QHash<QString, QVector<Track>> m_byAlbum;    // album key -> tracks
+    QHash<QString, Track> m_byPath;
     QHash<QString, QVector<Track>> m_byArtist;   // album artist -> tracks
     QHash<QString, QString> m_coverCache;           // album dir -> cover URL ("" = none yet)
     QQueue<QPair<QString, QString>> m_extractQueue; // (album dir, track path)

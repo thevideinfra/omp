@@ -239,6 +239,19 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 2, 20000);
     }
 
+    void tracksForPathsKeepsOrderSkipsUnknownAndNumbersTheInput()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks(fixture());
+        const QVariantList got = lib.tracksForPaths({"/m/top.flac", "/gone.flac", "/m/zed/alpha/01.flac", "/m/top.flac"});
+        QCOMPARE(got.size(), 3);
+        QCOMPARE(got.at(0).toMap().value("title").toString(), QString("Top"));
+        QCOMPARE(got.at(0).toMap().value("playlistIndex").toInt(), 0);
+        QCOMPARE(got.at(1).toMap().value("title").toString(), QString("One"));
+        QCOMPARE(got.at(1).toMap().value("playlistIndex").toInt(), 2);   // index in the input, gaps kept
+        QCOMPARE(got.at(2).toMap().value("playlistIndex").toInt(), 3);
+    }
+
     void songsAreAllTracksSortedByTitle()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

@@ -4,6 +4,7 @@
 
 namespace Paths {
 QString configDir();         // $XDG_CONFIG_HOME/omamusic
+QString dataDir();           // $XDG_DATA_HOME/omamusic
 QString stateDir();          // $XDG_STATE_HOME/omamusic
 QString runtimeDir();        // $XDG_RUNTIME_DIR/omamusic, created on call
 QString omarchyUserShellFile();  // $XDG_CONFIG_HOME/omarchy/shell.toml (user override)

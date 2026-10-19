@@ -19,6 +19,7 @@
 #include "paths.h"
 #include "autostart.h"
 #include "player.h"
+#include "playlists.h"
 #include "settings.h"
 #include "shell.h"
 #include "theme.h"
@@ -117,6 +118,8 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("panelLook", &panelLook);
     ctx->setContextProperty("player", &player);
     ctx->setContextProperty("library", &library);
+    Playlists playlists;
+    ctx->setContextProperty("playlists", &playlists);
     Autostart autostart;
     ctx->setContextProperty("autostart", &autostart);
     ctx->setContextProperty("shell", &shell);

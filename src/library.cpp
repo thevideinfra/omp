@@ -309,6 +309,7 @@ void Library::rebuildGroups()
 {
     m_byAlbum.clear();
     m_byArtist.clear();
+    m_byPath.clear();
 
     // One display spelling per folded artist: the most common one, ties by name.
     QHash<QString, QHash<QString, int>> spellings;
@@ -328,6 +329,7 @@ void Library::rebuildGroups()
     }
 
     for (const Track &t : std::as_const(m_tracks)) {
+        m_byPath.insert(t.path, t);
         m_byAlbum[albumKey(t)].append(t);
         m_byArtist[display.value(fold(t.albumArtist))].append(t);
     }
@@ -386,6 +388,20 @@ void Library::rebuildGroups()
                            {"cover", QString()}});
     }
     m_artists.setRows(artistRows);
+}
+
+QVariantList Library::tracksForPaths(const QStringList &paths) const
+{
+    QVariantList out;
+    for (int i = 0; i < paths.size(); ++i) {
+        const auto it = m_byPath.constFind(paths.at(i));
+        if (it == m_byPath.cend())
+            continue;
+        QVariantMap m = it->toMap();
+        m.insert(QStringLiteral("playlistIndex"), i);
+        out << m;
+    }
+    return out;
 }
 
 QVariantList Library::albumTracks(const QString &key) const

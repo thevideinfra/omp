@@ -19,6 +19,11 @@ QString configDir()
     return xdg("XDG_CONFIG_HOME", ".config") + QStringLiteral("/omamusic");
 }
 
+QString dataDir()
+{
+    return xdg("XDG_DATA_HOME", ".local/share") + QStringLiteral("/omamusic");
+}
+
 QString stateDir()
 {
     return xdg("XDG_STATE_HOME", ".local/state") + QStringLiteral("/omamusic");

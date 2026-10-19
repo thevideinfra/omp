@@ -30,6 +30,11 @@ static bool makeFlac(const QString &path, bool withArt)
     return ff.waitForFinished(10000) && ff.exitCode() == 0;
 }
 
+// The tests that run ffmpeg are skipped where it is not installed.
+#define NEED_FFMPEG() \
+    if (QStandardPaths::findExecutable("ffmpeg").isEmpty()) \
+        QSKIP("ffmpeg is not installed")
+
 static QVector<Track> fixture()
 {
     return {
@@ -129,6 +134,7 @@ private slots:
 
     void scanFillsIndexAndCache()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         QDir(music.path()).mkdir("A");
@@ -155,6 +161,7 @@ private slots:
 
     void unwritableCacheWarns()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         QProcess ff;
@@ -177,6 +184,7 @@ private slots:
 
     void emptyScanKeepsOldIndex()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         QProcess ff;
@@ -223,6 +231,7 @@ private slots:
 
     void changingTheFoldersRescansThem()
     {
+        NEED_FFMPEG();
         QTemporaryDir a, b, state;
         QVERIFY(makeFlac(a.filePath("one.flac"), false));
         QVERIFY(makeFlac(b.filePath("two.flac"), false));
@@ -284,6 +293,7 @@ private slots:
 
     void newFilesAppearWithoutAManualRescan()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         QDir(music.path()).mkdir("A");
@@ -322,6 +332,7 @@ private slots:
 
     void embeddedCoverIsExtractedAndCached()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         const QString track = music.filePath("one.flac");
@@ -348,6 +359,7 @@ private slots:
 
     void folderImageBeatsEmbeddedArt()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         const QString track = music.filePath("one.flac");
@@ -362,6 +374,7 @@ private slots:
 
     void trackWithoutArtIsNotRetried()
     {
+        NEED_FFMPEG();
         QTemporaryDir music;
         QTemporaryDir state;
         const QString track = music.filePath("plain.flac");

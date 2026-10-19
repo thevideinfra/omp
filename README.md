@@ -138,7 +138,7 @@ The panel sizes itself to its content, so the rule has no `size`. A Qt client ca
 
 ## Known gaps
 
-Deferred to later plans: a native MPRIS identity (the player shows as `mpv`), SMB/NFS shares, Subsonic. The tray icon recolour is implemented but not confirmed to change on a theme switch.
+Deferred to later plans: a native MPRIS identity (the player shows as `mpv`), handling of unmounted or slow network shares, Subsonic, and shuffle/repeat buttons in the tray panel. The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
 
 ## Test
 

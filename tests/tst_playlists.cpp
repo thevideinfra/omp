@@ -51,6 +51,22 @@ private slots:
         QCOMPARE(again.list()->rowCount(), 1);
     }
 
+    void extendedM3uLinesSurviveEdits()
+    {
+        QTemporaryDir dir;
+        Playlists p(dir.path());
+        QFile f(dir.filePath("Imported.m3u"));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("#EXTM3U\n#EXTINF:200,A - One\n/m/one.flac\n#EXTINF:100,B - Two\n/m/two.flac\n");
+        f.close();
+        QCOMPARE(p.paths("Imported"), QStringList({"/m/one.flac", "/m/two.flac"}));
+
+        QVERIFY(p.addPaths("Imported", {"/m/three.flac"}));
+        QVERIFY(p.removeAt("Imported", 0));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), QByteArray("#EXTM3U\n#EXTINF:100,B - Two\n/m/two.flac\n/m/three.flac\n"));
+    }
+
     void createWithPicksAUniqueName()
     {
         QTemporaryDir dir;

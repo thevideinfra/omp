@@ -181,6 +181,26 @@ Window {
                     TransportButton { id: nextBtn; glyph: "▶▶"; onClicked: player.next() }
                 }
 
+                Row {
+                    x: (col.width - width) / 2
+                    width: shuffleBtn.implicitWidth + repeatBtn.implicitWidth + spacing
+                    height: Math.max(shuffleBtn.implicitHeight, repeatBtn.implicitHeight)
+                    spacing: S.sp(8)
+                    TransportButton {
+                        id: shuffleBtn
+                        glyph: qsTr("Shuffle")
+                        active: player.shuffle
+                        onClicked: player.shuffle = !player.shuffle
+                    }
+                    TransportButton {
+                        id: repeatBtn
+                        glyph: player.repeat === "one" ? qsTr("Repeat one")
+                               : player.repeat === "all" ? qsTr("Repeat all") : qsTr("Repeat")
+                        active: player.repeat !== "off"
+                        onClicked: player.cycleRepeat()
+                    }
+                }
+
                 Item {
                     visible: ui.panelVolume
                     width: col.width

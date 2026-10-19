@@ -47,21 +47,44 @@ QStringList Playlists::names() const
     return out;
 }
 
-QStringList Playlists::paths(const QString &name) const
+QList<Playlists::Entry> Playlists::entries(const QString &name) const
 {
-    QStringList out;
+    QList<Entry> out;
     QFile f(fileFor(name));
     if (!f.open(QIODevice::ReadOnly))
         return out;
+    QStringList meta;
     for (const QByteArray &raw : f.readAll().split('\n')) {
         const QString line = QString::fromUtf8(raw).trimmed();
-        if (!line.isEmpty() && !line.startsWith(QLatin1Char('#')))
-            out << line;
+        if (line.isEmpty() || line == QLatin1String("#EXTM3U"))
+            continue;
+        if (line.startsWith(QLatin1Char('#'))) {
+            meta << line;
+        } else {
+            out.append({line, meta});
+            meta.clear();
+        }
     }
     return out;
 }
 
+QStringList Playlists::paths(const QString &name) const
+{
+    QStringList out;
+    for (const Entry &e : entries(name))
+        out << e.path;
+    return out;
+}
+
 bool Playlists::write(const QString &name, const QStringList &paths)
+{
+    QList<Entry> list;
+    for (const QString &p : paths)
+        list.append({p, {}});
+    return write(name, list);
+}
+
+bool Playlists::write(const QString &name, const QList<Entry> &list)
 {
     if (!QDir().mkpath(m_dir)) {
         qWarning() << "cannot create" << m_dir;
@@ -73,8 +96,11 @@ bool Playlists::write(const QString &name, const QStringList &paths)
         return false;
     }
     f.write("#EXTM3U\n");
-    for (const QString &p : paths)
-        f.write(p.toUtf8() + '\n');
+    for (const Entry &e : list) {
+        for (const QString &m : e.meta)
+            f.write(m.toUtf8() + '\n');
+        f.write(e.path.toUtf8() + '\n');
+    }
     if (!f.commit()) {
         qWarning() << "cannot write playlist" << name;
         return false;
@@ -100,7 +126,7 @@ void Playlists::reload()
 bool Playlists::create(const QString &name)
 {
     const QString n = cleanName(name);
-    if (n.isEmpty() || QFileInfo::exists(fileFor(n)) || !write(n, {}))
+    if (n.isEmpty() || QFileInfo::exists(fileFor(n)) || !write(n, QStringList()))
         return false;
     reload();
     return true;
@@ -127,8 +153,9 @@ bool Playlists::addPaths(const QString &name, const QStringList &add)
 {
     if (!QFileInfo::exists(fileFor(name)) || add.isEmpty())
         return false;
-    QStringList all = paths(name);
-    all += add;
+    QList<Entry> all = entries(name);
+    for (const QString &p : add)
+        all.append({p, {}});
     if (!write(name, all))
         return false;
     reload();
@@ -137,7 +164,7 @@ bool Playlists::addPaths(const QString &name, const QStringList &add)
 
 bool Playlists::removeAt(const QString &name, int index)
 {
-    QStringList all = paths(name);
+    QList<Entry> all = entries(name);
     if (index < 0 || index >= all.size())
         return false;
     all.removeAt(index);

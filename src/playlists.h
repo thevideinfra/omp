@@ -1,11 +1,12 @@
 #pragma once
 
 #include <QObject>
+#include <QList>
 #include <QStringList>
 
 #include "rowsmodel.h"
 
-// Playlists as plain .m3u files (one path per line) in one directory. The name
+// Playlists as plain .m3u files (one path per line, with any #EXTINF lines kept) in one directory. The name
 // of a playlist is its file name without the extension.
 class Playlists : public QObject
 {
@@ -37,6 +38,14 @@ signals:
 
 private:
     QString fileFor(const QString &name) const;
+    // A song with the "#..." lines (such as #EXTINF) that precede it in the file.
+    struct Entry
+    {
+        QString path;
+        QStringList meta;
+    };
+    QList<Entry> entries(const QString &name) const;
+    bool write(const QString &name, const QList<Entry> &entries);
     bool write(const QString &name, const QStringList &paths);
     void reload();
 

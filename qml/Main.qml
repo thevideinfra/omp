@@ -21,7 +21,11 @@ ApplicationWindow {
     property int tab: 0
     readonly property bool searching: searchField.text.length > 0
 
-    onClosing: (close) => { close.accepted = false; visible = false }   // close-to-tray
+    // Close-to-tray, unless there is no tray to bring the window back from.
+    onClosing: (close) => {
+        if (shell.trayAvailable()) { close.accepted = false; visible = false }
+        else shell.quitApp()
+    }
 
     function currentList() {
         return stack.children[stack.currentIndex]

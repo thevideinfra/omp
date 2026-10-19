@@ -81,6 +81,25 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), 1, 3000);
     }
 
+    void startIndexNeverStartsTheFirstSong()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 5.0);
+        const QString b = writeWav(dir.filePath("b.wav"), 5.0);
+        const QString c = writeWav(dir.filePath("c.wav"), 5.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        QList<int> seen;
+        connect(&p, &Player::currentIndexChanged, this, [&] { seen << p.currentIndex(); });
+        p.playTracks({row(a, "A"), row(b, "B"), row(c, "C")}, 2);
+        QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), 2, 3000);
+        QTest::qWait(300);
+        QVERIFY2(!seen.contains(0) && !seen.contains(1), qPrintable(QString::number(seen.size())));
+        QCOMPARE(p.queue()->get(0).value("title").toString(), QString("A"));   // the queue keeps its order
+        QCOMPARE(p.queue()->get(2).value("title").toString(), QString("C"));
+    }
+
     void enqueueAndClear()
     {
         QTemporaryDir dir;

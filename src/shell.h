@@ -23,6 +23,8 @@ public:
     Q_INVOKABLE void togglePanel();
     Q_INVOKABLE void hidePanel();
     Q_INVOKABLE void quitApp();
+    // Whether a tray host is there to bring the window back; without one, closing the window quits.
+    Q_INVOKABLE bool trayAvailable() const;
     Q_INVOKABLE void showSettings();
     void setPanelWindow(QQuickWindow *panel) { m_panel = panel; }
 

@@ -106,6 +106,11 @@ void Shell::hidePanel()
         w->hide();
 }
 
+bool Shell::trayAvailable() const
+{
+    return QSystemTrayIcon::isSystemTrayAvailable() && m_tray.isVisible();
+}
+
 void Shell::quitApp()
 {
     QCoreApplication::quit();

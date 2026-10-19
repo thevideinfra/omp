@@ -189,6 +189,7 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: false
                 model: ListModel { id: detailModel }
+                FastWheel { view: detail }
 
                 delegate: Rectangle {
                     id: item

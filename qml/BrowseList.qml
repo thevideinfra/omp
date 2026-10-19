@@ -20,6 +20,8 @@ ListView {
     function activate() { if (count > 0) activated(currentIndex) }
     function enqueue() { if (count > 0) enqueued(currentIndex) }
 
+    FastWheel { view: root }
+
     delegate: Rectangle {
         required property int index
         required property string title

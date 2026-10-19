@@ -32,6 +32,7 @@ Item {
         contentHeight: column.implicitHeight + S.sp(24)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        FastWheel { view: flick }
 
         ColumnLayout {
             id: column

@@ -48,6 +48,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         model: [""].concat(ui.fontFamilies())
+        FastWheel { view: list }
 
         delegate: Rectangle {
             required property string modelData

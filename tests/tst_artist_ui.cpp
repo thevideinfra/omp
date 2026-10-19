@@ -132,6 +132,23 @@ private slots:
         QVERIFY(!tab->property("midFocus").toBool());
     }
 
+    void aDraggedDividerSurvivesSettingsChanges()
+    {
+        QQuickItem *pane = tab->findChild<QQuickItem *>("listPane");
+        QVERIFY(pane);
+        const qreal before = pane->width();
+        const QPoint handle(int(before) + 3, 300);   // the divider right of the artists
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, handle);
+        QTest::mouseMove(window, handle + QPoint(15, 0));
+        QTest::mouseMove(window, handle + QPoint(25, 0));
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, handle + QPoint(25, 0));
+        const qreal dragged = pane->width();
+        QVERIFY2(dragged > before + 15, qPrintable(QString("before %1 dragged %2").arg(before).arg(dragged)));
+
+        QMetaObject::invokeMethod(look, "changed");   // what any setting change (shuffle, repeat) emits
+        QCOMPARE(pane->width(), dragged);
+    }
+
     void anotherArtistStartsBackOnAllAlbums()
     {
         QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 1)));

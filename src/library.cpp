@@ -587,7 +587,7 @@ void Library::rebuildArtists()
                      {"title", name},
                      {"subtitle", QStringLiteral("%1 albums").arg(albumNames.size())},
                      {"meta", QStringLiteral("%1 tracks").arg(m_byArtist.value(name).size())},
-                     {"cover", QString()},
+                     {"cover", std::min_element(m_byArtist[name].cbegin(), m_byArtist[name].cend(), trackLess)->path},   // resolved lazily by coverFor()
                      {"initial", key == QLatin1String("title") ? initialOf(name) : QString()}});
     }
     m_artists.setRows(rows);

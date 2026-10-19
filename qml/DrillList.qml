@@ -259,8 +259,10 @@ Item {
         }
 
         ColumnLayout {
-            SplitView.preferredWidth: root.kind === "artist" ? Math.max(S.sp(200), root.width * 0.24)
-                                                             : Math.max(S.sp(260), root.width * 0.4)
+            objectName: "listPane"
+            // Assigned once, not bound: any setting change (shuffle, repeat) re-evaluates
+            // bindings built on S.sp() and would undo a width the user dragged.
+            Component.onCompleted: SplitView.preferredWidth = root.kind === "artist" ? S.sp(300) : S.sp(420)
             SplitView.minimumWidth: S.sp(140)
             spacing: 0
 
@@ -302,7 +304,7 @@ Item {
             id: mid
             visible: root.kind === "artist"
             artSize: S.sp(96)
-            SplitView.preferredWidth: Math.max(S.sp(300), root.width * 0.3)
+            Component.onCompleted: SplitView.preferredWidth = S.sp(340)
             SplitView.minimumWidth: S.sp(140)
             model: ListModel { id: albumModel }
             onCurrentIndexChanged: root.selectAlbum(currentIndex)

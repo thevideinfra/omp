@@ -14,6 +14,7 @@ class Settings : public QObject
     Q_PROPERTY(QString accent READ accent NOTIFY changed)
     Q_PROPERTY(QStringList folders READ folders NOTIFY changed)
     Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
+    Q_PROPERTY(bool saveLayout READ saveLayout NOTIFY changed)
     Q_PROPERTY(bool panelShowAccent READ panelShowAccent NOTIFY changed)
     Q_PROPERTY(bool panelCover READ panelCover NOTIFY changed)
     Q_PROPERTY(bool panelSeek READ panelSeek NOTIFY changed)
@@ -48,6 +49,7 @@ public:
     QString eqPreset() const { return m_values.value("eqPreset").toString(); }
     QStringList folders() const { return m_values.value("folders").toStringList(); }
     int volume() const { return m_values.value("volume").toInt(); }
+    bool saveLayout() const { return m_values.value("saveLayout").toBool(); }
     bool showAccent() const { return m_values.value("showAccent").toBool(); }
     bool panelShowAccent() const { return m_values.value("panelShowAccent").toBool(); }
     bool panelCover() const { return m_values.value("panelCover").toBool(); }
@@ -68,11 +70,18 @@ public:
     Q_INVOKABLE void addFolder(const QString &path);
     Q_INVOKABLE void removeFolder(const QString &path);
     Q_INVOKABLE void set(const QString &prop, const QVariant &value);
+    // Column sizes of a tab ("album", "artist" or "playlist") as fractions of its width,
+    // "list,middle" or "list"; empty when none are stored.
+    Q_INVOKABLE QString layoutFor(const QString &tab) const;
+    Q_INVOKABLE void setLayoutFor(const QString &tab, const QString &fractions);
+    // Forgets the stored sizes and tells the open tabs to go back to equal columns.
+    Q_INVOKABLE void resetLayout();
     Q_INVOKABLE QStringList fontFamilies() const;
     void save();
 
 signals:
     void changed();
+    void layoutReset();
 
 private:
     QString m_file;

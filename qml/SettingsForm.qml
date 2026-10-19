@@ -50,6 +50,31 @@ Item {
                 checked: autostart.enabled
                 onToggled: (v) => autostart.enabled = v
             }
+            UiText { visible: root.section === 0; text: qsTr("Layout"); color: theme.dimForeground; px: 12 }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
+                label: qsTr("Remember column sizes")
+                checked: settingsStore.saveLayout
+                onToggled: (v) => settingsStore.set("saveLayout", v)
+            }
+            Rectangle {
+                visible: root.section === 0
+                Layout.preferredWidth: resetText.implicitWidth + S.sp(24)
+                Layout.preferredHeight: S.sp(30)
+                radius: S.sp(6)
+                color: resetArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                border.width: 1
+                border.color: resetArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
+                UiText { id: resetText; anchors.centerIn: parent; text: qsTr("Reset column sizes") }
+                MouseArea {
+                    id: resetArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: settingsStore.resetLayout()
+                }
+            }
             LookForm { Layout.fillWidth: true; visible: root.section === 1; target: panelLook }
             LibraryForm { Layout.fillWidth: true; visible: root.section === 2 }
 

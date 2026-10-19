@@ -51,6 +51,10 @@ const QVector<Key> &keys()
         {"shuffle", "shuffle", Type::Bool, false, {}},
         {"repeat", "repeat", Type::Enum, QString("off"), {"off", "all", "one"}},
         {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
+        {"saveLayout", "save_layout", Type::Bool, false, {}},
+        {"layoutAlbum", "layout_album", Type::String, QString(), {}},
+        {"layoutArtist", "layout_artist", Type::String, QString(), {}},
+        {"layoutPlaylist", "layout_playlist", Type::String, QString(), {}},
     };
     return k;
 }
@@ -289,6 +293,45 @@ void Settings::set(const QString &prop, const QVariant &value)
     m_dirty.insert(prop);
     emit changed();
     m_saveTimer.start();
+}
+
+namespace {
+QString layoutProp(const QString &tab)
+{
+    if (tab == QLatin1String("album") || tab == QLatin1String("artist") || tab == QLatin1String("playlist"))
+        return QStringLiteral("layout") + tab.left(1).toUpper() + tab.mid(1);
+    return {};
+}
+}
+
+QString Settings::layoutFor(const QString &tab) const
+{
+    const QString prop = layoutProp(tab);
+    return prop.isEmpty() ? QString() : m_values.value(prop).toString();
+}
+
+void Settings::setLayoutFor(const QString &tab, const QString &fractions)
+{
+    const QString prop = layoutProp(tab);
+    if (prop.isEmpty())
+        return;
+    const QStringList parts = fractions.split(',');
+    if (parts.size() > 2)
+        return;
+    for (const QString &p : parts) {
+        bool ok = false;
+        const double v = p.toDouble(&ok);
+        if (!ok || v <= 0 || v >= 1)
+            return;
+    }
+    set(prop, fractions);
+}
+
+void Settings::resetLayout()
+{
+    emit layoutReset();   // before the clearing, so open tabs do not store their sizes again
+    for (const char *tab : {"album", "artist", "playlist"})
+        set(layoutProp(QString::fromLatin1(tab)), QString());
 }
 
 QStringList Settings::fontFamilies() const

@@ -120,7 +120,7 @@ Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playl
 
 ## Shuffle, repeat and equalizer
 
-The Artists tab has three columns: the artists under A, B, C... headings (when sorted by name), the selected artist's albums with large thumbnails, and the open album's songs under a large cover. An artist opens on its first album. Right/Left move between the columns. The columns in Albums, Artists and Playlists start out equal (halves, thirds for artists) and can be resized by dragging their dividers (not remembered between runs); the large album cover grows and shrinks with its column. Artists in the list show a thumbnail of their first album.
+The Artists tab has three columns: the artists under A, B, C... headings (when sorted by name), the selected artist's albums with large thumbnails, and the open album's songs under a large cover. An artist opens on its first album. Right/Left move between the columns. The columns in Albums, Artists and Playlists start out equal (halves, thirds for artists) and can be resized by dragging their dividers (Settings > App > Layout has "Remember column sizes", off by default, which stores the sizes you drag for each tab, and "Reset column sizes", which goes back to equal columns); the large album cover grows and shrinks with its column. Artists in the list show a thumbnail of their first album.
 
 Songs sort by title, artist, album, length or added (newest first), albums by title, artist, length or added, and artists by name, length or added, each with a reverse toggle; the choices are not remembered between runs. The left rail has an area at the top reserved for a logo.
 

@@ -69,6 +69,7 @@ private slots:
 
         engine = new QQmlEngine(this);
         auto *ctx = new QQmlContext(engine->rootContext(), engine);
+        ctx->setContextProperty("settingsStore", settings);
         ctx->setContextProperty("theme", theme);
         ctx->setContextProperty("ui", look);
         ctx->setContextProperty("player", &player);

@@ -249,17 +249,37 @@ Item {
         orientation: Qt.Horizontal
 
         // The columns stay equal (half each, a third each for an artist) as the window
-        // settles into its size, until the user drags a divider. Assigned, not bound: any
-        // setting change (shuffle, repeat) re-evaluates bindings and would undo a dragged width.
+        // settles into its size, until the user drags a divider; with "remember column sizes"
+        // on, they start from the stored sizes instead. Assigned, not bound: any setting
+        // change (shuffle, repeat) re-evaluates bindings and would undo a dragged width.
         property bool userSized: false
-        function equalize() {
+        function applyLayout(ignoreStored) {
             if (userSized || width <= 0) return
-            const share = width / (root.kind === "artist" ? 3 : 2)
-            listPane.SplitView.preferredWidth = share
-            if (root.kind === "artist") mid.SplitView.preferredWidth = share
+            const n = root.kind === "artist" ? 3 : 2
+            let list = 1 / n, middle = 1 / n
+            if (!ignoreStored && settingsStore.saveLayout) {
+                const f = settingsStore.layoutFor(root.kind).split(",").map(Number)
+                if (f.length >= 1 && f[0] > 0 && f[0] < 1) list = f[0]
+                if (n === 3 && f.length >= 2 && f[1] > 0 && f[1] < 1) middle = f[1]
+            }
+            listPane.SplitView.preferredWidth = list * width
+            if (n === 3) mid.SplitView.preferredWidth = middle * width
         }
-        onWidthChanged: equalize()
-        onResizingChanged: if (resizing) userSized = true
+        function remember() {
+            if (!settingsStore.saveLayout || !userSized || width <= 0) return
+            const list = (listPane.width / width).toFixed(4)
+            settingsStore.setLayoutFor(root.kind, root.kind === "artist" ? list + "," + (mid.width / width).toFixed(4) : list)
+        }
+        onWidthChanged: applyLayout(false)
+        onResizingChanged: {
+            if (resizing) userSized = true
+            else remember()
+        }
+        Connections {
+            target: settingsStore
+            function onChanged() { panes.remember() }   // also stores the sizes when the option is switched on
+            function onLayoutReset() { panes.userSized = false; panes.applyLayout(true) }
+        }
 
         handle: Rectangle {
             implicitWidth: S.sp(7)

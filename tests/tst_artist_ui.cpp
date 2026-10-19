@@ -69,6 +69,7 @@ private slots:
 
         engine = new QQmlEngine(this);
         auto *ctx = new QQmlContext(engine->rootContext(), engine);
+        ctx->setContextProperty("settingsStore", settings);
         ctx->setContextProperty("theme", theme);
         ctx->setContextProperty("ui", look);
         ctx->setContextProperty("player", &player);
@@ -155,6 +156,24 @@ private slots:
 
         QMetaObject::invokeMethod(look, "changed");   // what any setting change (shuffle, repeat) emits
         QCOMPARE(pane->width(), dragged);
+    }
+
+    void rememberedSizesAreStoredOnlyWhenOnAndResetGoesBackToEqual()
+    {
+        QQuickItem *pane = tab->findChild<QQuickItem *>("listPane");
+        QVERIFY(pane);
+        const qreal dragged = pane->width();           // dragged by the test above
+        QCOMPARE(settings->layoutFor("artist"), QString());   // the option is off: nothing stored
+
+        settings->set("saveLayout", true);             // switching it on stores the current sizes
+        const QStringList f = settings->layoutFor("artist").split(',');
+        QCOMPARE(f.size(), 2);
+        QVERIFY(qAbs(f.at(0).toDouble() * 1000 - dragged) < 1);
+
+        settings->resetLayout();
+        QCOMPARE(settings->layoutFor("artist"), QString());
+        QTRY_VERIFY2(qAbs(pane->width() - 1000.0 / 3) < 3, qPrintable(QString::number(pane->width())));
+        settings->set("saveLayout", false);
     }
 
     void anotherArtistStartsBackOnAllAlbums()

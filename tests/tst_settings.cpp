@@ -78,6 +78,41 @@ private slots:
         QCOMPARE(Settings::apply(once, u), once);
     }
 
+    void columnLayoutIsOptInStoredPerTabAndResettable()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QVERIFY(!s.saveLayout());
+            QCOMPARE(s.layoutFor("artist"), QString());
+            QSignalSpy reset(&s, &Settings::layoutReset);
+
+            s.setLayoutFor("artist", "0.3,0.4");
+            s.setLayoutFor("album", "0.6");
+            s.setLayoutFor("bogus", "0.5");        // not a tab
+            s.setLayoutFor("playlist", "1.5,0.2"); // out of range
+            s.setLayoutFor("playlist", "x");
+            QCOMPARE(s.layoutFor("artist"), QString("0.3,0.4"));
+            QCOMPARE(s.layoutFor("album"), QString("0.6"));
+            QCOMPARE(s.layoutFor("playlist"), QString());
+            QCOMPARE(s.layoutFor("bogus"), QString());
+
+            s.set("saveLayout", true);
+            QVERIFY(s.saveLayout());
+            s.save();
+
+            Settings again(f);
+            QVERIFY(again.saveLayout());
+            QCOMPARE(again.layoutFor("artist"), QString("0.3,0.4"));
+
+            again.resetLayout();
+            QCOMPARE(again.layoutFor("artist"), QString());
+            QCOMPARE(again.layoutFor("album"), QString());
+            QVERIFY(again.saveLayout());           // reset clears the sizes, not the toggle
+        }
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

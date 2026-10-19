@@ -234,8 +234,11 @@ void Player::jumpTo(int index)
 
 void Player::clearQueue()
 {
-    m_client.command({QStringLiteral("stop")});
+    // mpv's playlist-clear keeps the entry that is playing, so the song carries on.
     m_client.command({QStringLiteral("playlist-clear")});
-    m_queue.setRows({});
+    QVector<QVariantMap> keep;
+    if (!m_idle && m_index >= 0 && m_index < m_queue.rowCount())
+        keep.append(m_queue.rows().at(m_index));
+    m_queue.setRows(keep);
     emit currentChanged();
 }

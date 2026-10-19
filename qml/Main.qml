@@ -210,8 +210,7 @@ ApplicationWindow {
                                     library.browse(r.path)
                                     return
                                 }
-                                const tracks = rows.filter(x => !x.isDir)
-                                player.playTracks(tracks, tracks.findIndex(x => x.path === r.path))
+                                player.playTracks([r], 0)
                             }
                             onEnqueued: (row) => {
                                 const r = library.folder.get(row)
@@ -232,7 +231,7 @@ ApplicationWindow {
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Search results
                             model: library.results
-                            onActivated: (row) => player.playTracks(library.results.all(), row)
+                            onActivated: (row) => player.playTracks([library.results.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.results.get(row))
                         }
                     }

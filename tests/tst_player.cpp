@@ -88,13 +88,19 @@ private slots:
         Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
         p.start();
         QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        const QString b = writeWav(dir.filePath("b.wav"), 5.0);
         p.enqueue(row(a, "A"));
         QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);   // append-play starts an idle player
-        QCOMPARE(p.queue()->rowCount(), 1);
+        p.enqueue(row(b, "B"));
+        QCOMPARE(p.queue()->rowCount(), 2);
         p.clearQueue();
-        QCOMPARE(p.queue()->rowCount(), 0);
-        QTRY_VERIFY_WITH_TIMEOUT(!p.playing(), 3000);
-        QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), -1, 3000);
+        // The song that is playing stays and keeps playing.
+        QCOMPARE(p.queue()->rowCount(), 1);
+        QCOMPARE(p.current().value("title").toString(), QString("A"));
+        QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), 0, 3000);
+        QTest::qWait(500);
+        QVERIFY(p.playing());
+        QVERIFY(p.position() > 0.2);   // not restarted
     }
 
     void reportsMissingMpv()

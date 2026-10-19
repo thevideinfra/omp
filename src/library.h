@@ -80,6 +80,7 @@ private:
     QProcess m_extract;
     QTimer m_extractTimer;
     QString m_extractDir;
+    bool m_ffmpegMissing = false;
     int m_coverRevision = 0;
 
     RowsModel m_albums;

@@ -121,7 +121,11 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     });
     connect(&m_extract, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
         if (e == QProcess::FailedToStart) {
-            qWarning() << "cannot start ffmpeg for embedded cover art";
+            if (!m_ffmpegMissing) {
+                m_ffmpegMissing = true;
+                qWarning() << "cannot start ffmpeg for embedded cover art";
+            }
+            m_extractQueue.clear();   // no point trying the remaining dirs
             finishExtraction(false);
         }
     });
@@ -392,7 +396,7 @@ QString Library::cachedCoverPath(const QString &dir) const
 
 void Library::queueExtraction(const QString &dir, const QString &track)
 {
-    if (m_extractSeen.contains(dir))
+    if (m_ffmpegMissing || m_extractSeen.contains(dir))
         return;
     m_extractSeen.insert(dir);
     if (!QDir().mkpath(coverCacheDir()))
@@ -404,6 +408,8 @@ void Library::queueExtraction(const QString &dir, const QString &track)
 
 void Library::startNextExtraction()
 {
+    if (m_extract.state() != QProcess::NotRunning)
+        return;   // re-entered via a slot: a run is already in flight
     if (m_extractQueue.isEmpty())
         return;
     const auto [dir, track] = m_extractQueue.dequeue();
@@ -412,7 +418,8 @@ void Library::startNextExtraction()
     QFile::remove(tmp);
     m_extract.start(QStringLiteral("ffmpeg"),
                     {"-v", "error", "-i", track, "-an", "-frames:v", "1", "-y", tmp});
-    m_extractTimer.start();
+    if (m_extract.state() != QProcess::NotRunning)   // sync FailedToStart already finished
+        m_extractTimer.start();
 }
 
 void Library::finishExtraction(bool ok)

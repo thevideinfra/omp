@@ -42,6 +42,7 @@ public:
     QString fontSize() const { return m_values.value("fontSize").toString(); }
     QString fontFamily() const { return m_values.value("fontFamily").toString(); }
     QString accent() const { return m_values.value("accent").toString(); }
+    int volume() const { return m_values.value("volume").toInt(); }
     bool showAccent() const { return m_values.value("showAccent").toBool(); }
     bool panelShowAccent() const { return m_values.value("panelShowAccent").toBool(); }
     bool panelCover() const { return m_values.value("panelCover").toBool(); }

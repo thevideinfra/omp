@@ -185,6 +185,9 @@ private slots:
         QCOMPARE(d.value("panelFontFamily").toString(), QString());
         QCOMPARE(d.value("panelAccent").toString(), QString("theme"));
         QCOMPARE(d.value("showAccent").toBool(), true);
+        QCOMPARE(d.value("volume").toInt(), 100);
+        QCOMPARE(Settings::parse("volume = 40\n").value("volume").toInt(), 40);
+        QCOMPARE(Settings::parse("volume = 900\n").value("volume").toInt(), 130);
         QCOMPARE(d.value("panelShowAccent").toBool(), true);
         QCOMPARE(Settings::parse("show_accent = false\npanel_show_accent = false\n").value("panelShowAccent").toBool(), false);
 

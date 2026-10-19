@@ -39,6 +39,16 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(p.volume(), 40, 3000);
     }
 
+    void startsAtTheGivenVolume()
+    {
+        QTemporaryDir dir;
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.setStartVolume(35);
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(p.volume(), 35, 3000);
+    }
+
     void advancesAcrossQueueAndJumps()
     {
         QTemporaryDir dir;

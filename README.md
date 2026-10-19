@@ -51,6 +51,7 @@ Tray panel changes show the next time the panel opens, because Hyprland does not
 | `panel_font_size` | `small`, `normal`, `large` | `normal` |
 | `panel_font_family` | any installed family | system default (empty) |
 | `panel_accent` | `theme` or a palette colour name | `theme` |
+| `volume` | `0`-`130`, saved when you change the volume | `100` |
 | `panel_cover` | `true` / `false` | `true` |
 | `panel_seek` | `true` / `false` | `true` |
 | `panel_volume` | `true` / `false` | `true` |

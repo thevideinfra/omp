@@ -12,6 +12,9 @@
 
 namespace {
 
+constexpr int kMaxUpNext = 10;
+constexpr int kMaxVolume = 130;
+
 enum class Type { Enum, String, Bool, Int };
 
 struct Key
@@ -21,9 +24,8 @@ struct Key
     Type type;
     QVariant def;
     QStringList options;
+    int max = kMaxUpNext;   // upper bound of an Int key
 };
-
-constexpr int kMaxUpNext = 10;
 
 const QVector<Key> &keys()
 {
@@ -43,6 +45,7 @@ const QVector<Key> &keys()
         {"panelVolume", "panel_volume", Type::Bool, true, {}},
         {"panelUpNext", "panel_up_next", Type::Bool, true, {}},
         {"panelUpNextCount", "panel_up_next_count", Type::Int, 4, {}},
+        {"volume", "volume", Type::Int, 100, {}, kMaxVolume},
     };
     return k;
 }
@@ -85,7 +88,7 @@ QVariant validated(const Key &k, const QVariant &v)
     case Type::Int: {
         bool ok = false;
         const int n = v.toInt(&ok);
-        return ok ? QVariant(qBound(0, n, kMaxUpNext)) : QVariant();
+        return ok ? QVariant(qBound(0, n, k.max)) : QVariant();
     }
     }
     return {};

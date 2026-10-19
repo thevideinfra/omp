@@ -90,6 +90,9 @@ int main(int argc, char *argv[])
     QObject::connect(&settings, &Settings::changed, &theme, syncAccents);
 
     Player player;
+    player.setStartVolume(settings.volume());
+    QObject::connect(&player, &Player::volumeChanged, &settings,
+                     [&] { settings.set("volume", player.volume()); });
     Library library(Config::folders(),
                     qEnvironmentVariable("OMAMUSIC_SCAN",
                                          QCoreApplication::applicationDirPath() + "/omamusic-scan"),

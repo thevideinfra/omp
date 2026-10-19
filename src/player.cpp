@@ -62,6 +62,7 @@ void Player::start()
                      "--gapless-audio=yes",
                      "--prefetch-playlist=yes",
                      "--replaygain=album",
+                     "--volume=" + QString::number(m_startVolume),
                      "--input-ipc-server=" + m_socketPath};
     args += m_extraArgs;
     // Have the kernel stop mpv if we die without running destructors.
@@ -118,6 +119,7 @@ void Player::onProperty(const QString &name, const QVariant &value)
         const int v = qRound(value.toDouble());
         if (v != m_volume) {
             m_volume = v;
+            m_startVolume = qBound(0, v, 130);   // a restarted mpv keeps it
             emit volumeChanged();
         }
     } else if (name == QLatin1String("playlist-pos")) {

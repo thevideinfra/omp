@@ -41,6 +41,8 @@ public:
     QString error() const { return m_error; }
 
     void setVolume(int volume);
+    // The volume mpv starts (and restarts) at; set before start().
+    void setStartVolume(int volume) { m_startVolume = qBound(0, volume, 130); }
 
     Q_INVOKABLE void playTracks(const QVariantList &tracks, int startIndex = 0);
     Q_INVOKABLE void enqueue(const QVariantMap &track);
@@ -90,6 +92,7 @@ private:
     double m_position = 0;
     double m_duration = 0;
     int m_volume = 100;
+    int m_startVolume = 100;
     int m_index = -1;
     QString m_error;
 };

@@ -251,6 +251,38 @@ private slots:
         QCOMPARE(lib.coverFor(dir.filePath("t.flac")), QString());
     }
 
+    void songsCanBeSortedByEachKeyAndReversed()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        QVector<Track> tracks = fixture();   // One, Two (Zed/Alpha), Solo (Amy/Beta), Top (Amy/Singles)
+        tracks[0].duration = 30;             // Two
+        tracks[1].duration = 10;             // One
+        tracks[2].duration = 20;             // Solo
+        tracks[3].duration = 40;             // Top
+        tracks[0].mtime = 4; tracks[1].mtime = 3; tracks[2].mtime = 2; tracks[3].mtime = 1;
+        lib.setTracks(tracks);
+        const auto titles = [&] {
+            QStringList out;
+            for (int i = 0; i < lib.songs()->rowCount(); ++i)
+                out << lib.songs()->get(i).value("title").toString();
+            return out;
+        };
+        QCOMPARE(lib.songSort(), QString("title"));
+        QCOMPARE(titles(), QStringList({"One", "Solo", "Top", "Two"}));
+        lib.setSongSort("artist");   // Amy: Solo, Top; Zed: One, Two (ties by title)
+        QCOMPARE(titles(), QStringList({"Solo", "Top", "One", "Two"}));
+        lib.setSongSort("album");    // Alpha: One, Two; Beta: Solo; Singles: Top
+        QCOMPARE(titles(), QStringList({"One", "Two", "Solo", "Top"}));
+        lib.setSongSort("length");
+        QCOMPARE(titles(), QStringList({"One", "Solo", "Two", "Top"}));
+        lib.setSongSort("added");    // newest first
+        QCOMPARE(titles(), QStringList({"Two", "One", "Solo", "Top"}));
+        lib.setSongDescending(true); // flips whatever the key's natural order is
+        QCOMPARE(titles(), QStringList({"Top", "Solo", "One", "Two"}));
+        lib.setSongSort("bogus");    // ignored
+        QCOMPARE(lib.songSort(), QString("added"));
+    }
+
     void albumRowsDoNotTouchTheDiskForCovers()
     {
         QTemporaryDir dir;

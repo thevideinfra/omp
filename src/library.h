@@ -26,6 +26,9 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *results READ results CONSTANT)
     Q_PROPERTY(QString folderPath READ folderPath NOTIFY folderPathChanged)
     // Folders the last scan could not reach (unmounted or hung shares); their songs are the last known ones.
+    // How the Songs list is ordered: "title", "artist", "album", "length" or "added" (newest first).
+    Q_PROPERTY(QString songSort READ songSort WRITE setSongSort NOTIFY songSortChanged)
+    Q_PROPERTY(bool songDescending READ songDescending WRITE setSongDescending NOTIFY songSortChanged)
     Q_PROPERTY(QStringList offlineRoots READ offlineRoots NOTIFY offlineChanged)
 
 public:
@@ -48,6 +51,10 @@ public:
     QString folderPath() const { return m_folderPath; }
     // Treats every folder as reachable without scanning (for tests).
     void assumeReachable() { m_online = m_roots; }
+    QString songSort() const { return m_songSort; }
+    void setSongSort(const QString &key);
+    bool songDescending() const { return m_songDescending; }
+    void setSongDescending(bool on);
     QStringList offlineRoots() const { return m_offline; }
 
     Q_INVOKABLE void rescan();
@@ -74,6 +81,7 @@ signals:
     void folderPathChanged();
     void coversChanged();
     void offlineChanged();
+    void songSortChanged();
 
 private:
     void loadCache();
@@ -83,6 +91,7 @@ private:
     void setupWatch();
     bool isOnline(const QString &path) const;
     void finishScan();
+    void rebuildSongs();
     QString coverCacheDir() const;
     QString cachedCoverPath(const QString &dir) const;
     void queueExtraction(const QString &dir, const QString &track);
@@ -124,6 +133,8 @@ private:
     QProcess m_scan;
     QByteArray m_scanBuffer;
     QVector<Track> m_pending;
+    QString m_songSort = QStringLiteral("title");
+    bool m_songDescending = false;
     QStringList m_pendingOffline;
     QStringList m_offline;   // roots the last finished scan could not reach
     QStringList m_online;    // roots a finished scan reached; only these are touched on disk

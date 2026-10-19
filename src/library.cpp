@@ -298,6 +298,63 @@ void Library::finishScan()
     }
 }
 
+void Library::setSongSort(const QString &key)
+{
+    static const QStringList keys{"title", "artist", "album", "length", "added"};
+    if (!keys.contains(key) || key == m_songSort)
+        return;
+    m_songSort = key;
+    rebuildSongs();
+    emit songSortChanged();
+}
+
+void Library::setSongDescending(bool on)
+{
+    if (on == m_songDescending)
+        return;
+    m_songDescending = on;
+    rebuildSongs();
+    emit songSortChanged();
+}
+
+// Every key falls back to title, then artist, then album order, so equal keys stay stable.
+void Library::rebuildSongs()
+{
+    QVector<Track> songs = m_tracks;
+    const auto byTitle = [](const Track &a, const Track &b) {
+        if (ciLess(a.title, b.title))
+            return true;
+        if (ciLess(b.title, a.title))
+            return false;
+        if (ciLess(a.artist, b.artist))
+            return true;
+        if (ciLess(b.artist, a.artist))
+            return false;
+        return trackLess(a, b);
+    };
+    const QString key = m_songSort;
+    const auto less = [&](const Track &a, const Track &b) {
+        if (key == QLatin1String("artist")
+            && QString::compare(a.artist, b.artist, Qt::CaseInsensitive) != 0)
+            return ciLess(a.artist, b.artist);
+        if (key == QLatin1String("album") && QString::compare(a.album, b.album, Qt::CaseInsensitive) != 0)
+            return ciLess(a.album, b.album);
+        if (key == QLatin1String("length") && a.duration != b.duration)
+            return a.duration < b.duration;
+        if (key == QLatin1String("added") && a.mtime != b.mtime)
+            return a.mtime > b.mtime;
+        return byTitle(a, b);
+    };
+    std::sort(songs.begin(), songs.end(), less);
+    if (m_songDescending)
+        std::reverse(songs.begin(), songs.end());
+    QVector<QVariantMap> rows;
+    rows.reserve(songs.size());
+    for (const Track &t : std::as_const(songs))
+        rows.append(t.toMap());
+    m_songs.setRows(rows);
+}
+
 void Library::drainScanOutput(bool flush)
 {
     const auto take = [this](const QByteArray &line) {
@@ -418,23 +475,7 @@ void Library::rebuildGroups()
     }
     m_albums.setRows(albumRows);
 
-    QVector<Track> songs = m_tracks;
-    std::sort(songs.begin(), songs.end(), [](const Track &a, const Track &b) {
-        if (ciLess(a.title, b.title))
-            return true;
-        if (ciLess(b.title, a.title))
-            return false;
-        if (ciLess(a.artist, b.artist))
-            return true;
-        if (ciLess(b.artist, a.artist))
-            return false;
-        return trackLess(a, b);
-    });
-    QVector<QVariantMap> songRows;
-    songRows.reserve(songs.size());
-    for (const Track &t : std::as_const(songs))
-        songRows.append(t.toMap());
-    m_songs.setRows(songRows);
+    rebuildSongs();
 
     QStringList names = m_byArtist.keys();
     std::sort(names.begin(), names.end(), ciLess);

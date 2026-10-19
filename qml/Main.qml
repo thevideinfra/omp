@@ -100,9 +100,26 @@ ApplicationWindow {
                     Layout.preferredWidth: S.sp(140)
                     color: theme.sunken
 
+                    // Room for a logo; the name stands in until there is one.
+                    Item {
+                        id: logoArea
+                        objectName: "logoArea"
+                        x: S.sp(8)
+                        y: S.sp(8)
+                        width: parent.width - S.sp(16)
+                        height: S.sp(64)
+                        UiText {
+                            anchors.centerIn: parent
+                            text: "omamusic"
+                            color: theme.accent
+                            px: 16
+                        }
+                    }
+
                     Column {
                         anchors.fill: parent
                         anchors.margins: S.sp(8)
+                        anchors.topMargin: logoArea.y + logoArea.height + S.sp(8)
                         spacing: S.sp(4)
                         Repeater {
                             model: win.tabNames
@@ -154,6 +171,50 @@ ApplicationWindow {
                             onTextChanged: library.setQuery(text)
                             Keys.onEscapePressed: { text = ""; keyRoot.forceActiveFocus() }
                             Keys.onReturnPressed: keyRoot.forceActiveFocus()
+                        }
+
+                        Row {
+                            visible: win.isTab("Songs") && !win.searching
+                            Layout.preferredHeight: searchField.height
+                            spacing: S.sp(4)
+                            Repeater {
+                                model: [["title", qsTr("Title")], ["artist", qsTr("Artist")], ["album", qsTr("Album")],
+                                        ["length", qsTr("Length")], ["added", qsTr("Added")]]
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    readonly property bool on: library.songSort === modelData[0]
+                                    width: sortLabel.implicitWidth + S.sp(20)
+                                    height: searchField.height
+                                    radius: S.sp(6)
+                                    color: on || sortArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                                    border.width: 1
+                                    border.color: on ? theme.accent : (sortArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12))
+                                    UiText { id: sortLabel; anchors.centerIn: parent; text: modelData[1]; color: parent.on ? theme.accent : theme.foreground }
+                                    MouseArea {
+                                        id: sortArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: { library.songSort = modelData[0]; keyRoot.forceActiveFocus() }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: searchField.height
+                                height: searchField.height
+                                radius: S.sp(6)
+                                color: library.songDescending || dirArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                                border.width: 1
+                                border.color: library.songDescending ? theme.accent : (dirArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12))
+                                UiText { anchors.centerIn: parent; text: "⇅"; color: library.songDescending ? theme.accent : theme.foreground }
+                                MouseArea {
+                                    id: dirArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: { library.songDescending = !library.songDescending; keyRoot.forceActiveFocus() }
+                                }
+                            }
                         }
 
                         Rectangle {

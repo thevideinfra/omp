@@ -132,11 +132,15 @@ private slots:
         QCOMPARE(now.at(p.currentIndex()), QString("C"));
 
         p.setShuffle(false);
+        auto order = [&p] {
+            QStringList l;
+            for (int i = 0; i < p.queue()->rowCount(); ++i)
+                l << p.queue()->get(i).value("title").toString();
+            return l;
+        };
+        // The queue follows mpv a moment later (the shuffled index of C may already be 2).
+        QTRY_COMPARE_WITH_TIMEOUT(order(), titles, 3000);
         QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), 2, 3000);
-        QStringList restored;
-        for (int i = 0; i < p.queue()->rowCount(); ++i)
-            restored << p.queue()->get(i).value("title").toString();
-        QCOMPARE(restored, titles);
     }
 
     void repeatOneKeepsPlayingTheSong()

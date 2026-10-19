@@ -58,6 +58,13 @@ Item {
                 checked: settingsStore.saveLayout
                 onToggled: (v) => settingsStore.set("saveLayout", v)
             }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
+                label: qsTr("Remember sort order")
+                checked: settingsStore.saveSort
+                onToggled: (v) => settingsStore.set("saveSort", v)
+            }
             Rectangle {
                 visible: root.section === 0
                 Layout.preferredWidth: resetText.implicitWidth + S.sp(24)

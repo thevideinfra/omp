@@ -307,6 +307,36 @@ void Library::finishScan()
     }
 }
 
+QString Library::sortState(const QString &tab) const
+{
+    const auto join = [](const QString &key, bool desc) { return key + (desc ? ",desc" : ",asc"); };
+    if (tab == QLatin1String("songs"))
+        return join(m_songSort, m_songDescending);
+    if (tab == QLatin1String("albums"))
+        return join(m_albumSort, m_albumDescending);
+    if (tab == QLatin1String("artists"))
+        return join(m_artistSort, m_artistDescending);
+    return {};
+}
+
+void Library::restoreSortState(const QString &tab, const QString &state)
+{
+    const QStringList parts = state.split(',');
+    if (parts.size() != 2)
+        return;
+    const bool desc = parts.at(1) == QLatin1String("desc");
+    if (tab == QLatin1String("songs")) {
+        setSongSort(parts.at(0));
+        setSongDescending(desc);
+    } else if (tab == QLatin1String("albums")) {
+        setAlbumSort(parts.at(0));
+        setAlbumDescending(desc);
+    } else if (tab == QLatin1String("artists")) {
+        setArtistSort(parts.at(0));
+        setArtistDescending(desc);
+    }
+}
+
 void Library::setSongSort(const QString &key)
 {
     static const QStringList keys{"title", "artist", "album", "length", "added"};

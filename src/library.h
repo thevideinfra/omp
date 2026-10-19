@@ -56,6 +56,9 @@ public:
     QString folderPath() const { return m_folderPath; }
     // Treats every folder as reachable without scanning (for tests).
     void assumeReachable() { m_online = m_roots; }
+    // A tab's sort as "key,asc" or "key,desc" (tab: "songs", "albums" or "artists"), for storing.
+    QString sortState(const QString &tab) const;
+    void restoreSortState(const QString &tab, const QString &state);
     QString songSort() const { return m_songSort; }
     void setSongSort(const QString &key);
     bool songDescending() const { return m_songDescending; }

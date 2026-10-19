@@ -324,6 +324,27 @@ private slots:
         QCOMPARE(titles(lib.artists()), QStringList({"Zed", "Amy"}));
     }
 
+    void sortChoicesRoundTripThroughAState()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        QCOMPARE(lib.sortState("songs"), QString("title,asc"));
+        QCOMPARE(lib.sortState("albums"), QString("artist,asc"));
+        QCOMPARE(lib.sortState("artists"), QString("title,asc"));
+        lib.restoreSortState("songs", "length,desc");
+        lib.restoreSortState("albums", "added,asc");
+        lib.restoreSortState("artists", "length,desc");
+        QCOMPARE(lib.songSort(), QString("length"));
+        QVERIFY(lib.songDescending());
+        QCOMPARE(lib.sortState("songs"), QString("length,desc"));
+        QCOMPARE(lib.sortState("albums"), QString("added,asc"));
+        QCOMPARE(lib.sortState("artists"), QString("length,desc"));
+        lib.restoreSortState("songs", "bogus,desc");   // a bad key leaves it alone, the direction applies
+        lib.restoreSortState("albums", "");            // nothing stored
+        lib.restoreSortState("nope", "title,asc");
+        QCOMPARE(lib.songSort(), QString("length"));
+        QCOMPARE(lib.albumSort(), QString("added"));
+    }
+
     void albumRowsDoNotTouchTheDiskForCovers()
     {
         QTemporaryDir dir;

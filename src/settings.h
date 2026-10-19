@@ -15,6 +15,7 @@ class Settings : public QObject
     Q_PROPERTY(QStringList folders READ folders NOTIFY changed)
     Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
     Q_PROPERTY(bool saveLayout READ saveLayout NOTIFY changed)
+    Q_PROPERTY(bool saveSort READ saveSort NOTIFY changed)
     Q_PROPERTY(bool panelShowAccent READ panelShowAccent NOTIFY changed)
     Q_PROPERTY(bool panelCover READ panelCover NOTIFY changed)
     Q_PROPERTY(bool panelSeek READ panelSeek NOTIFY changed)
@@ -49,6 +50,10 @@ public:
     QString eqPreset() const { return m_values.value("eqPreset").toString(); }
     QStringList folders() const { return m_values.value("folders").toStringList(); }
     int volume() const { return m_values.value("volume").toInt(); }
+    bool saveSort() const { return m_values.value("saveSort").toBool(); }
+    QString sortSongs() const { return m_values.value("sortSongs").toString(); }
+    QString sortAlbums() const { return m_values.value("sortAlbums").toString(); }
+    QString sortArtists() const { return m_values.value("sortArtists").toString(); }
     bool saveLayout() const { return m_values.value("saveLayout").toBool(); }
     bool showAccent() const { return m_values.value("showAccent").toBool(); }
     bool panelShowAccent() const { return m_values.value("panelShowAccent").toBool(); }

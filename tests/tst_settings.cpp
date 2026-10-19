@@ -113,6 +113,25 @@ private slots:
         }
     }
 
+    void sortMemoryKeysDefaultOffAndPersist()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QVERIFY(!s.saveSort());
+            QCOMPARE(s.sortSongs(), QString());
+            s.set("saveSort", true);
+            s.set("sortSongs", "length,desc");
+            s.set("sortArtists", "added,asc");
+        }
+        Settings again(f);
+        QVERIFY(again.saveSort());
+        QCOMPARE(again.sortSongs(), QString("length,desc"));
+        QCOMPARE(again.sortArtists(), QString("added,asc"));
+        QCOMPARE(again.sortAlbums(), QString());
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

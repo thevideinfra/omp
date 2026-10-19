@@ -418,7 +418,10 @@ ApplicationWindow {
                             }
                         }
                         RowLayout {
-                            Layout.fillWidth: true
+                            // A fixed length, however wide the window is.
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.preferredWidth: S.sp(460)
+                            Layout.maximumWidth: S.sp(460)
                             UiText { text: Fmt.time(player.position); color: theme.dimForeground; px: 12 }
                             SeekBar {
                                 Layout.fillWidth: true
@@ -431,6 +434,7 @@ ApplicationWindow {
 
                     RowLayout {
                         Layout.preferredWidth: S.sp(200)
+                        Layout.maximumWidth: S.sp(200)
                         UiText { text: qsTr("vol"); color: theme.dimForeground; px: 12 }
                         SeekBar {
                             Layout.fillWidth: true

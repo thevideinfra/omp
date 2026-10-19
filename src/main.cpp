@@ -110,6 +110,24 @@ int main(int argc, char *argv[])
 
     QObject::connect(&settings, &Settings::changed, &library, [&] { library.setRoots(settings.folders()); });
 
+    // The sort choices come back from the config only when "remember sort order" is on.
+    const auto storeSort = [&] {
+        if (!settings.saveSort())
+            return;
+        settings.set("sortSongs", library.sortState("songs"));
+        settings.set("sortAlbums", library.sortState("albums"));
+        settings.set("sortArtists", library.sortState("artists"));
+    };
+    if (settings.saveSort()) {
+        library.restoreSortState("songs", settings.sortSongs());
+        library.restoreSortState("albums", settings.sortAlbums());
+        library.restoreSortState("artists", settings.sortArtists());
+    }
+    QObject::connect(&library, &Library::songSortChanged, &settings, storeSort);
+    QObject::connect(&library, &Library::albumSortChanged, &settings, storeSort);
+    QObject::connect(&library, &Library::artistSortChanged, &settings, storeSort);
+    QObject::connect(&settings, &Settings::changed, &settings, storeSort);   // switching the option on stores the current ones
+
     Playlists playlists;   // declared before the engine: its context property must outlive the QML
     Autostart autostart;
     QQmlApplicationEngine engine;

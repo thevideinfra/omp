@@ -14,9 +14,15 @@
 
 namespace {
 
+// Names that differ only in case or surrounding space are the same artist/album.
+QString fold(const QString &s)
+{
+    return s.trimmed().toCaseFolded();
+}
+
 QString albumKey(const Track &t)
 {
-    return t.albumArtist + QChar(0x1f) + t.album;
+    return fold(t.albumArtist) + QChar(0x1f) + fold(t.album);
 }
 
 bool trackLess(const Track &a, const Track &b)
@@ -233,9 +239,27 @@ void Library::rebuildGroups()
 {
     m_byAlbum.clear();
     m_byArtist.clear();
+
+    // One display spelling per folded artist: the most common one, ties by name.
+    QHash<QString, QHash<QString, int>> spellings;
+    for (const Track &t : std::as_const(m_tracks))
+        ++spellings[fold(t.albumArtist)][t.albumArtist];
+    QHash<QString, QString> display;
+    for (auto it = spellings.cbegin(); it != spellings.cend(); ++it) {
+        QString best;
+        int bestCount = 0;
+        for (auto s = it.value().cbegin(); s != it.value().cend(); ++s) {
+            if (s.value() > bestCount || (s.value() == bestCount && s.key() < best)) {
+                best = s.key();
+                bestCount = s.value();
+            }
+        }
+        display.insert(it.key(), best);
+    }
+
     for (const Track &t : std::as_const(m_tracks)) {
         m_byAlbum[albumKey(t)].append(t);
-        m_byArtist[t.albumArtist].append(t);
+        m_byArtist[display.value(fold(t.albumArtist))].append(t);
     }
 
     struct Album { QString key, name, artist; QVector<Track> tracks; };
@@ -243,7 +267,8 @@ void Library::rebuildGroups()
     for (auto it = m_byAlbum.cbegin(); it != m_byAlbum.cend(); ++it) {
         QVector<Track> sorted = it.value();
         std::sort(sorted.begin(), sorted.end(), trackLess);
-        albums.append({it.key(), sorted.first().album, sorted.first().albumArtist, sorted});
+        albums.append({it.key(), sorted.first().album,
+                       display.value(fold(sorted.first().albumArtist)), sorted});
     }
     std::sort(albums.begin(), albums.end(), [](const Album &a, const Album &b) {
         const int byArtist = QString::compare(a.artist, b.artist, Qt::CaseInsensitive);
@@ -265,7 +290,7 @@ void Library::rebuildGroups()
     for (const QString &name : std::as_const(names)) {
         QSet<QString> albumNames;
         for (const Track &t : m_byArtist.value(name))
-            albumNames.insert(t.album);
+            albumNames.insert(fold(t.album));
         artistRows.append({{"key", name},
                            {"title", name},
                            {"subtitle", QStringLiteral("%1 albums").arg(albumNames.size())},

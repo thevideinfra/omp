@@ -221,6 +221,24 @@ private slots:
         QCOMPARE(lib.albums()->data(lib.albums()->index(0, 0), role).toString(), t.path);
     }
 
+    void artistAndAlbumNamesDifferingInCaseAreOne()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks({
+            mk("/m/a/01.flac", "One", "Fit for a King", "Dark Skies", 1),
+            mk("/m/a/02.flac", "Two", "Fit for a King", "Dark Skies", 2),
+            mk("/m/b/01.flac", "Three", "Fit For A King", "dark skies", 3),
+        });
+        QCOMPARE(lib.artists()->rowCount(), 1);
+        // The most common spelling is shown.
+        QCOMPARE(lib.artists()->get(0).value("title").toString(), QString("Fit for a King"));
+        QCOMPARE(lib.artists()->get(0).value("subtitle").toString(), QString("1 albums"));
+        QCOMPARE(lib.artistTracks("Fit for a King").size(), 3);
+        QCOMPARE(lib.albums()->rowCount(), 1);
+        QCOMPARE(lib.albums()->get(0).value("subtitle").toString(), QString("Fit for a King"));
+        QCOMPARE(lib.albumTracks(lib.albums()->get(0).value("key").toString()).size(), 3);
+    }
+
     void embeddedCoverIsExtractedAndCached()
     {
         QTemporaryDir music;

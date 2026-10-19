@@ -16,6 +16,20 @@ static Track mk(const QString &path, const QString &title, const QString &artist
     return t;
 }
 
+// A flac with a red 64x64 jpeg attached as cover art (or none when withArt is false).
+static bool makeFlac(const QString &path, bool withArt)
+{
+    QStringList args{"-v", "error", "-f", "lavfi", "-i", "sine=d=0.3"};
+    if (withArt) {
+        args << "-f" << "lavfi" << "-i" << "color=c=red:s=64x64:d=1" << "-map" << "0:a" << "-map" << "1:v"
+             << "-c:v" << "mjpeg" << "-frames:v" << "1" << "-disposition:v" << "attached_pic";
+    }
+    args << "-y" << path;
+    QProcess ff;
+    ff.start("ffmpeg", args);
+    return ff.waitForFinished(10000) && ff.exitCode() == 0;
+}
+
 static QVector<Track> fixture()
 {
     return {
@@ -205,6 +219,62 @@ private slots:
         }
         QVERIFY(role >= 0);
         QCOMPARE(lib.albums()->data(lib.albums()->index(0, 0), role).toString(), t.path);
+    }
+
+    void embeddedCoverIsExtractedAndCached()
+    {
+        QTemporaryDir music;
+        QTemporaryDir state;
+        const QString track = music.filePath("one.flac");
+        QVERIFY(makeFlac(track, true));
+        const QString cache = state.filePath("index.jsonl");
+
+        Library lib({music.path()}, "/nonexistent-scanner", cache);
+        QSignalSpy spy(&lib, &Library::coversChanged);
+        QCOMPARE(lib.coverFor(track), QString());   // first call only queues the extraction
+        QCOMPARE(lib.coverRevision(), 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.coverFor(track).isEmpty(), 10000);
+        const QString url = lib.coverFor(track);
+        QVERIFY(url.startsWith("file://"));
+        QVERIFY(url.contains("/covers/"));
+        QVERIFY(url.endsWith(".jpg"));
+        QVERIFY(QFileInfo::exists(QUrl(url).toLocalFile()));
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(lib.coverRevision(), 1);
+
+        Library again({music.path()}, "/nonexistent-scanner", cache);
+        QCOMPARE(again.coverFor(track), url);   // found in the cache, nothing queued
+        QVERIFY(!again.extractingCovers());
+    }
+
+    void folderImageBeatsEmbeddedArt()
+    {
+        QTemporaryDir music;
+        QTemporaryDir state;
+        const QString track = music.filePath("one.flac");
+        QVERIFY(makeFlac(track, true));
+        QFile c(music.filePath("cover.jpg"));
+        QVERIFY(c.open(QIODevice::WriteOnly));
+        c.close();
+        Library lib({music.path()}, "/nonexistent-scanner", state.filePath("index.jsonl"));
+        QVERIFY(lib.coverFor(track).endsWith("/cover.jpg"));
+        QVERIFY(!lib.extractingCovers());
+    }
+
+    void trackWithoutArtIsNotRetried()
+    {
+        QTemporaryDir music;
+        QTemporaryDir state;
+        const QString track = music.filePath("plain.flac");
+        QVERIFY(makeFlac(track, false));
+        Library lib({music.path()}, "/nonexistent-scanner", state.filePath("index.jsonl"));
+        QSignalSpy spy(&lib, &Library::coversChanged);
+        QCOMPARE(lib.coverFor(track), QString());
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.extractingCovers(), 10000);
+        QCOMPARE(lib.coverFor(track), QString());
+        QVERIFY(!lib.extractingCovers());   // not queued a second time
+        QCOMPARE(spy.count(), 0);
+        QCOMPARE(lib.coverRevision(), 0);
     }
 
     void failedScanKeepsOldIndex()

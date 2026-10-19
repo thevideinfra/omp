@@ -26,7 +26,7 @@ ListView {
         required property string subtitle
         required property string meta
         required property string cover   // a track path; the art file is looked up lazily
-        readonly property string artSource: cover !== "" ? library.coverFor(cover) : ""
+        readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
 
         width: ListView.view.width
         height: Math.max(S.sp(52), textColumn.implicitHeight + S.sp(8))

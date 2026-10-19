@@ -260,7 +260,7 @@ ApplicationWindow {
                         color: theme.surface
                         Image {
                             anchors.fill: parent
-                            source: library.coverFor(player.current.path ?? "")
+                            source: { library.coverRevision; return library.coverFor(player.current.path ?? "") }
                             fillMode: Image.PreserveAspectCrop
                             sourceSize.width: 128
                             sourceSize.height: 128

@@ -3,6 +3,9 @@
 #include <QHash>
 #include <QObject>
 #include <QProcess>
+#include <QQueue>
+#include <QSet>
+#include <QTimer>
 #include <QVariantList>
 #include <QVector>
 
@@ -13,6 +16,7 @@ class Library : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
+    Q_PROPERTY(int coverRevision READ coverRevision NOTIFY coversChanged)
     Q_PROPERTY(int trackCount READ trackCount NOTIFY indexChanged)
     Q_PROPERTY(RowsModel *albums READ albums CONSTANT)
     Q_PROPERTY(RowsModel *artists READ artists CONSTANT)
@@ -42,18 +46,26 @@ public:
     Q_INVOKABLE void browse(const QString &dir);
     Q_INVOKABLE void up();
     Q_INVOKABLE void setQuery(const QString &query);
-    Q_INVOKABLE QString coverFor(const QString &trackPath) const;
+    Q_INVOKABLE QString coverFor(const QString &trackPath);
+    int coverRevision() const { return m_coverRevision; }
+    bool extractingCovers() const { return m_extract.state() != QProcess::NotRunning || !m_extractQueue.isEmpty(); }
 
 signals:
     void scanningChanged();
     void indexChanged();
     void folderPathChanged();
+    void coversChanged();
 
 private:
     void loadCache();
     void writeCache() const;
     void drainScanOutput(bool flush);
     void rebuildGroups();
+    QString coverCacheDir() const;
+    QString cachedCoverPath(const QString &dir) const;
+    void queueExtraction(const QString &dir, const QString &track);
+    void startNextExtraction();
+    void finishExtraction(bool ok);
 
     QStringList m_roots;
     QString m_scanProgram;
@@ -62,7 +74,13 @@ private:
     QVector<Track> m_tracks;
     QHash<QString, QVector<Track>> m_byAlbum;    // album key -> tracks
     QHash<QString, QVector<Track>> m_byArtist;   // album artist -> tracks
-    mutable QHash<QString, QString> m_coverCache;
+    QHash<QString, QString> m_coverCache;           // album dir -> cover URL ("" = none yet)
+    QQueue<QPair<QString, QString>> m_extractQueue; // (album dir, track path)
+    QSet<QString> m_extractSeen;                    // dirs queued or already failed
+    QProcess m_extract;
+    QTimer m_extractTimer;
+    QString m_extractDir;
+    int m_coverRevision = 0;
 
     RowsModel m_albums;
     RowsModel m_artists;

@@ -50,6 +50,8 @@ class StubLibrary : public QObject
 {
     Q_OBJECT
 public:
+    Q_PROPERTY(int coverRevision READ coverRevision CONSTANT)
+    int coverRevision() const { return 0; }
     Q_INVOKABLE QString coverFor(const QString &) { return {}; }
 };
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <QCryptographicHash>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -111,10 +112,28 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
             emit scanningChanged();
         }
     });
+
+    m_extractTimer.setSingleShot(true);
+    m_extractTimer.setInterval(15000);
+    connect(&m_extractTimer, &QTimer::timeout, &m_extract, &QProcess::kill);
+    connect(&m_extract, &QProcess::finished, this, [this](int code, QProcess::ExitStatus status) {
+        finishExtraction(status == QProcess::NormalExit && code == 0);
+    });
+    connect(&m_extract, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
+        if (e == QProcess::FailedToStart) {
+            qWarning() << "cannot start ffmpeg for embedded cover art";
+            finishExtraction(false);
+        }
+    });
 }
 
 Library::~Library()
 {
+    m_extract.disconnect(this);
+    if (m_extract.state() != QProcess::NotRunning) {
+        m_extract.kill();
+        m_extract.waitForFinished(1000);
+    }
     m_scan.disconnect(this);
     if (m_scan.state() != QProcess::NotRunning) {
         m_scan.kill();
@@ -340,7 +359,7 @@ void Library::setQuery(const QString &query)
     m_results.setRows(rows);
 }
 
-QString Library::coverFor(const QString &trackPath) const
+QString Library::coverFor(const QString &trackPath)
 {
     if (trackPath.isEmpty())
         return QString();
@@ -348,7 +367,68 @@ QString Library::coverFor(const QString &trackPath) const
     auto it = m_coverCache.constFind(dir);
     if (it != m_coverCache.cend())
         return it.value();
-    const QString found = findCover(dir);
+    QString found = findCover(dir);
+    if (found.isEmpty()) {
+        const QString cached = cachedCoverPath(dir);
+        if (QFileInfo::exists(cached))
+            found = QUrl::fromLocalFile(cached).toString();
+        else
+            queueExtraction(dir, trackPath);
+    }
     m_coverCache.insert(dir, found);
     return found;
+}
+
+QString Library::coverCacheDir() const
+{
+    return QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/covers");
+}
+
+QString Library::cachedCoverPath(const QString &dir) const
+{
+    const QByteArray hex = QCryptographicHash::hash(dir.toUtf8(), QCryptographicHash::Sha1).toHex();
+    return coverCacheDir() + '/' + QString::fromLatin1(hex) + QStringLiteral(".jpg");
+}
+
+void Library::queueExtraction(const QString &dir, const QString &track)
+{
+    if (m_extractSeen.contains(dir))
+        return;
+    m_extractSeen.insert(dir);
+    if (!QDir().mkpath(coverCacheDir()))
+        return;   // read-only state dir: no extraction
+    m_extractQueue.enqueue({dir, track});
+    if (m_extract.state() == QProcess::NotRunning)
+        startNextExtraction();
+}
+
+void Library::startNextExtraction()
+{
+    if (m_extractQueue.isEmpty())
+        return;
+    const auto [dir, track] = m_extractQueue.dequeue();
+    m_extractDir = dir;
+    const QString tmp = cachedCoverPath(dir).chopped(4) + QStringLiteral(".tmp.jpg");
+    QFile::remove(tmp);
+    m_extract.start(QStringLiteral("ffmpeg"),
+                    {"-v", "error", "-i", track, "-an", "-frames:v", "1", "-y", tmp});
+    m_extractTimer.start();
+}
+
+void Library::finishExtraction(bool ok)
+{
+    m_extractTimer.stop();
+    const QString finalPath = cachedCoverPath(m_extractDir);
+    const QString tmp = finalPath.chopped(4) + QStringLiteral(".tmp.jpg");
+    if (ok && QFileInfo(tmp).size() > 0) {
+        QFile::remove(finalPath);
+        if (QFile::rename(tmp, finalPath)) {
+            m_coverCache.insert(m_extractDir, QUrl::fromLocalFile(finalPath).toString());
+            ++m_coverRevision;
+            emit coversChanged();
+        }
+    } else {
+        QFile::remove(tmp);   // no embedded art, or ffmpeg failed: not retried this session
+    }
+    startNextExtraction();
 }

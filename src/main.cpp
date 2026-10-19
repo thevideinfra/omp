@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
                     Paths::stateDir() + QStringLiteral("/index.jsonl"));
 
     QQmlApplicationEngine engine;
-    Shell shell(engine, player);
+    Shell shell(engine, player, theme);
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("theme", &theme);
     ctx->setContextProperty("ui", &appLook);

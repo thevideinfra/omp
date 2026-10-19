@@ -7,13 +7,14 @@
 #include <QSystemTrayIcon>
 
 class Player;
+class Theme;
 class QQmlApplicationEngine;
 
 class Shell : public QObject
 {
     Q_OBJECT
 public:
-    Shell(QQmlApplicationEngine &engine, Player &player, QObject *parent = nullptr);
+    Shell(QQmlApplicationEngine &engine, Player &player, const Theme &theme, QObject *parent = nullptr);
 
     void handleVerb(const QString &verb);
 
@@ -27,9 +28,11 @@ public:
 
 private:
     QQuickWindow *window(const QString &objectName) const;
+    void updateIcon();
 
     QQmlApplicationEngine &m_engine;
     Player &m_player;
+    const Theme &m_theme;
     QSystemTrayIcon m_tray;
     QMenu m_menu;
     QPointer<QQuickWindow> m_panel;

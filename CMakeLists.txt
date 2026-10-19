@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Network Quick QuickControls2 Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Network Quick QuickControls2 Svg Test)
 qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_library(omacore STATIC
@@ -21,9 +21,10 @@ qt_add_library(omacore STATIC
     src/instance.cpp src/instance.h
     src/settings.cpp src/settings.h
     src/lookscope.cpp src/lookscope.h
+    src/trayicon.cpp src/trayicon.h
 )
 target_include_directories(omacore PUBLIC src)
-target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network)
+target_link_libraries(omacore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Svg)
 
 qt_add_executable(omamusic src/main.cpp src/shell.cpp src/shell.h)
 target_link_libraries(omamusic PRIVATE omacore Qt6::Widgets Qt6::Quick Qt6::QuickControls2)

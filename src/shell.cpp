@@ -1,19 +1,24 @@
 #include "shell.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QIcon>
 #include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
 #include "player.h"
+#include "theme.h"
+#include "trayicon.h"
 
-Shell::Shell(QQmlApplicationEngine &engine, Player &player, QObject *parent)
+Shell::Shell(QQmlApplicationEngine &engine, Player &player, const Theme &theme, QObject *parent)
     : QObject(parent)
     , m_engine(engine)
     , m_player(player)
-    , m_tray(QIcon(QStringLiteral(":/icons/omamusic-symbolic.svg")))
+    , m_theme(theme)
 {
+    updateIcon();
+    connect(&m_theme, &Theme::changed, this, &Shell::updateIcon);
     connect(m_menu.addAction(tr("Show")), &QAction::triggered, this, &Shell::showMain);
     connect(m_menu.addAction(tr("Play/Pause")), &QAction::triggered, &m_player, &Player::togglePause);
     connect(m_menu.addAction(tr("Next")), &QAction::triggered, &m_player, &Player::next);
@@ -103,4 +108,12 @@ void Shell::hidePanel()
 void Shell::quitApp()
 {
     QCoreApplication::quit();
+}
+
+void Shell::updateIcon()
+{
+    QFile f(QStringLiteral(":/icons/omamusic-symbolic.svg"));
+    if (!f.open(QIODevice::ReadOnly))
+        return;
+    m_tray.setIcon(TrayIcon::make(f.readAll(), m_theme.foreground()));
 }

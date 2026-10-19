@@ -138,7 +138,9 @@ The panel sizes itself to its content, so the rule has no `size`. A Qt client ca
 
 ## Known gaps
 
-Deferred to later plans: handling of unmounted or slow network shares, and Subsonic. The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
+Network shares: a music folder that is missing, empty or stops answering (unmounted or hung NFS/SMB; the scan gives up after 20 s without progress) is shown as offline in Settings > Library and keeps its last known songs, while the other folders rescan normally. Covers and change watching skip folders that have not been confirmed reachable, so a dead mount cannot freeze the window. Playing a song on a dead mount is still up to mpv.
+
+Deferred to later plans: Subsonic. The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
 
 ## Test
 

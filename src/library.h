@@ -25,6 +25,8 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *songs READ songs CONSTANT)
     Q_PROPERTY(RowsModel *results READ results CONSTANT)
     Q_PROPERTY(QString folderPath READ folderPath NOTIFY folderPathChanged)
+    // Folders the last scan could not reach (unmounted or hung shares); their songs are the last known ones.
+    Q_PROPERTY(QStringList offlineRoots READ offlineRoots NOTIFY offlineChanged)
 
 public:
     Library(const QStringList &roots, const QString &scanProgram, const QString &cacheFile,
@@ -44,6 +46,9 @@ public:
     RowsModel *songs() { return &m_songs; }
     RowsModel *results() { return &m_results; }
     QString folderPath() const { return m_folderPath; }
+    // Treats every folder as reachable without scanning (for tests).
+    void assumeReachable() { m_online = m_roots; }
+    QStringList offlineRoots() const { return m_offline; }
 
     Q_INVOKABLE void rescan();
     // The known tracks for these paths, in order, each with "playlistIndex" set
@@ -68,6 +73,7 @@ signals:
     void indexChanged();
     void folderPathChanged();
     void coversChanged();
+    void offlineChanged();
 
 private:
     void loadCache();
@@ -75,6 +81,8 @@ private:
     void drainScanOutput(bool flush);
     void rebuildGroups();
     void setupWatch();
+    bool isOnline(const QString &path) const;
+    void finishScan();
     QString coverCacheDir() const;
     QString cachedCoverPath(const QString &dir) const;
     void queueExtraction(const QString &dir, const QString &track);
@@ -116,4 +124,7 @@ private:
     QProcess m_scan;
     QByteArray m_scanBuffer;
     QVector<Track> m_pending;
+    QStringList m_pendingOffline;
+    QStringList m_offline;   // roots the last finished scan could not reach
+    QStringList m_online;    // roots a finished scan reached; only these are touched on disk
 };

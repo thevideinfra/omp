@@ -27,7 +27,9 @@ ColumnLayout {
                 anchors.right: removeChip.left
                 anchors.rightMargin: S.sp(10)
                 anchors.verticalCenter: parent.verticalCenter
-                text: row.modelData
+                readonly property bool offline: library.offlineRoots.indexOf(row.modelData) >= 0
+                text: offline ? row.modelData + qsTr("  (offline: showing last known songs)") : row.modelData
+                color: offline ? theme.dimForeground : theme.foreground
                 elide: Text.ElideMiddle
             }
 

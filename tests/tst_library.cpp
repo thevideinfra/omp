@@ -127,6 +127,7 @@ private slots:
         QTemporaryDir dir;
         QFile(dir.filePath("Cover.JPG")).open(QIODevice::WriteOnly);
         Library lib({dir.path()}, "unused", "unused");
+        lib.assumeReachable();
         QVERIFY(lib.coverFor(dir.filePath("x.flac")).endsWith("/Cover.JPG"));
         QTemporaryDir bare;
         QCOMPARE(lib.coverFor(bare.filePath("x.flac")), QString());
@@ -200,13 +201,54 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
 
         QVERIFY(QFile::remove(music.filePath("one.flac")));   // like an unmounted share
-        QTest::ignoreMessage(QtWarningMsg, QRegularExpression("scan found no tracks"));
         lib.rescan();
         QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 20000);
         QCOMPARE(lib.trackCount(), 1);
+        QCOMPARE(lib.offlineRoots(), QStringList({music.path()}));
         Library again({music.path()}, "/nonexistent-scanner", cache);
         again.start();
         QCOMPARE(again.trackCount(), 1);   // the cache was not wiped either
+    }
+
+    void anOfflineFolderKeepsItsSongsAndTheOthersStayLive()
+    {
+        NEED_FFMPEG();
+        QTemporaryDir a, b, state;
+        for (const auto &f : {a.filePath("a.flac"), b.filePath("b.flac")}) {
+            QProcess ff;
+            ff.start("ffmpeg", {"-v", "error", "-f", "lavfi", "-i", "sine=d=0.3", f});
+            QVERIFY(ff.waitForFinished(10000));
+        }
+        Library lib({a.path(), b.path()}, OMA_SCAN_PROGRAM, state.filePath("index.jsonl"));
+        lib.rescan();
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 2, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+        QVERIFY(lib.offlineRoots().isEmpty());
+
+        QVERIFY(QFile::remove(b.filePath("b.flac")));   // b "unmounts"
+        QProcess ff;
+        ff.start("ffmpeg", {"-v", "error", "-f", "lavfi", "-i", "sine=d=0.3", a.filePath("a2.flac")});
+        QVERIFY(ff.waitForFinished(10000));
+        lib.rescan();
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 3, 20000);   // a2 added, b kept
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+        QCOMPARE(lib.offlineRoots(), QStringList({b.path()}));
+    }
+
+    void coversWaitForAFinishedScan()
+    {
+        QTemporaryDir dir, state;
+        QFile c(dir.filePath("cover.jpg"));
+        QVERIFY(c.open(QIODevice::WriteOnly));
+        c.close();
+        QFile idx(state.filePath("index.jsonl"));
+        QVERIFY(idx.open(QIODevice::WriteOnly));
+        idx.write(QString("{\"path\":\"%1\",\"size\":1,\"mtime\":1,\"title\":\"t\"}\n")
+                      .arg(dir.filePath("t.flac")).toUtf8());
+        idx.close();
+        Library lib({dir.path()}, "/nonexistent-scanner", state.filePath("index.jsonl"));
+        lib.start();   // scanner cannot start: the folder is never confirmed reachable
+        QCOMPARE(lib.coverFor(dir.filePath("t.flac")), QString());
     }
 
     void albumRowsDoNotTouchTheDiskForCovers()
@@ -340,6 +382,7 @@ private slots:
         const QString cache = state.filePath("index.jsonl");
 
         Library lib({music.path()}, "/nonexistent-scanner", cache);
+        lib.assumeReachable();
         QSignalSpy spy(&lib, &Library::coversChanged);
         QCOMPARE(lib.coverFor(track), QString());   // first call only queues the extraction
         QCOMPARE(lib.coverRevision(), 0);
@@ -353,6 +396,7 @@ private slots:
         QCOMPARE(lib.coverRevision(), 1);
 
         Library again({music.path()}, "/nonexistent-scanner", cache);
+        again.assumeReachable();
         QCOMPARE(again.coverFor(track), url);   // found in the cache, nothing queued
         QVERIFY(!again.extractingCovers());
     }
@@ -368,6 +412,7 @@ private slots:
         QVERIFY(c.open(QIODevice::WriteOnly));
         c.close();
         Library lib({music.path()}, "/nonexistent-scanner", state.filePath("index.jsonl"));
+        lib.assumeReachable();
         QVERIFY(lib.coverFor(track).endsWith("/cover.jpg"));
         QVERIFY(!lib.extractingCovers());
     }

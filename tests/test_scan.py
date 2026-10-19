@@ -19,11 +19,16 @@ def make_flac(path, **tags):
     )
 
 
-def scan(*args):
+def scan_raw(*args, env=None):
     result = subprocess.run(
-        [sys.executable, str(SCAN), *args], capture_output=True, text=True, check=True
+        [sys.executable, str(SCAN), *args], capture_output=True, text=True, check=True,
+        env=env,
     )
     return [json.loads(line) for line in result.stdout.splitlines()]
+
+
+def scan(*args):
+    return [e for e in scan_raw(*args) if "offline" not in e]
 
 
 class ScanTest(unittest.TestCase):
@@ -56,6 +61,45 @@ class ScanTest(unittest.TestCase):
 
     def test_missing_folder_is_skipped(self):
         self.assertEqual(scan("/nonexistent/omamusic-test"), [])
+
+    def test_missing_and_empty_folders_are_reported_offline(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(
+                scan_raw("/nonexistent/omamusic-test", d),
+                [{"offline": "/nonexistent/omamusic-test"}, {"offline": d}],
+            )
+
+    def test_a_hung_folder_goes_offline_and_the_next_one_is_scanned(self):
+        # Load the script as a module and make the first folder's listing hang.
+        import importlib.machinery
+        import importlib.util
+        import io
+        import time
+        from contextlib import redirect_stdout
+
+        loader = importlib.machinery.SourceFileLoader("omascan", str(SCAN))
+        spec = importlib.util.spec_from_loader("omascan", loader)
+        mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(mod)
+        real_listdir = os.listdir
+
+        def listdir(path):
+            if path == "/hung":
+                time.sleep(5)
+            return real_listdir(path)
+
+        mod.os = type("OS", (), {"__getattr__": lambda self, n: getattr(os, n), "listdir": staticmethod(listdir)})()
+        os.environ["OMAMUSIC_SCAN_STALL"] = "0.5"
+        try:
+            buf = io.StringIO()
+            started = time.time()
+            with redirect_stdout(buf):
+                mod.main(["/hung", "/nonexistent/omamusic-test"])
+            self.assertLess(time.time() - started, 3)
+        finally:
+            del os.environ["OMAMUSIC_SCAN_STALL"]
+        lines = [json.loads(l) for l in buf.getvalue().splitlines()]
+        self.assertEqual(lines, [{"offline": "/hung"}, {"offline": "/nonexistent/omamusic-test"}])
 
     def test_cache_hit_reuses_entry(self):
         with tempfile.TemporaryDirectory() as d:

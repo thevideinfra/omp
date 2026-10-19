@@ -1,5 +1,8 @@
 #include "library.h"
 
+#include <QJsonDocument>
+#include <QJsonObject>
+
 #include <algorithm>
 
 #include <QCryptographicHash>
@@ -115,16 +118,13 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     connect(&m_scan, &QProcess::finished, this,
             [this](int code, QProcess::ExitStatus status) {
                 drainScanOutput(true);
-                if (status == QProcess::NormalExit && code == 0 && m_pending.isEmpty() && !m_tracks.isEmpty()) {
-                    // An unmounted share scans clean but empty; do not wipe the index for it.
-                    qWarning() << "scan found no tracks, keeping old index";
-                } else if (status == QProcess::NormalExit && code == 0) {
-                    setTracks(m_pending);
-                    writeCache();
+                if (status == QProcess::NormalExit && code == 0) {
+                    finishScan();
                 } else {
                     qWarning() << "omamusic-scan failed, keeping old index; exit code" << code;
                 }
                 m_pending.clear();
+                m_pendingOffline.clear();
                 emit scanningChanged();
                 setupWatch();   // pick up folders that appeared
                 if (m_dirty) {
@@ -176,7 +176,6 @@ void Library::start()
     loadCache();
     browse(QString());
     rescan();
-    setupWatch();
 }
 
 // Watches every directory under the roots, or falls back to polling when
@@ -187,9 +186,7 @@ void Library::setupWatch()
         m_watcher.removePaths(m_watcher.directories());
     QStringList dirs;
     bool tooMany = false;
-    for (const QString &root : std::as_const(m_roots)) {
-        if (!QFileInfo(root).isDir())
-            continue;
+    for (const QString &root : std::as_const(m_online)) {
         dirs << root;
         QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
         while (it.hasNext()) {
@@ -220,8 +217,13 @@ void Library::setRoots(const QStringList &roots)
     if (cleaned == m_roots)
         return;
     m_roots = cleaned;
+    const auto keepKnown = [this](QStringList &list) {
+        list.erase(std::remove_if(list.begin(), list.end(), [this](const QString &r) { return !m_roots.contains(r); }),
+                   list.end());
+    };
+    keepKnown(m_online);
+    keepKnown(m_offline);
     browse(QString());
-    setupWatch();
     if (m_scan.state() != QProcess::NotRunning)
         m_dirty = true;   // the running scan used the old folders
     else
@@ -233,6 +235,7 @@ void Library::rescan()
     if (m_scan.state() != QProcess::NotRunning)
         return;
     m_pending.clear();
+    m_pendingOffline.clear();
     m_scanBuffer.clear();
     QStringList args{"--cache", m_cacheFile};
     args += m_roots;
@@ -241,21 +244,80 @@ void Library::rescan()
     emit scanningChanged();
 }
 
+static bool under(const QString &path, const QString &root)
+{
+    return path.startsWith(root.endsWith('/') ? root : root + '/');
+}
+
+bool Library::isOnline(const QString &path) const
+{
+    for (const QString &r : m_online)
+        if (under(path, r))
+            return true;
+    return false;
+}
+
+// A folder the scan could not reach keeps the songs the index already had for
+// it; anything the scan printed for it before it stalled is dropped.
+void Library::finishScan()
+{
+    QVector<Track> merged;
+    for (const Track &t : std::as_const(m_pending)) {
+        bool offline = false;
+        for (const QString &r : std::as_const(m_pendingOffline))
+            offline = offline || under(t.path, r);
+        if (!offline)
+            merged.append(t);
+    }
+    for (const Track &t : std::as_const(m_tracks)) {
+        for (const QString &r : std::as_const(m_pendingOffline)) {
+            if (under(t.path, r)) {
+                merged.append(t);
+                break;
+            }
+        }
+    }
+    for (const QString &r : std::as_const(m_pendingOffline))
+        qWarning() << "music folder not reachable, keeping its old songs:" << r;
+    setTracks(merged);
+    writeCache();
+
+    QStringList online;
+    for (const QString &r : std::as_const(m_roots))
+        if (!m_pendingOffline.contains(r))
+            online << r;
+    const bool newlyOnline = online != m_online;
+    m_online = online;
+    if (m_pendingOffline != m_offline) {
+        m_offline = m_pendingOffline;
+        emit offlineChanged();
+    }
+    if (newlyOnline) {
+        ++m_coverRevision;
+        emit coversChanged();
+    }
+}
+
 void Library::drainScanOutput(bool flush)
 {
-    int nl;
-    while ((nl = m_scanBuffer.indexOf('\n')) >= 0) {
+    const auto take = [this](const QByteArray &line) {
+        const QJsonObject o = QJsonDocument::fromJson(line).object();
+        if (o.contains(QLatin1String("offline"))) {
+            m_pendingOffline << QDir::cleanPath(o.value("offline").toString());
+            return;
+        }
         bool ok = false;
-        const Track t = Track::fromJsonLine(m_scanBuffer.left(nl), &ok);
+        const Track t = Track::fromJsonLine(line, &ok);
         if (ok)
             m_pending.append(t);
+    };
+    int nl;
+    while ((nl = m_scanBuffer.indexOf('\n')) >= 0) {
+        take(m_scanBuffer.left(nl));
         m_scanBuffer.remove(0, nl + 1);
     }
     if (flush && !m_scanBuffer.trimmed().isEmpty()) {
-        bool ok = false;
-        const Track t = Track::fromJsonLine(m_scanBuffer, &ok);
-        if (ok)
-            m_pending.append(t);
+        take(m_scanBuffer);
         m_scanBuffer.clear();
     }
 }
@@ -494,7 +556,7 @@ void Library::setQuery(const QString &query)
 
 QString Library::coverFor(const QString &trackPath)
 {
-    if (trackPath.isEmpty())
+    if (trackPath.isEmpty() || !isOnline(trackPath))   // never touch a share that may be hung
         return QString();
     const QString dir = QFileInfo(trackPath).absolutePath();
     auto it = m_coverCache.constFind(dir);

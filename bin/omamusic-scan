@@ -5,14 +5,32 @@ usage: omamusic-scan [--cache FILE] FOLDER...
 
 Entries from the previous output (--cache) are reused when size and mtime
 match, so only new or changed files are probed.
+
+A folder that is missing, empty, or stops answering (an unmounted or hung
+network share) is reported as {"offline": FOLDER} so the caller keeps what it
+knew about it.
 """
 import json
 import os
+import queue
 import subprocess
 import sys
+import threading
 
 AUDIO = {".mp3", ".flac", ".ogg", ".opus", ".m4a", ".aac", ".wav", ".wma", ".ape", ".wv", ".aiff"}
 FFPROBE_TIMEOUT = 10
+PROBE_TIMEOUTS_BEFORE_OFFLINE = 3
+
+
+class ProbeTimeout(Exception):
+    pass
+
+
+def stall_seconds():
+    try:
+        return float(os.environ.get("OMAMUSIC_SCAN_STALL", "20"))
+    except ValueError:
+        return 20.0
 
 
 def load_cache(path):
@@ -48,6 +66,9 @@ def probe(path):
             check=True,
         ).stdout
         fmt = json.loads(out).get("format", {})
+    except subprocess.TimeoutExpired as err:
+        print(f"omamusic-scan: skipping {path}: {err}", file=sys.stderr)
+        raise ProbeTimeout() from err
     except (subprocess.SubprocessError, ValueError, OSError) as err:
         print(f"omamusic-scan: skipping {path}: {err}", file=sys.stderr)
         return None
@@ -79,6 +100,16 @@ def main(argv):
     cache = load_cache(cache_path)
 
     for folder in folders:
+        scan_folder(folder, cache)
+    sys.stdout.flush()
+
+
+def list_files(folder, out):
+    """Walk in a thread: a hung mount blocks here, not in the caller."""
+    try:
+        if not os.listdir(folder):
+            out.put(("offline",))
+            return
         for root, dirs, files in os.walk(folder, followlinks=True):
             dirs.sort()
             for name in sorted(files):
@@ -94,15 +125,44 @@ def main(argv):
                     st = os.stat(path)
                 except OSError:
                     continue
-                size, mtime = st.st_size, int(st.st_mtime)
-                entry = cache.get(path)
-                if not (entry and entry.get("size") == size and entry.get("mtime") == mtime):
-                    info = probe(path)
-                    if info is None:
-                        continue
-                    entry = {"path": path, "size": size, "mtime": mtime, **info}
-                print(json.dumps(entry, ensure_ascii=False), flush=True)
+                out.put(("file", path, st.st_size, int(st.st_mtime)))
+        out.put(("done",))
+    except OSError:
+        out.put(("offline",))
+
+
+def scan_folder(folder, cache):
+    out = queue.Queue()
+    threading.Thread(target=list_files, args=(folder, out), daemon=True).start()
+    timeouts = 0
+    while True:
+        try:
+            item = out.get(timeout=stall_seconds())
+        except queue.Empty:
+            item = ("offline",)
+        if item[0] == "done":
+            return
+        if item[0] == "offline":
+            print(json.dumps({"offline": folder}, ensure_ascii=False), flush=True)
+            return
+        _, path, size, mtime = item
+        entry = cache.get(path)
+        if not (entry and entry.get("size") == size and entry.get("mtime") == mtime):
+            try:
+                info = probe(path)
+            except ProbeTimeout:
+                timeouts += 1
+                if timeouts >= PROBE_TIMEOUTS_BEFORE_OFFLINE:
+                    print(json.dumps({"offline": folder}, ensure_ascii=False), flush=True)
+                    return
+                continue
+            timeouts = 0
+            if info is None:
+                continue
+            entry = {"path": path, "size": size, "mtime": mtime, **info}
+        print(json.dumps(entry, ensure_ascii=False), flush=True)
 
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+    os._exit(0)   # do not wait for a thread stuck on a dead mount

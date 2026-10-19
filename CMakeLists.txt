@@ -26,6 +26,7 @@ qt_add_library(omacore STATIC
     src/playlists.cpp src/playlists.h
     src/trayicon.cpp src/trayicon.h
     src/mpris.cpp src/mpris.h
+    src/subsonicclient.cpp src/subsonicclient.h
 )
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::DBus Qt6::Gui Qt6::Network Qt6::Svg)

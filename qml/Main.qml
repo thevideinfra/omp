@@ -350,7 +350,7 @@ ApplicationWindow {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: S.sp(8)
                             TransportButton {
-                                glyph: qsTr("Shuffle")
+                                icon: "shuffle"
                                 active: player.shuffle
                                 onClicked: { player.shuffle = !player.shuffle; keyRoot.forceActiveFocus() }
                             }
@@ -358,8 +358,7 @@ ApplicationWindow {
                             TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: { player.togglePause(); keyRoot.forceActiveFocus() } }
                             TransportButton { glyph: "▶▶"; onClicked: { player.next(); keyRoot.forceActiveFocus() } }
                             TransportButton {
-                                glyph: player.repeat === "one" ? qsTr("Repeat one")
-                                       : player.repeat === "all" ? qsTr("Repeat all") : qsTr("Repeat")
+                                icon: player.repeat === "one" ? "repeatOne" : "repeat"
                                 active: player.repeat !== "off"
                                 onClicked: { player.cycleRepeat(); keyRoot.forceActiveFocus() }
                             }

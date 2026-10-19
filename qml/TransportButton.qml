@@ -5,6 +5,7 @@ import "Scale.js" as S
 Rectangle {
     id: root
     property string glyph
+    property string icon   // "shuffle", "repeat" or "repeatOne": drawn, not typeset
     property bool big: false
     property bool active: false   // a toggle that is on
     signal clicked()
@@ -35,9 +36,59 @@ Rectangle {
         }
     }
 
+    Canvas {
+        id: art
+        visible: root.icon !== ""
+        anchors.centerIn: parent
+        width: S.sp(20)
+        height: S.sp(20)
+        readonly property color ink: root.lit ? theme.accent : theme.foreground
+        onInkChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        Component.onCompleted: requestPaint()
+        onPaint: {
+            const ctx = getContext("2d")
+            ctx.reset()
+            ctx.scale(width / 20, height / 20)   // draw on a 20 x 20 grid
+            ctx.strokeStyle = ink
+            ctx.fillStyle = ink
+            ctx.lineWidth = 1.8
+            ctx.lineCap = "round"
+            ctx.lineJoin = "round"
+            const arrow = (x, y, dx, dy) => {   // head at (x, y) pointing along (dx, dy)
+                ctx.beginPath()
+                ctx.moveTo(x, y)
+                ctx.lineTo(x - 4 * dx - 3 * dy, y - 4 * dy + 3 * dx)
+                ctx.lineTo(x - 4 * dx + 3 * dy, y - 4 * dy - 3 * dx)
+                ctx.closePath()
+                ctx.fill()
+            }
+            if (root.icon === "shuffle") {
+                ctx.beginPath()
+                ctx.moveTo(2, 5); ctx.lineTo(6, 5); ctx.bezierCurveTo(10, 5, 10, 15, 14, 15); ctx.lineTo(15, 15)
+                ctx.moveTo(2, 15); ctx.lineTo(6, 15); ctx.bezierCurveTo(10, 15, 10, 5, 14, 5); ctx.lineTo(15, 5)
+                ctx.stroke()
+                arrow(19, 5, 1, 0)
+                arrow(19, 15, 1, 0)
+            } else {
+                ctx.beginPath()   // a loop: top edge runs right, bottom edge runs left
+                ctx.moveTo(4, 9); ctx.lineTo(4, 8); ctx.quadraticCurveTo(4, 4, 8, 4); ctx.lineTo(14, 4)
+                ctx.moveTo(16, 11); ctx.lineTo(16, 12); ctx.quadraticCurveTo(16, 16, 12, 16); ctx.lineTo(6, 16)
+                ctx.stroke()
+                arrow(18, 4, 1, 0)
+                arrow(2, 16, -1, 0)
+                if (root.icon === "repeatOne") {
+                    ctx.beginPath()
+                    ctx.moveTo(9, 8.5); ctx.lineTo(10.5, 7.5); ctx.lineTo(10.5, 12.5)
+                    ctx.stroke()
+                }
+            }
+        }
+    }
+
     UiText {
         id: label
-        visible: !root.bars
+        visible: !root.bars && root.icon === ""
         anchors.centerIn: parent
         text: root.glyph
         px: root.big ? 18 : 13

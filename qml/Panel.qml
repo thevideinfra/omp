@@ -188,14 +188,13 @@ Window {
                     spacing: S.sp(8)
                     TransportButton {
                         id: shuffleBtn
-                        glyph: qsTr("Shuffle")
+                        icon: "shuffle"
                         active: player.shuffle
                         onClicked: player.shuffle = !player.shuffle
                     }
                     TransportButton {
                         id: repeatBtn
-                        glyph: player.repeat === "one" ? qsTr("Repeat one")
-                               : player.repeat === "all" ? qsTr("Repeat all") : qsTr("Repeat")
+                        icon: player.repeat === "one" ? "repeatOne" : "repeat"
                         active: player.repeat !== "off"
                         onClicked: player.cycleRepeat()
                     }

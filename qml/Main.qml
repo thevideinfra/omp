@@ -362,6 +362,11 @@ ApplicationWindow {
                                 active: player.repeat !== "off"
                                 onClicked: { player.cycleRepeat(); keyRoot.forceActiveFocus() }
                             }
+                            TransportButton {
+                                icon: "eq"
+                                active: player.eqPreset !== "Flat"
+                                onClicked: eqPopup.open()
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -397,4 +402,5 @@ ApplicationWindow {
     }
 
     PlaylistPicker { id: picker }
+    EqualizerPopup { id: eqPopup }
 }

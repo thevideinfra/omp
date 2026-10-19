@@ -77,7 +77,6 @@ ColumnLayout {
                     anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("Theme")
                     px: 12
-                    font.bold: swatch.chosen
                 }
                 MouseArea {
                     anchors.fill: parent

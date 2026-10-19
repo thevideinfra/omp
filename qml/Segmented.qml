@@ -26,7 +26,6 @@ Flow {
                 anchors.centerIn: parent
                 text: modelData
                 color: parent.on ? theme.accent : theme.foreground
-                font.bold: parent.on
             }
             MouseArea {
                 anchors.fill: parent

@@ -5,7 +5,7 @@ import "Scale.js" as S
 Rectangle {
     id: root
     property string glyph
-    property string icon   // "shuffle", "repeat", "repeatOne", "next" or "previous": drawn, not typeset
+    property string icon   // "shuffle", "repeat", "repeatOne", "next", "previous" or "eq": drawn, not typeset
     property bool big: false
     property bool active: false   // a toggle that is on
     signal clicked()
@@ -67,7 +67,18 @@ Rectangle {
                 ctx.closePath()
                 ctx.fill()
             }
-            if (root.icon === "next" || root.icon === "previous") {
+            if (root.icon === "eq") {
+                const knobs = [12, 6, 14]   // three sliders, each with a knob
+                for (let i = 0; i < 3; ++i) {
+                    const x = 4 + i * 6
+                    ctx.beginPath()
+                    ctx.moveTo(x, 2); ctx.lineTo(x, 18)
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.arc(x, knobs[i], 2.4, 0, 2 * Math.PI)
+                    ctx.fill()
+                }
+            } else if (root.icon === "next" || root.icon === "previous") {
                 const d = root.icon === "next" ? 1 : -1   // a triangle and a bar, facing d
                 const bar = d > 0 ? 15 : 5
                 const tip = d > 0 ? 13 : 7

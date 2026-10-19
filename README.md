@@ -120,7 +120,7 @@ Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playl
 
 ## Shuffle, repeat and equalizer
 
-The bar under the song has **Shuffle** and **Repeat** (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The Equalizer tab in Settings picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.
+The bar under the song has **shuffle and repeat (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The equalizer button (sliders icon) beside the transport buttons opens a popup that picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.
 
 ## Cover art
 

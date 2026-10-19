@@ -12,14 +12,14 @@ Item {
 
     implicitHeight: flick.contentHeight
 
-    // 0 = the app, 1 = the tray panel, 2 = the equalizer, 3 = the library folders.
+    // 0 = the app, 1 = the tray panel, 2 = the library folders.
     property int section: 0
 
     Segmented {
         id: sectionTabs
         x: S.sp(16)
         y: S.sp(12)
-        options: [qsTr("App"), qsTr("Tray panel"), qsTr("Equalizer"), qsTr("Library")]
+        options: [qsTr("App"), qsTr("Tray panel"), qsTr("Library")]
         selected: options[root.section]
         onPicked: (v) => { root.section = options.indexOf(v); flick.contentY = 0 }
     }
@@ -51,8 +51,7 @@ Item {
                 onToggled: (v) => autostart.enabled = v
             }
             LookForm { Layout.fillWidth: true; visible: root.section === 1; target: panelLook }
-            EqualizerForm { Layout.fillWidth: true; visible: root.section === 2 }
-            LibraryForm { Layout.fillWidth: true; visible: root.section === 3 }
+            LibraryForm { Layout.fillWidth: true; visible: root.section === 2 }
 
             UiText { visible: root.section === 1; text: qsTr("Panel sections"); color: theme.dimForeground; px: 12 }
             ToggleRow { visible: root.section === 1; Layout.fillWidth: true; label: qsTr("Cover"); checked: panelLook.panelCover; onToggled: (v) => panelLook.set("panelCover", v) }

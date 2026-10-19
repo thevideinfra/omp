@@ -44,6 +44,7 @@ qt_add_qml_module(omamusic
         qml/BrowseList.qml
         qml/DrillList.qml
         qml/EqualizerForm.qml
+        qml/EqualizerPopup.qml
         qml/LibraryForm.qml
         qml/PlaylistPicker.qml
         qml/FastWheel.qml

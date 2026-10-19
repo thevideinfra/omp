@@ -161,6 +161,52 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
     }
 
+    void emptyScanKeepsOldIndex()
+    {
+        QTemporaryDir music;
+        QTemporaryDir state;
+        QProcess ff;
+        ff.start("ffmpeg", {"-v", "error", "-f", "lavfi", "-i", "sine=d=0.3",
+                            "-metadata", "artist=Amy", "-metadata", "album=Beta",
+                            music.filePath("one.flac")});
+        QVERIFY(ff.waitForFinished(10000));
+        QCOMPARE(ff.exitCode(), 0);
+        const QString cache = state.filePath("index.jsonl");
+        Library lib({music.path()}, OMA_SCAN_PROGRAM, cache);
+        lib.rescan();
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 1, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+
+        QVERIFY(QFile::remove(music.filePath("one.flac")));   // like an unmounted share
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression("scan found no tracks"));
+        lib.rescan();
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 20000);
+        QCOMPARE(lib.trackCount(), 1);
+        Library again({music.path()}, "/nonexistent-scanner", cache);
+        again.start();
+        QCOMPARE(again.trackCount(), 1);   // the cache was not wiped either
+    }
+
+    void albumRowsDoNotTouchTheDiskForCovers()
+    {
+        QTemporaryDir dir;
+        QFile c(dir.filePath("cover.jpg"));
+        QVERIFY(c.open(QIODevice::WriteOnly));
+        c.close();
+        Library lib({dir.path()}, "/nonexistent-scanner", "/nonexistent/cache");
+        const Track t = mk(dir.filePath("x.flac"), "T", "Ar", "Al", 1);
+        lib.setTracks({t});
+        // The row carries the first track's path; QML resolves the file lazily.
+        int role = -1;
+        const auto names = lib.albums()->roleNames();
+        for (auto it = names.cbegin(); it != names.cend(); ++it) {
+            if (it.value() == "cover")
+                role = it.key();
+        }
+        QVERIFY(role >= 0);
+        QCOMPARE(lib.albums()->data(lib.albums()->index(0, 0), role).toString(), t.path);
+    }
+
     void failedScanKeepsOldIndex()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

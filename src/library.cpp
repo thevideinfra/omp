@@ -93,7 +93,10 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     connect(&m_scan, &QProcess::finished, this,
             [this](int code, QProcess::ExitStatus status) {
                 drainScanOutput(true);
-                if (status == QProcess::NormalExit && code == 0) {
+                if (status == QProcess::NormalExit && code == 0 && m_pending.isEmpty() && !m_tracks.isEmpty()) {
+                    // An unmounted share scans clean but empty; do not wipe the index for it.
+                    qWarning() << "scan found no tracks, keeping old index";
+                } else if (status == QProcess::NormalExit && code == 0) {
                     setTracks(m_pending);
                     writeCache();
                 } else {
@@ -229,7 +232,7 @@ void Library::rebuildGroups()
                           {"title", a.name},
                           {"subtitle", a.artist},
                           {"meta", QStringLiteral("%1 tracks").arg(a.tracks.size())},
-                          {"cover", coverFor(a.tracks.first().path)}});
+                          {"cover", a.tracks.first().path}});   // resolved lazily by coverFor()
     }
     m_albums.setRows(albumRows);
 

@@ -25,7 +25,8 @@ ListView {
         required property string title
         required property string subtitle
         required property string meta
-        required property string cover
+        required property string cover   // a track path; the art file is looked up lazily
+        readonly property string artSource: cover !== "" ? library.coverFor(cover) : ""
 
         width: ListView.view.width
         height: Math.max(S.sp(52), textColumn.implicitHeight + S.sp(8))
@@ -35,9 +36,9 @@ ListView {
             id: art
             x: S.sp(8)
             anchors.verticalCenter: parent.verticalCenter
-            width: cover !== "" ? S.sp(40) : 0
+            width: artSource !== "" ? S.sp(40) : 0
             height: S.sp(40)
-            source: cover
+            source: artSource
             sourceSize.width: 80
             sourceSize.height: 80
             fillMode: Image.PreserveAspectCrop

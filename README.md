@@ -84,6 +84,15 @@ Panel: Esc hides the panel, Space play / pause.
 - Left-click: toggle the panel.
 - Middle-click: play / pause.
 - No scroll gesture.
+- The tray icon is drawn from the theme foreground at startup and on a theme change.
+
+## Cover art
+
+A folder image (`cover.jpg`, `folder.jpg`, `front.jpg`, `.png` too) wins. Otherwise the art embedded in the first track of the album folder is extracted with `ffmpeg` on first view and cached in `~/.local/state/omamusic/covers/`. A folder with no embedded art is not retried until the app restarts.
+
+## Media keys (MPRIS)
+
+MPRIS comes from the `mpv-mpris` mpv script, not from omamusic. Checked: play/pause, pause, title, album artist and the cover art (embedded art included) show on the bus. The player shows as `mpv`. Untagged files show their file name as the title.
 
 ## Hyprland panel rule
 
@@ -102,7 +111,7 @@ The panel sizes itself to its content, so the rule has no `size`. A Qt client ca
 
 ## Known gaps
 
-Deferred to later plans: embedded cover art, tray icon recolour, MPRIS, SMB/NFS shares, Subsonic.
+Deferred to later plans: a native MPRIS identity (the player shows as `mpv`), SMB/NFS shares, Subsonic. The tray icon recolour is implemented but not confirmed to change on a theme switch.
 
 ## Test
 

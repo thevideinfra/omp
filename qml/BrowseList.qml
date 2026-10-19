@@ -7,6 +7,7 @@ ListView {
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
+    signal menuRequested(int row)   // right-click, or the m key
 
     clip: true
     currentIndex: 0
@@ -19,6 +20,7 @@ ListView {
     }
     function activate() { if (count > 0) activated(currentIndex) }
     function enqueue() { if (count > 0) enqueued(currentIndex) }
+    function pick() { if (count > 0) menuRequested(currentIndex) }
 
     FastWheel { view: root }
 
@@ -85,7 +87,12 @@ ListView {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: { root.currentIndex = index; root.clicked() }
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: (mouse) => {
+                root.currentIndex = index
+                if (mouse.button === Qt.RightButton) root.menuRequested(index)
+                root.clicked()
+            }
             onDoubleClicked: { root.activated(index); root.clicked() }
         }
     }

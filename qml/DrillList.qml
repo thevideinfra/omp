@@ -1,11 +1,12 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "Scale.js" as S
 
 // An Albums/Artists tab: the list of albums or artists on the left, and the
 // selected one's songs on the right (an artist shows its albums, each followed
-// by its songs). `kind` is "album" or "artist"; `model` is the list of rows
-// (with `key`). Right/Left arrows move the keyboard between the two panes.
+// by its songs). `kind` is "album", "artist" or "playlist"; `model` is the list
+// of rows (with `key`). Right/Left arrows move the keyboard between the two panes.
 Item {
     id: root
     property string kind: "album"
@@ -13,6 +14,10 @@ Item {
     property bool rightFocus: false
     property string openTitle: ""
     signal clicked()
+    signal pickRequested(var tracks)   // add these songs to a playlist
+    signal newPlaylistRequested()
+    property bool renaming: false
+    property bool confirmDelete: false
 
     // Detail rows: { header, indent, title, subtitle, meta, cover, tracks, start }
     // plays `tracks` from index `start`.
@@ -40,6 +45,25 @@ Item {
             player.enqueueTracks(r.header ? r.tracks : [r.tracks[r.start]])
         }
     }
+    // The songs the current row stands for, for the playlist picker.
+    function currentTracks() {
+        if (rightFocus && rows.length > 0) {
+            const r = rows[detail.currentIndex]
+            return r.header ? r.tracks : [r.tracks[r.start]]
+        }
+        return top.count > 0 ? tracksOf(top.currentIndex) : []
+    }
+    function pick() {
+        const t = currentTracks()
+        if (t.length > 0) pickRequested(t)
+    }
+    // Delete removes the selected song from the open playlist.
+    function removeSelected() {
+        if (kind !== "playlist" || !rightFocus || rows.length === 0) return
+        const r = rows[detail.currentIndex]
+        if (r.header) return
+        playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
+    }
     function focusRight() {
         if (rows.length === 0) return false
         rightFocus = true
@@ -54,6 +78,7 @@ Item {
 
     function tracksOf(row) {
         const key = model.get(row).key
+        if (kind === "playlist") return library.tracksForPaths(playlists.paths(key))
         return kind === "album" ? library.albumTracks(key) : library.artistTracks(key)
     }
 
@@ -66,9 +91,10 @@ Item {
         const tracks = tracksOf(row)
         allTracks = tracks
         const out = []
-        if (kind === "album") {
+        if (kind !== "artist") {
             tracks.forEach((t, i) => out.push({ header: false, indent: false, title: t.title,
-                subtitle: t.artist, meta: t.meta, cover: "", tracks: tracks, start: i }))
+                subtitle: t.artist, meta: t.meta, cover: "", tracks: tracks, start: i,
+                plIndex: t.playlistIndex ?? -1 }))
         } else {
             let group = []
             const flush = () => {
@@ -133,19 +159,63 @@ Item {
         function onIndexChanged() { root.showRow(top.currentIndex) }
     }
 
+    Connections {
+        target: playlists
+        enabled: root.kind === "playlist"
+        function onChanged() {
+            const keep = detail.currentIndex
+            root.renaming = false
+            root.confirmDelete = false
+            root.showRow(top.currentIndex)
+            detail.currentIndex = Math.max(0, Math.min(keep, detail.count - 1))
+        }
+    }
+
+    Timer {
+        id: confirmTimer
+        interval: 3000
+        onTriggered: root.confirmDelete = false
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
-        BrowseList {
-            id: top
+        ColumnLayout {
             Layout.preferredWidth: Math.max(S.sp(260), root.width * 0.4)
             Layout.fillHeight: true
-            model: root.model
-            onCurrentIndexChanged: root.showRow(currentIndex)
-            onClicked: { root.rightFocus = false; root.clicked() }
-            onActivated: (row) => player.playTracks(root.tracksOf(row), 0)
-            onEnqueued: (row) => player.enqueueTracks(root.tracksOf(row))
+            spacing: 0
+
+            Rectangle {
+                visible: root.kind === "playlist"
+                Layout.margins: visible ? S.sp(8) : 0
+                Layout.preferredWidth: newText.implicitWidth + S.sp(20)
+                Layout.preferredHeight: visible ? S.sp(30) : 0
+                radius: S.sp(6)
+                color: newArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                border.width: 1
+                border.color: newArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
+                UiText { id: newText; anchors.centerIn: parent; text: qsTr("New playlist") }
+                MouseArea {
+                    id: newArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.newPlaylistRequested()
+                }
+            }
+
+            BrowseList {
+                id: top
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: root.model
+                onCurrentIndexChanged: root.showRow(currentIndex)
+                onClicked: { root.rightFocus = false; root.clicked() }
+                onActivated: (row) => player.playTracks(root.tracksOf(row), 0)
+                onEnqueued: (row) => player.enqueueTracks(root.tracksOf(row))
+                onMenuRequested: (row) => root.pickRequested(root.tracksOf(row))
+            }
         }
 
         Rectangle {
@@ -166,9 +236,70 @@ Item {
 
                 UiText {
                     Layout.fillWidth: true
+                    visible: !root.renaming
                     text: root.openTitle
                     font.bold: true
                     elide: Text.ElideRight
+                }
+
+                TextField {
+                    id: renameField
+                    Layout.fillWidth: true
+                    visible: root.renaming
+                    color: theme.foreground
+                    selectByMouse: true
+                    font.pixelSize: S.fs(13)
+                    background: Rectangle { radius: S.sp(6); color: theme.surface }
+                    onVisibleChanged: if (visible) { text = root.openTitle; forceActiveFocus(); selectAll() }
+                    onAccepted: playlists.rename(root.openTitle, text)
+                    Keys.onEscapePressed: root.renaming = false
+                }
+
+                Rectangle {
+                    visible: root.kind === "playlist" && top.count > 0
+                    Layout.preferredWidth: renameText.implicitWidth + S.sp(20)
+                    Layout.preferredHeight: S.sp(30)
+                    radius: S.sp(6)
+                    color: renameArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                    border.width: 1
+                    border.color: renameArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
+                    UiText { id: renameText; anchors.centerIn: parent; text: root.renaming ? qsTr("Save") : qsTr("Rename") }
+                    MouseArea {
+                        id: renameArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (root.renaming) playlists.rename(root.openTitle, renameField.text)
+                            else root.renaming = true
+                        }
+                    }
+                }
+
+                Rectangle {
+                    visible: root.kind === "playlist" && top.count > 0
+                    Layout.preferredWidth: deleteText.implicitWidth + S.sp(20)
+                    Layout.preferredHeight: S.sp(30)
+                    radius: S.sp(6)
+                    color: deleteArea.containsMouse || root.confirmDelete ? Qt.alpha(theme.danger, 0.15) : Qt.alpha(theme.foreground, 0.05)
+                    border.width: 1
+                    border.color: deleteArea.containsMouse || root.confirmDelete ? Qt.alpha(theme.danger, 0.55) : Qt.alpha(theme.foreground, 0.12)
+                    UiText {
+                        id: deleteText
+                        anchors.centerIn: parent
+                        text: root.confirmDelete ? qsTr("Really delete?") : qsTr("Delete")
+                        color: root.confirmDelete ? theme.danger : theme.foreground
+                    }
+                    MouseArea {
+                        id: deleteArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (root.confirmDelete) playlists.remove(root.openTitle)
+                            else { root.confirmDelete = true; confirmTimer.restart() }
+                        }
+                    }
                 }
 
                 Rectangle {
@@ -287,7 +418,13 @@ Item {
 
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: { detail.currentIndex = item.index; root.rightFocus = true; root.clicked() }
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: (mouse) => {
+                            detail.currentIndex = item.index
+                            root.rightFocus = true
+                            if (mouse.button === Qt.RightButton) root.pick()
+                            root.clicked()
+                        }
                         onDoubleClicked: { root.rightFocus = true; root.playRow(item.index); root.clicked() }
                     }
                 }

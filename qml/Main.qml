@@ -15,9 +15,9 @@ ApplicationWindow {
     visible: false
     color: theme.background
 
-    readonly property var tabNames: ["Albums", "Artists", "Songs", "Folders", "Queue", "Settings"]
+    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "Folders", "Queue", "Settings"]
     function isTab(name) { return tabNames[tab] === name }
-    readonly property bool drillTab: isTab("Albums") || isTab("Artists")   // list on the left, songs on the right
+    readonly property bool drillTab: isTab("Albums") || isTab("Artists") || isTab("Playlists")   // list on the left, songs on the right
     property int tab: 0
     readonly property bool searching: searchField.text.length > 0
 
@@ -63,6 +63,8 @@ ApplicationWindow {
             break
         case Qt.Key_R: library.rescan(); break
         case Qt.Key_S: player.shuffle = !player.shuffle; break
+        case Qt.Key_M: { const l = currentList(); if (l.pick) l.pick() } break
+        case Qt.Key_Delete: { const l = currentList(); if (l.removeSelected) l.removeSelected() } break
         case Qt.Key_O: player.cycleRepeat(); break
         case Qt.Key_Backspace:
             if (win.searching) break
@@ -168,6 +170,24 @@ ApplicationWindow {
 
                         Rectangle {
                             visible: win.isTab("Queue") && !win.searching
+                            Layout.preferredWidth: S.sp(140)
+                            Layout.preferredHeight: searchField.height
+                            radius: S.sp(6)
+                            color: saveArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                            border.width: 1
+                            border.color: saveArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
+                            UiText { anchors.centerIn: parent; text: qsTr("Save as playlist") }
+                            MouseArea {
+                                id: saveArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: { if (player.queue.count > 0) picker.openNew(player.queue.all()) }
+                            }
+                        }
+
+                        Rectangle {
+                            visible: win.isTab("Queue") && !win.searching
                             Layout.preferredWidth: S.sp(110)
                             Layout.preferredHeight: searchField.height
                             radius: S.sp(6)
@@ -190,6 +210,7 @@ ApplicationWindow {
                             kind: "album"
                             model: library.albums
                             onClicked: keyRoot.forceActiveFocus()
+                            onPickRequested: (tracks) => picker.openFor(tracks)
                         }
 
                         DrillList {   // Artists
@@ -197,6 +218,7 @@ ApplicationWindow {
                             kind: "artist"
                             model: library.artists
                             onClicked: keyRoot.forceActiveFocus()
+                            onPickRequested: (tracks) => picker.openFor(tracks)
                         }
 
                         BrowseList {
@@ -204,6 +226,16 @@ ApplicationWindow {
                             model: library.songs
                             onActivated: (row) => player.playTracks([library.songs.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.songs.get(row))
+                            onMenuRequested: (row) => picker.openFor([library.songs.get(row)])
+                        }
+
+                        DrillList {   // Playlists
+                            id: playlistsTab
+                            kind: "playlist"
+                            model: playlists.list
+                            onClicked: keyRoot.forceActiveFocus()
+                            onPickRequested: (tracks) => picker.openFor(tracks)
+                            onNewPlaylistRequested: picker.openNew([])
                         }
 
                         BrowseList {
@@ -228,6 +260,11 @@ ApplicationWindow {
                                 if (!r.isDir)
                                     player.enqueue(r)
                             }
+                            onMenuRequested: (row) => {
+                                const r = library.folder.get(row)
+                                if (!r.isDir)
+                                    picker.openFor([r])
+                            }
                         }
 
                         BrowseList {
@@ -235,6 +272,7 @@ ApplicationWindow {
                             model: player.queue
                             playingRow: player.currentIndex
                             onActivated: (row) => player.jumpTo(row)
+                            onMenuRequested: (row) => picker.openFor([player.queue.get(row)])
                         }
 
                         SettingsForm { }   // Settings
@@ -244,6 +282,7 @@ ApplicationWindow {
                             model: library.results
                             onActivated: (row) => player.playTracks([library.results.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.results.get(row))
+                            onMenuRequested: (row) => picker.openFor([library.results.get(row)])
                         }
                     }
                 }
@@ -357,4 +396,6 @@ ApplicationWindow {
             }
         }
     }
+
+    PlaylistPicker { id: picker }
 }

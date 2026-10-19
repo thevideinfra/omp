@@ -74,13 +74,17 @@ Main window:
 | n / p | next / previous |
 | h / l | seek -10 s / +10 s |
 | / | focus search |
-| Tab | next tab (Albums, Artists, Folders, Queue, Settings) |
+| Tab | next tab (Albums, Artists, Songs, Playlists, Folders, Queue, Settings) |
+| Right / Left | Albums, Artists, Playlists: move into / out of the song pane |
 | j / k, Down / Up | move selection |
 | Enter | play selection |
 | a | add selection to queue |
+| m | add selection to a playlist (also right-click) |
+| s / o | toggle shuffle / cycle repeat |
+| Delete | remove the selected song from the open playlist |
 | r | rescan the library |
-| Backspace | up one folder (Folders tab) |
-| Esc | clear search |
+| Backspace | up one folder (Folders tab); out of the song pane |
+| Esc | clear search; out of the song pane |
 
 Panel: Esc hides the panel, Space play / pause.
 
@@ -100,6 +104,10 @@ The App section of Settings has **Start at login (in the tray)**, off by default
 ## Songs and music folders
 
 The **Songs** tab lists every track by title; Enter or double-click plays one song, `a` adds it to the queue. The **Library** tab in Settings lists the music folders (default `~/Music`): add one by typing its path or with Browse…, remove with Remove (the last one stays). Changes rescan at once and are saved as `folders = [...]` in `config.toml`. A mounted network share is just another folder here; handling of unmounted shares and slow mounts comes with the shares milestone.
+
+## Playlists
+
+Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playlists/`. The **Playlists** tab lists them with their songs on the right; Enter or double-click plays one, and **New playlist**, **Rename** and **Delete** (click twice) manage them. Add songs from anywhere with right-click or `m` on a song, album or artist, which opens a picker with your playlists and a field for a new one. The Queue tab has **Save as playlist**. Delete removes the selected song from the open playlist. Songs that are no longer in the library are skipped when a playlist is shown but stay in the file.
 
 ## Shuffle, repeat and equalizer
 

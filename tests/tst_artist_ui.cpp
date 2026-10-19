@@ -81,8 +81,8 @@ private slots:
         window = new QQuickWindow;
         window->resize(1000, 600);
         tab->setParentItem(window->contentItem());
-        tab->setSize(QSizeF(1000, 600));
         tab->setProperty("kind", "artist");
+        tab->setSize(QSizeF(1000, 600));
         tab->setProperty("model", QVariant::fromValue(library->artists()));
         window->show();
         QVERIFY(QTest::qWaitForWindowExposed(window));
@@ -93,6 +93,13 @@ private slots:
         delete window;
         delete engine;
         delete library;
+    }
+
+    void theThreeColumnsStartOutEqual()
+    {
+        QQuickItem *pane = tab->findChild<QQuickItem *>("listPane");
+        QVERIFY(pane);
+        QVERIFY2(qAbs(pane->width() - 1000.0 / 3) < 3, qPrintable(QString::number(pane->width())));
     }
 
     void theArtistOpensOnItsFirstAlbum()

@@ -244,8 +244,21 @@ Item {
 
     // The columns can be dragged wider or narrower by their dividers.
     SplitView {
+        id: panes
         anchors.fill: parent
         orientation: Qt.Horizontal
+
+        // The columns start out equal (half each, a third each for an artist). Assigned once, once
+        // the tab has a width, not bound: any setting change (shuffle, repeat) re-evaluates
+        // bindings and would undo a width the user dragged.
+        property bool sized: false
+        onWidthChanged: {
+            if (sized || width <= 0) return
+            sized = true
+            const share = width / (root.kind === "artist" ? 3 : 2)
+            listPane.SplitView.preferredWidth = share
+            if (root.kind === "artist") mid.SplitView.preferredWidth = share
+        }
 
         handle: Rectangle {
             implicitWidth: S.sp(7)
@@ -259,10 +272,8 @@ Item {
         }
 
         ColumnLayout {
+            id: listPane
             objectName: "listPane"
-            // Assigned once, not bound: any setting change (shuffle, repeat) re-evaluates
-            // bindings built on S.sp() and would undo a width the user dragged.
-            Component.onCompleted: SplitView.preferredWidth = root.kind === "artist" ? S.sp(300) : S.sp(420)
             SplitView.minimumWidth: S.sp(140)
             spacing: 0
 
@@ -304,7 +315,6 @@ Item {
             id: mid
             visible: root.kind === "artist"
             artSize: S.sp(96)
-            Component.onCompleted: SplitView.preferredWidth = S.sp(340)
             SplitView.minimumWidth: S.sp(140)
             model: ListModel { id: albumModel }
             onCurrentIndexChanged: root.selectAlbum(currentIndex)
@@ -315,6 +325,7 @@ Item {
         }
 
         ColumnLayout {
+            id: rightPane
             SplitView.fillWidth: true
             SplitView.minimumWidth: S.sp(200)
             spacing: 0
@@ -418,14 +429,17 @@ Item {
                     library.coverRevision
                     return root.kind !== "playlist" && root.allTracks.length > 0 ? library.coverFor(root.allTracks[0].path) : ""
                 }
+                // As wide as the pane (so dragging the divider resizes it), but never more
+                // than half its height, so the songs stay in view.
+                readonly property real side: Math.max(S.sp(120), Math.min(rightPane.width - S.sp(16), rightPane.height * 0.5))
                 visible: artSource !== ""
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: visible ? S.sp(320) : 0
-                Layout.preferredHeight: visible ? S.sp(320) : 0
+                Layout.preferredWidth: visible ? side : 0
+                Layout.preferredHeight: visible ? side : 0
                 Layout.bottomMargin: visible ? S.sp(8) : 0
                 source: artSource
-                sourceSize.width: 640
-                sourceSize.height: 640
+                sourceSize.width: 1200
+                sourceSize.height: 1200
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
             }

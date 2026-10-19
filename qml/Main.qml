@@ -223,6 +223,7 @@ ApplicationWindow {
 
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Songs
+                            songArt: true
                             model: library.songs
                             onActivated: (row) => player.playTracks([library.songs.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.songs.get(row))
@@ -269,6 +270,7 @@ ApplicationWindow {
 
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Queue
+                            songArt: true
                             model: player.queue
                             playingRow: player.currentIndex
                             onActivated: (row) => player.jumpTo(row)
@@ -279,6 +281,7 @@ ApplicationWindow {
 
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Search results
+                            songArt: true
                             model: library.results
                             onActivated: (row) => player.playTracks([library.results.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.results.get(row))

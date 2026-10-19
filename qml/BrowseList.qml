@@ -4,6 +4,7 @@ import "Scale.js" as S
 ListView {
     id: root
     property int playingRow: -1
+    property bool songArt: false   // rows are songs: show the cover of each song's folder
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
@@ -30,7 +31,8 @@ ListView {
         required property string subtitle
         required property string meta
         required property string cover   // a track path; the art file is looked up lazily
-        readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
+        readonly property string artPath: cover !== "" ? cover : (root.songArt ? (model.path ?? "") : "")
+        readonly property string artSource: { library.coverRevision; return artPath !== "" ? library.coverFor(artPath) : "" }
 
         width: ListView.view.width
         height: Math.max(S.sp(52), textColumn.implicitHeight + S.sp(8))

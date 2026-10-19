@@ -98,9 +98,9 @@ Item {
     function playRow(row) {
         if (row < 0 || row >= rows.length) return
         const r = rows[row]
-        // A song plays on its own; an album header plays the whole album.
-        if (r.header) player.playTracks(r.tracks, 0)
-        else player.playTracks([r.tracks[r.start]], 0)
+        // A song queues its album from that song, so Next/Previous walk the album;
+        // an album header plays the whole album.
+        player.playTracks(r.tracks, r.header ? 0 : r.start)
     }
 
     Connections {

@@ -22,6 +22,7 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *albums READ albums CONSTANT)
     Q_PROPERTY(RowsModel *artists READ artists CONSTANT)
     Q_PROPERTY(RowsModel *folder READ folder CONSTANT)
+    Q_PROPERTY(RowsModel *songs READ songs CONSTANT)
     Q_PROPERTY(RowsModel *results READ results CONSTANT)
     Q_PROPERTY(QString folderPath READ folderPath NOTIFY folderPathChanged)
 
@@ -38,6 +39,7 @@ public:
     RowsModel *albums() { return &m_albums; }
     RowsModel *artists() { return &m_artists; }
     RowsModel *folder() { return &m_folder; }
+    RowsModel *songs() { return &m_songs; }
     RowsModel *results() { return &m_results; }
     QString folderPath() const { return m_folderPath; }
 
@@ -93,6 +95,7 @@ private:
     RowsModel m_albums;
     RowsModel m_artists;
     RowsModel m_folder;
+    RowsModel m_songs;
     RowsModel m_results;
     QString m_folderPath;
     QString m_query;

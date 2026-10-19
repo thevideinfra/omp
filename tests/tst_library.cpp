@@ -221,6 +221,18 @@ private slots:
         QCOMPARE(lib.albums()->data(lib.albums()->index(0, 0), role).toString(), t.path);
     }
 
+    void songsAreAllTracksSortedByTitle()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks(fixture());
+        QCOMPARE(lib.songs()->rowCount(), 4);
+        QStringList titles;
+        for (int i = 0; i < 4; ++i)
+            titles << lib.songs()->get(i).value("title").toString();
+        QCOMPARE(titles, QStringList({"One", "Solo", "Top", "Two"}));
+        QCOMPARE(lib.songs()->get(1).value("path").toString(), QString("/m/amy/beta/01.flac"));
+    }
+
     void artistAndAlbumNamesDifferingInCaseAreOne()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

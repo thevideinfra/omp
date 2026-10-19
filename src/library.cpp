@@ -88,6 +88,7 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     , m_albums({"key", "title", "subtitle", "meta", "cover"})
     , m_artists({"key", "title", "subtitle", "meta", "cover"})
     , m_folder(folderRoles())
+    , m_songs(Track::roleNames())
     , m_results(Track::roleNames())
 {
     for (QString &r : m_roots)
@@ -336,6 +337,24 @@ void Library::rebuildGroups()
                           {"cover", a.tracks.first().path}});   // resolved lazily by coverFor()
     }
     m_albums.setRows(albumRows);
+
+    QVector<Track> songs = m_tracks;
+    std::sort(songs.begin(), songs.end(), [](const Track &a, const Track &b) {
+        if (ciLess(a.title, b.title))
+            return true;
+        if (ciLess(b.title, a.title))
+            return false;
+        if (ciLess(a.artist, b.artist))
+            return true;
+        if (ciLess(b.artist, a.artist))
+            return false;
+        return trackLess(a, b);
+    });
+    QVector<QVariantMap> songRows;
+    songRows.reserve(songs.size());
+    for (const Track &t : std::as_const(songs))
+        songRows.append(t.toMap());
+    m_songs.setRows(songRows);
 
     QStringList names = m_byArtist.keys();
     std::sort(names.begin(), names.end(), ciLess);

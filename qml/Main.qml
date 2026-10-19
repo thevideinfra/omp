@@ -15,7 +15,9 @@ ApplicationWindow {
     visible: false
     color: theme.background
 
-    readonly property var tabNames: ["Albums", "Artists", "Folders", "Queue", "Settings"]
+    readonly property var tabNames: ["Albums", "Artists", "Songs", "Folders", "Queue", "Settings"]
+    function isTab(name) { return tabNames[tab] === name }
+    readonly property bool drillTab: isTab("Albums") || isTab("Artists")   // list on the left, songs on the right
     property int tab: 0
     readonly property bool searching: searchField.text.length > 0
 
@@ -54,21 +56,21 @@ ApplicationWindow {
         case Qt.Key_Enter: currentList().activate(); break
         case Qt.Key_A: currentList().enqueue(); break
         case Qt.Key_Right:
-            if (!win.searching && win.tab < 2) currentList().focusRight()
+            if (!win.searching && win.drillTab) currentList().focusRight()
             break
         case Qt.Key_Left:
-            if (!win.searching && win.tab < 2) currentList().back()
+            if (!win.searching && win.drillTab) currentList().back()
             break
         case Qt.Key_R: library.rescan(); break
         case Qt.Key_S: player.shuffle = !player.shuffle; break
         case Qt.Key_O: player.cycleRepeat(); break
         case Qt.Key_Backspace:
             if (win.searching) break
-            if (win.tab === 2) library.up()
-            else if (win.tab < 2) currentList().back()
+            if (win.isTab("Folders")) library.up()
+            else if (win.drillTab) currentList().back()
             break
         case Qt.Key_Escape:
-            if (!win.searching && win.tab < 2 && currentList().back()) break
+            if (!win.searching && win.drillTab && currentList().back()) break
             searchField.text = ""
             break
         default: e.accepted = false
@@ -153,7 +155,7 @@ ApplicationWindow {
                         }
 
                         Rectangle {
-                            visible: win.tab === 2 && !win.searching
+                            visible: win.isTab("Folders") && !win.searching
                             Layout.preferredWidth: S.sp(60)
                             Layout.preferredHeight: searchField.height
                             radius: S.sp(6)
@@ -165,7 +167,7 @@ ApplicationWindow {
                         }
 
                         Rectangle {
-                            visible: win.tab === 3 && !win.searching
+                            visible: win.isTab("Queue") && !win.searching
                             Layout.preferredWidth: S.sp(110)
                             Layout.preferredHeight: searchField.height
                             radius: S.sp(6)
@@ -181,7 +183,7 @@ ApplicationWindow {
                         id: stack
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        currentIndex: win.searching ? 5 : win.tab
+                        currentIndex: win.searching ? win.tabNames.length : win.tab
 
                         DrillList {   // Albums
                             id: albumsTab
@@ -195,6 +197,13 @@ ApplicationWindow {
                             kind: "artist"
                             model: library.artists
                             onClicked: keyRoot.forceActiveFocus()
+                        }
+
+                        BrowseList {
+                            onClicked: keyRoot.forceActiveFocus()   // Songs
+                            model: library.songs
+                            onActivated: (row) => player.playTracks([library.songs.get(row)], 0)
+                            onEnqueued: (row) => player.enqueue(library.songs.get(row))
                         }
 
                         BrowseList {

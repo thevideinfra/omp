@@ -2,11 +2,16 @@
 
 #include "fakesubsonic.h"
 #include "subsonicclient.h"
+#include "track.h"
+
+Q_DECLARE_METATYPE(QVector<Track>)
 
 class TstSubsonic : public QObject
 {
     Q_OBJECT
 private slots:
+    void initTestCase() { qRegisterMetaType<QVector<Track>>(); }
+
     void tokenIsTheMd5OfPasswordAndSalt()
     {
         // The example from the Subsonic API documentation.
@@ -71,6 +76,89 @@ private slots:
         c.ping();
         QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 2, 5000);
         QVERIFY(!spy.at(1).at(0).toBool());
+    }
+
+    void parsesASongAndFillsGaps()
+    {
+        const QJsonObject o = QJsonDocument::fromJson(R"({
+            "id":"42","title":"Far","artist":"Amy","album":"Beta","track":3,"discNumber":2,
+            "duration":201,"size":5000000,"created":"2021-03-04T05:06:07Z","coverArt":"al-1",
+            "starred":"2022-01-01T00:00:00Z","displayAlbumArtist":"Amy & Co"})").object();
+        const Track t = SubsonicClient::parseSong(o);
+        QCOMPARE(t.path, QString("subsonic:42"));
+        QCOMPARE(t.title, QString("Far"));
+        QCOMPARE(t.artist, QString("Amy"));
+        QCOMPARE(t.albumArtist, QString("Amy & Co"));
+        QCOMPARE(t.album, QString("Beta"));
+        QCOMPARE(t.track, 3);
+        QCOMPARE(t.disc, 2);
+        QCOMPARE(t.duration, 201.0);
+        QCOMPARE(t.size, qint64(5000000));
+        QCOMPARE(t.mtime, QDateTime(QDate(2021, 3, 4), QTime(5, 6, 7), QTimeZone::UTC).toSecsSinceEpoch());
+        QCOMPARE(t.coverId, QString("al-1"));
+        QVERIFY(t.starred);
+        QVERIFY(t.isRemote());
+
+        const Track bare = SubsonicClient::parseSong(QJsonDocument::fromJson(R"({"id":"7","title":"X"})").object());
+        QCOMPARE(bare.artist, QString("Unknown Artist"));
+        QCOMPARE(bare.albumArtist, QString("Unknown Artist"));
+        QCOMPARE(bare.album, QString("Unknown Album"));
+        QVERIFY(!bare.starred);
+        QCOMPARE(bare.mtime, qint64(0));
+    }
+
+    void fetchesTheWholeLibraryAlbumByAlbum()
+    {
+        FakeSubsonic fake;
+        // 3 albums (paged two at a time), 5 songs.
+        const QStringList albums{"a1", "a2", "a3"};
+        fake.setHandler("getAlbumList2", [&](const QUrlQuery &q) {
+            const int off = q.queryItemValue("offset").toInt(), size = q.queryItemValue("size").toInt();
+            QStringList items;
+            for (int i = off; i < qMin(int(albums.size()), off + size); ++i)
+                items << QStringLiteral("{\"id\":\"%1\"}").arg(albums.at(i));
+            return QByteArray("\"albumList2\":{\"album\":[") + items.join(',').toUtf8() + "]}";
+        });
+        fake.setHandler("getAlbum", [&](const QUrlQuery &q) {
+            const QString id = q.queryItemValue("id");
+            const int n = id == "a1" ? 2 : id == "a2" ? 2 : 1;
+            QStringList songs;
+            for (int i = 1; i <= n; ++i)
+                songs << QStringLiteral("{\"id\":\"%1-%2\",\"title\":\"T%2\",\"artist\":\"Amy\",\"album\":\"%1\",\"track\":%2}").arg(id).arg(i);
+            return QByteArray("\"album\":{\"id\":\"") + id.toUtf8() + "\",\"song\":[" + songs.join(',').toUtf8() + "]}";
+        });
+        SubsonicClient c;
+        c.setServer(fake.url(), "amy", "sesame");
+        c.setPageSize(2);
+        QSignalSpy done(&c, &SubsonicClient::libraryFetched);
+        QSignalSpy progress(&c, &SubsonicClient::libraryProgress);
+        c.fetchLibrary();
+        QTRY_COMPARE(done.count(), 1);
+        const auto tracks = done.at(0).at(0).value<QVector<Track>>();
+        QCOMPARE(tracks.size(), 5);
+        QCOMPARE(fake.count("getAlbumList2"), 2);   // pages of two: 2 albums, then 1
+        QCOMPARE(fake.count("getAlbum"), 3);
+        QVERIFY(progress.count() >= 1);
+        QCOMPARE(progress.last().at(0).toInt(), 3);
+        QCOMPARE(progress.last().at(1).toInt(), 3);
+    }
+
+    void aFailingAlbumGivesNoPartialLibrary()
+    {
+        FakeSubsonic fake;
+        fake.setResult("getAlbumList2", R"("albumList2":{"album":[{"id":"a1"},{"id":"a2"}]})");
+        fake.setHandler("getAlbum", [](const QUrlQuery &q) {
+            return q.queryItemValue("id") == "a2" ? QByteArray("ERR:Album gone")
+                                                  : QByteArray(R"("album":{"song":[{"id":"1","title":"T"}]})");
+        });
+        SubsonicClient c;
+        c.setServer(fake.url(), "amy", "sesame");
+        QSignalSpy done(&c, &SubsonicClient::libraryFetched);
+        QSignalSpy failed(&c, &SubsonicClient::libraryFailed);
+        c.fetchLibrary();
+        QTRY_COMPARE(failed.count(), 1);
+        QVERIFY(failed.at(0).at(0).toString().contains("Album gone"));
+        QCOMPARE(done.count(), 0);
     }
 };
 

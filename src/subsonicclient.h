@@ -8,6 +8,9 @@
 #include <QObject>
 #include <QPair>
 #include <QUrl>
+#include <QVector>
+
+#include "track.h"
 
 // Talks to a Subsonic-API server (Navidrome, Airsonic, Subsonic): salted-token
 // login, JSON answers, a timeout on every request so a dead server never hangs.
@@ -39,8 +42,16 @@ public:
 
     void ping();
 
+    static Track parseSong(const QJsonObject &song);
+    void setPageSize(int n) { m_pageSize = n; }
+    // The whole library as tracks; all or nothing: `libraryFetched` on success, else `libraryFailed`.
+    void fetchLibrary();
+
 signals:
     void pingDone(bool ok, const QString &message);
+    void libraryProgress(int done, int total);
+    void libraryFetched(const QVector<Track> &tracks);
+    void libraryFailed(const QString &message);
 
 private:
     QNetworkAccessManager m_nam;
@@ -49,4 +60,5 @@ private:
     QString m_password;
     QString m_salt;
     int m_timeoutMs = 15000;
+    int m_pageSize = 500;
 };

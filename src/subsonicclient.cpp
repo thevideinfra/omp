@@ -1,6 +1,11 @@
 #include "subsonicclient.h"
 
 #include <QCryptographicHash>
+#include <QDateTime>
+#include <QJsonArray>
+#include <QPointer>
+#include <QQueue>
+#include <QTimeZone>
 #include <QJsonDocument>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -100,4 +105,111 @@ void SubsonicClient::ping()
     call(QStringLiteral("ping"), {}, [this](bool ok, const QJsonObject &, const QString &message) {
         emit pingDone(ok, message);
     });
+}
+
+Track SubsonicClient::parseSong(const QJsonObject &o)
+{
+    Track t;
+    t.path = QStringLiteral("subsonic:") + o.value("id").toVariant().toString();
+    t.title = o.value("title").toString();
+    t.artist = o.value("artist").toString();
+    if (t.artist.isEmpty())
+        t.artist = QStringLiteral("Unknown Artist");
+    t.albumArtist = o.value("displayAlbumArtist").toString();
+    if (t.albumArtist.isEmpty())
+        t.albumArtist = t.artist;
+    t.album = o.value("album").toString();
+    if (t.album.isEmpty())
+        t.album = QStringLiteral("Unknown Album");
+    t.track = o.value("track").toInt();
+    t.disc = o.value("discNumber").toInt();
+    t.duration = o.value("duration").toDouble();
+    t.size = o.value("size").toInteger();
+    const QDateTime created = QDateTime::fromString(o.value("created").toString(), Qt::ISODate);
+    t.mtime = created.isValid() ? created.toSecsSinceEpoch() : 0;
+    t.coverId = o.value("coverArt").toString();
+    t.starred = o.contains("starred");
+    return t;
+}
+
+namespace {
+// The state of one library fetch, shared by its callbacks.
+struct Fetch
+{
+    QStringList albumIds;
+    int next = 0;
+    int inflight = 0;
+    int done = 0;
+    bool failed = false;
+    QVector<QVector<Track>> byAlbum;   // in album order
+};
+constexpr int kParallel = 4;
+}
+
+void SubsonicClient::fetchLibrary()
+{
+    auto fetch = std::make_shared<Fetch>();
+    QPointer<SubsonicClient> self(this);
+
+    // Albums come in pages; then each album's songs, a few requests at a time.
+    auto pump = std::make_shared<std::function<void()>>();
+    *pump = [self, fetch, pump] {
+        if (!self || fetch->failed)
+            return;
+        while (fetch->inflight < kParallel && fetch->next < fetch->albumIds.size()) {
+            const int index = fetch->next++;
+            ++fetch->inflight;
+            self->call(QStringLiteral("getAlbum"), {{"id", fetch->albumIds.at(index)}},
+                       [self, fetch, pump, index](bool ok, const QJsonObject &resp, const QString &err) {
+                           if (!self || fetch->failed)
+                               return;
+                           --fetch->inflight;
+                           if (!ok) {
+                               fetch->failed = true;
+                               emit self->libraryFailed(err);
+                               return;
+                           }
+                           QVector<Track> songs;
+                           for (const QJsonValue &s : resp.value("album").toObject().value("song").toArray())
+                               songs.append(parseSong(s.toObject()));
+                           fetch->byAlbum[index] = songs;
+                           ++fetch->done;
+                           emit self->libraryProgress(fetch->done, fetch->albumIds.size());
+                           (*pump)();
+                       });
+        }
+        if (fetch->done == fetch->albumIds.size() && fetch->inflight == 0) {
+            QVector<Track> all;
+            for (const QVector<Track> &songs : std::as_const(fetch->byAlbum))
+                all += songs;
+            emit self->libraryFetched(all);
+        }
+    };
+
+    auto page = std::make_shared<std::function<void(int)>>();
+    *page = [self, fetch, pump, page](int offset) {
+        if (!self)
+            return;
+        self->call(QStringLiteral("getAlbumList2"),
+                   {{"type", "alphabeticalByName"}, {"size", QString::number(self->m_pageSize)},
+                    {"offset", QString::number(offset)}},
+                   [self, fetch, pump, page, offset](bool ok, const QJsonObject &resp, const QString &err) {
+                       if (!self)
+                           return;
+                       if (!ok) {
+                           emit self->libraryFailed(err);
+                           return;
+                       }
+                       const QJsonArray albums = resp.value("albumList2").toObject().value("album").toArray();
+                       for (const QJsonValue &a : albums)
+                           fetch->albumIds << a.toObject().value("id").toVariant().toString();
+                       if (albums.size() >= self->m_pageSize) {
+                           (*page)(offset + albums.size());
+                           return;
+                       }
+                       fetch->byAlbum.resize(fetch->albumIds.size());
+                       (*pump)();
+                   });
+    };
+    (*page)(0);
 }

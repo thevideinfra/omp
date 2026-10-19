@@ -28,6 +28,11 @@ public:
     void setLogin(const QString &user, const QString &password) { m_user = user; m_password = password; }
     // The JSON "subsonic-response" payload members for a method, e.g. {"artists":{...}}.
     void setResult(const QString &method, const QByteArray &membersJson) { m_results.insert(method, membersJson); }
+    // The members for a method computed from the request (paging, ids).
+    void setHandler(const QString &method, std::function<QByteArray(const QUrlQuery &)> handler)
+    {
+        m_handlers.insert(method, handler);
+    }
     // A raw body (a cover, a stream) with its content type.
     void setBinary(const QString &method, const QByteArray &body, const QByteArray &type = "image/jpeg")
     {
@@ -77,6 +82,9 @@ private:
         } else if (m_binary.contains(method)) {
             body = m_binary.value(method).first;
             type = m_binary.value(method).second;
+        } else if (m_handlers.contains(method)) {
+            const QByteArray members = m_handlers.value(method)(q);
+            body = members.startsWith("ERR:") ? failed(70, members.mid(4)) : ok(members);
         } else if (m_results.contains(method)) {
             body = ok(m_results.value(method));
         } else {
@@ -90,6 +98,7 @@ private:
     QTcpServer m_server;
     QString m_user = QStringLiteral("amy"), m_password = QStringLiteral("sesame");
     QMap<QString, QByteArray> m_results;
+    QMap<QString, std::function<QByteArray(const QUrlQuery &)>> m_handlers;
     QMap<QString, QPair<QByteArray, QByteArray>> m_binary;
     QSet<QString> m_ignored;
     QHash<QTcpSocket *, QByteArray> m_buffers;

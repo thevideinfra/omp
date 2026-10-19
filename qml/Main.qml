@@ -55,10 +55,14 @@ ApplicationWindow {
         case Qt.Key_A: currentList().enqueue(); break
         case Qt.Key_R: library.rescan(); break
         case Qt.Key_Backspace:
-            if (win.tab === 2 && !win.searching)
-                library.up()
+            if (win.searching) break
+            if (win.tab === 2) library.up()
+            else if (win.tab < 2) currentList().back()
             break
-        case Qt.Key_Escape: searchField.text = ""; break
+        case Qt.Key_Escape:
+            if (!win.searching && win.tab < 2 && currentList().back()) break
+            searchField.text = ""
+            break
         default: e.accepted = false
         }
     }
@@ -171,18 +175,18 @@ ApplicationWindow {
                         Layout.fillHeight: true
                         currentIndex: win.searching ? 5 : win.tab
 
-                        BrowseList {
-                            onClicked: keyRoot.forceActiveFocus()   // Albums
+                        DrillList {   // Albums
+                            id: albumsTab
+                            kind: "album"
                             model: library.albums
-                            onActivated: (row) => player.playTracks(library.albumTracks(library.albums.get(row).key), 0)
-                            onEnqueued: (row) => player.enqueueTracks(library.albumTracks(library.albums.get(row).key))
+                            onClicked: keyRoot.forceActiveFocus()
                         }
 
-                        BrowseList {
-                            onClicked: keyRoot.forceActiveFocus()   // Artists
+                        DrillList {   // Artists
+                            id: artistsTab
+                            kind: "artist"
                             model: library.artists
-                            onActivated: (row) => player.playTracks(library.artistTracks(library.artists.get(row).key), 0)
-                            onEnqueued: (row) => player.enqueueTracks(library.artistTracks(library.artists.get(row).key))
+                            onClicked: keyRoot.forceActiveFocus()
                         }
 
                         BrowseList {

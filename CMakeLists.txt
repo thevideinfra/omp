@@ -38,6 +38,7 @@ qt_add_qml_module(omamusic
     QML_FILES
         qml/Main.qml
         qml/BrowseList.qml
+        qml/DrillList.qml
         qml/Panel.qml
         qml/SeekBar.qml
         qml/TransportButton.qml

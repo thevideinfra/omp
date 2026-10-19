@@ -18,6 +18,7 @@
 #include "lookscope.h"
 #include "paths.h"
 #include "autostart.h"
+#include "mpris.h"
 #include "player.h"
 #include "playlists.h"
 #include "settings.h"
@@ -113,6 +114,9 @@ int main(int argc, char *argv[])
     Autostart autostart;
     QQmlApplicationEngine engine;
     Shell shell(engine, player, theme);
+    Mpris mpris(player, library);
+    QObject::connect(&mpris, &Mpris::raiseRequested, &shell, &Shell::showMain);
+    QObject::connect(&mpris, &Mpris::quitRequested, &shell, &Shell::quitApp);
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("theme", &theme);
     ctx->setContextProperty("ui", &appLook);

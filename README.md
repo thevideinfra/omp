@@ -119,7 +119,7 @@ A folder image (`cover.jpg`, `folder.jpg`, `front.jpg`, `.png` too) wins. Otherw
 
 ## Media keys (MPRIS)
 
-MPRIS comes from the `mpv-mpris` mpv script, not from omamusic. Checked: play/pause, pause, title, album artist and the cover art (embedded art included) show on the bus. The player shows as `mpv`. Untagged files show their file name as the title.
+omamusic has its own MPRIS service (`org.mpris.MediaPlayer2.omamusic`, identity `omamusic`): play/pause, next/previous, seek, volume, shuffle, loop, title, artist, album and cover art show on the bus, and Raise/Quit work. mpv runs with `--load-scripts=no`, so the `mpv-mpris` script is not used. Untagged files show their file name as the title.
 
 ## Hyprland panel rule
 
@@ -138,7 +138,7 @@ The panel sizes itself to its content, so the rule has no `size`. A Qt client ca
 
 ## Known gaps
 
-Deferred to later plans: a native MPRIS identity (the player shows as `mpv`), handling of unmounted or slow network shares, Subsonic, and shuffle/repeat buttons in the tray panel. The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
+Deferred to later plans: handling of unmounted or slow network shares, and Subsonic. The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
 
 ## Test
 

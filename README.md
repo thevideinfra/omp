@@ -2,6 +2,15 @@
 
 A Qt 6 music player for Omarchy. It browses local folders by album, artist, folder and queue, and plays through an `mpv` child process. A standalone window is tiled by Hyprland, and a tray icon opens a compact popup panel. It follows the Omarchy theme. Library is read-only.
 
+## Install
+
+```
+cmake -S . -B build && cmake --build build
+cmake --install build --prefix ~/.local
+```
+
+This puts `omamusic` and `omamusic-scan` in `~/.local/bin` and adds a launcher entry and icon. Run the install again after each rebuild.
+
 ## Dependencies
 
 Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `qt6-svg` (tray icon), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`.

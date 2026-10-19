@@ -69,5 +69,13 @@ qt_add_resources(omamusic icons
 
 configure_file(bin/omamusic-scan ${CMAKE_BINARY_DIR}/omamusic-scan COPYONLY)
 
+# cmake --install build --prefix ~/.local
+include(GNUInstallDirs)
+install(TARGETS omamusic RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(PROGRAMS bin/omamusic-scan DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
+install(FILES data/omamusic.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES resources/omamusic-symbolic.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omamusic.svg)
+
 enable_testing()
 add_subdirectory(tests)

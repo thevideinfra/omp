@@ -63,7 +63,7 @@ private slots:
         const QVariantMap m = t.toMap();
         QCOMPARE(m.value("subtitle").toString(), QString("A — B"));
         QCOMPARE(m.value("meta").toString(), QString("2:05"));
-        QCOMPARE(m.value("cover").toString(), QString());
+        QCOMPARE(m.value("cover").toString(), t.path);
         for (const QString &role : Track::roleNames())
             QVERIFY2(m.contains(role), qPrintable(role));
     }

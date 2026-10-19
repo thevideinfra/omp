@@ -63,7 +63,7 @@ QVariantMap Track::toMap() const
         {"duration", duration},
         {"subtitle", artist + QStringLiteral(" — ") + album},
         {"meta", formatTime(duration)},
-        {"cover", QString()},
+        {"cover", path},   // a song shows the art of its folder; resolved lazily by Library::coverFor()
     };
 }
 

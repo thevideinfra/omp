@@ -71,7 +71,7 @@ QStringList folderRoles()
 
 QVariantMap dirRow(const QString &path, const QString &name)
 {
-    return {{"path", path}, {"title", name}, {"subtitle", QString()}, {"meta", QString()},
+    return {{"path", path}, {"title", name}, {"subtitle", path}, {"meta", QString()},
             {"cover", QString()}, {"isDir", true}};
 }
 

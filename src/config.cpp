@@ -8,6 +8,25 @@
 
 namespace Config {
 
+bool startsArray(const QString &value)
+{
+    return value.trimmed().startsWith(QLatin1Char('['));
+}
+
+bool closesArray(const QString &text)
+{
+    bool inQuote = false;
+    for (const QChar c : text) {
+        if (c == QLatin1Char('"'))
+            inQuote = !inQuote;
+        else if (!inQuote && c == QLatin1Char('#'))
+            return false;
+        else if (!inQuote && c == QLatin1Char(']'))
+            return true;
+    }
+    return false;
+}
+
 QStringList parseFolders(const QByteArray &text)
 {
     static const QRegularExpression quoted(QStringLiteral("\"([^\"]*)\""));
@@ -21,10 +40,12 @@ QStringList parseFolders(const QByteArray &text)
             const int eq = line.indexOf(QLatin1Char('='));
             if (eq < 0 || line.left(eq).trimmed() != QStringLiteral("folders"))
                 continue;
-            inArray = true;
             line = line.mid(eq + 1);
+            if (!startsArray(line))
+                continue;   // folders = "x" is not a list
+            inArray = true;
         }
-        const bool closed = line.contains(QLatin1Char(']'));
+        const bool closed = closesArray(line);
         auto it = quoted.globalMatch(line);
         while (it.hasNext()) {
             QString path = it.next().captured(1);

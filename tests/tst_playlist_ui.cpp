@@ -136,10 +136,33 @@ private slots:
         QCOMPARE(rows().at(1).toMap().value("plIndex").toInt(), 2);
     }
 
-    void aNewPlaylistAppearsInTheList()
+    void selectingAnotherPlaylistCancelsRenameAndDelete()
+    {
+        tab->setProperty("confirmDelete", true);
+        tab->setProperty("renaming", true);
+        QVERIFY(QMetaObject::invokeMethod(tab, "showRow", Q_ARG(QVariant, 0)));
+        QVERIFY(!tab->property("confirmDelete").toBool());
+        QVERIFY(!tab->property("renaming").toBool());
+    }
+
+    void renamingKeepsThePlaylistSelected()
     {
         QVERIFY(playlists->create("Another"));
-        QTRY_COMPARE(playlists->list()->rowCount(), 2);
+        QTRY_COMPARE(playlists->list()->rowCount(), 2);   // Another, Mix
+        QVERIFY(QMetaObject::invokeMethod(tab, "showRow", Q_ARG(QVariant, 1)));
+        QCOMPARE(tab->property("openTitle").toString(), QString("Mix"));
+        QVERIFY(QMetaObject::invokeMethod(tab, "doRename", Q_ARG(QVariant, QString("Zed"))));
+        // Zed sorts after Another, Mix sorted after it too, but a rename could reorder: stay on it.
+        QTRY_COMPARE(tab->property("openTitle").toString(), QString("Zed"));
+        QVERIFY(QMetaObject::invokeMethod(tab, "doRename", Q_ARG(QVariant, QString("Aaa"))));   // now sorts first
+        QTRY_COMPARE(tab->property("openTitle").toString(), QString("Aaa"));
+        QCOMPARE(rows().size(), 2);   // the songs came with it
+    }
+
+    void aNewPlaylistAppearsInTheList()
+    {
+        QVERIFY(playlists->create("Yet another"));
+        QTRY_COMPARE(playlists->list()->rowCount(), 3);
     }
 };
 

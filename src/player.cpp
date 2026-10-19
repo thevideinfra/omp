@@ -1,6 +1,9 @@
 #include "player.h"
 
 #include <QFile>
+#include <QRandomGenerator>
+
+#include <algorithm>
 
 #include <csignal>
 #include <sys/prctl.h>
@@ -79,7 +82,7 @@ void Player::start()
 void Player::onConnected()
 {
     m_retry.stop();
-    for (const char *property : {"pause", "idle-active", "time-pos", "duration", "volume", "playlist-pos", "playlist"})
+    for (const char *property : {"pause", "idle-active", "time-pos", "duration", "volume", "playlist-pos"})
         m_client.observe(QString::fromLatin1(property));
     setError(QString());
     setReady(true);
@@ -127,8 +130,6 @@ void Player::onProperty(const QString &name, const QVariant &value)
             m_startVolume = qBound(0, v, 130);   // a restarted mpv keeps it
             emit volumeChanged();
         }
-    } else if (name == QLatin1String("playlist")) {
-        syncQueueOrder(value.toList());
     } else if (name == QLatin1String("playlist-pos")) {
         const int i = value.isValid() ? value.toInt() : -1;
         if (i != m_index) {
@@ -181,8 +182,19 @@ void Player::playTracks(const QVariantList &tracks, int startIndex)
     if (tracks.isEmpty())
         return;
     QVector<QVariantMap> rows;
-    for (const QVariant &t : tracks)
-        rows.append(t.toMap());
+    for (int i = 0; i < tracks.size(); ++i) {
+        QVariantMap row = tracks.at(i).toMap();
+        row.insert(QStringLiteral("seq"), i);   // the unshuffled order
+        rows.append(row);
+    }
+    if (m_shuffle) {
+        // The chosen song first, every other song after it in random order.
+        const QVariantMap first = rows.at(qBound(0, startIndex, int(rows.size()) - 1));
+        rows.remove(qBound(0, startIndex, int(rows.size()) - 1));
+        std::shuffle(rows.begin(), rows.end(), *QRandomGenerator::global());
+        rows.prepend(first);
+        startIndex = 0;
+    }
     m_queue.setRows(rows);
     for (int i = 0; i < rows.size(); ++i) {
         m_client.command({QStringLiteral("loadfile"), rows.at(i).value("path").toString(),
@@ -191,14 +203,17 @@ void Player::playTracks(const QVariantList &tracks, int startIndex)
     if (startIndex > 0)
         m_client.setProperty("playlist-pos", startIndex);
     m_client.setProperty("pause", false);
-    if (m_shuffle)
-        m_client.command({QStringLiteral("playlist-shuffle")});   // the playing song stays
     emit currentChanged();
 }
 
 void Player::enqueue(const QVariantMap &track)
 {
-    m_queue.append(track);
+    int seq = 0;
+    for (const QVariantMap &r : m_queue.rows())
+        seq = qMax(seq, r.value(QStringLiteral("seq"), -1).toInt() + 1);
+    QVariantMap row = track;
+    row.insert(QStringLiteral("seq"), qMax(seq, int(m_queue.rowCount())));
+    m_queue.append(row);
     m_client.command({QStringLiteral("loadfile"), track.value("path").toString(),
                       QStringLiteral("append-play")});
     emit currentChanged();
@@ -257,7 +272,22 @@ void Player::setShuffle(bool on)
     if (on == m_shuffle)
         return;
     m_shuffle = on;
-    m_client.command({on ? QStringLiteral("playlist-shuffle") : QStringLiteral("playlist-unshuffle")});
+    if (on) {
+        // Remember the order so that switching shuffle off can restore it.
+        QVector<QVariantMap> rows = m_queue.rows();
+        for (int i = 0; i < rows.size(); ++i)
+            rows[i].insert(QStringLiteral("seq"), i);
+        m_queue.setRows(rows);
+        reorderUpcoming([](QVector<QVariantMap> &upcoming) {
+            std::shuffle(upcoming.begin(), upcoming.end(), *QRandomGenerator::global());
+        });
+    } else {
+        reorderUpcoming([](QVector<QVariantMap> &upcoming) {
+            std::stable_sort(upcoming.begin(), upcoming.end(), [](const QVariantMap &a, const QVariantMap &b) {
+                return a.value(QStringLiteral("seq"), 1 << 30).toInt() < b.value(QStringLiteral("seq"), 1 << 30).toInt();
+            });
+        });
+    }
     emit shuffleChanged();
 }
 
@@ -315,31 +345,23 @@ void Player::setStartPlayback(bool shuffle, const QString &repeat, const QString
         m_eqPreset = eqPreset;
 }
 
-// mpv shuffled or unshuffled its playlist: put the queue rows in the same order.
-// Ignored while the two disagree in length (a load is still in flight).
-void Player::syncQueueOrder(const QVariantList &playlist)
+// Reorders the songs after the playing one (those before it, and it, stay put):
+// they are taken out of mpv's playlist and appended again in the new order.
+void Player::reorderUpcoming(const std::function<void(QVector<QVariantMap> &)> &order)
 {
-    if (playlist.size() != m_queue.rowCount())
+    const int n = m_queue.rowCount();
+    if (m_index < 0 || m_index >= n - 1)
         return;
-    const QVector<QVariantMap> rows = m_queue.rows();
-    QVector<bool> used(rows.size(), false);
-    QVector<QVariantMap> ordered;
-    for (const QVariant &entry : playlist) {
-        const QString file = entry.toMap().value(QStringLiteral("filename")).toString();
-        int found = -1;
-        for (int i = 0; i < rows.size(); ++i) {
-            if (!used[i] && rows.at(i).value(QStringLiteral("path")).toString() == file) {
-                found = i;
-                break;
-            }
-        }
-        if (found < 0)
-            return;
-        used[found] = true;
-        ordered.append(rows.at(found));
-    }
-    if (ordered != rows) {
-        m_queue.setRows(ordered);
-        emit currentChanged();
-    }
+    QVector<QVariantMap> rows = m_queue.rows();
+    QVector<QVariantMap> upcoming = rows.mid(m_index + 1);
+    order(upcoming);
+    for (int i = 0; i < upcoming.size(); ++i)
+        m_client.command({QStringLiteral("playlist-remove"), m_index + 1});
+    for (const QVariantMap &r : std::as_const(upcoming))
+        m_client.command({QStringLiteral("loadfile"), r.value(QStringLiteral("path")).toString(),
+                          QStringLiteral("append")});
+    rows.resize(m_index + 1);
+    rows += upcoming;
+    m_queue.setRows(rows);
+    emit currentChanged();
 }

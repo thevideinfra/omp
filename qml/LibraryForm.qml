@@ -104,7 +104,7 @@ ColumnLayout {
     FolderDialog {
         id: dialog
         title: qsTr("Add a music folder")
-        onAccepted: settingsStore.addFolder(selectedFolder.toString().replace(/^file:\/\//, ""))
+        onAccepted: settingsStore.addFolder(selectedFolder.toString())
     }
 
     UiText {

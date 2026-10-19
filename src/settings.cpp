@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QSaveFile>
+#include <QUrl>
 
 #include "config.h"
 #include "paths.h"
@@ -166,11 +167,13 @@ QByteArray Settings::apply(const QByteArray &existing, const QVariantMap &update
         for (const QByteArray &line : std::as_const(lines)) {
             const QByteArray trimmed = line.trimmed();
             if (!inArray && isKeyLine(trimmed, QStringLiteral("folders"))) {
-                inArray = !trimmed.contains(']');
+                // Only an array can span lines; "folders = x" is a single line.
+                const QString value = QString::fromUtf8(trimmed.mid(trimmed.indexOf('=') + 1));
+                inArray = Config::startsArray(value) && !Config::closesArray(value);
                 continue;
             }
             if (inArray) {
-                if (trimmed.contains(']'))
+                if (Config::closesArray(QString::fromUtf8(trimmed)))
                     inArray = false;
                 continue;
             }
@@ -239,7 +242,12 @@ double Settings::fontScaleFor(const QString &size)
 
 void Settings::addFolder(const QString &path)
 {
-    const QString dir = QDir::cleanPath(path.trimmed());
+    QString given = path.trimmed();
+    if (given.startsWith(QLatin1String("file:")))
+        given = QUrl(given).toLocalFile();           // from a folder dialog
+    else if (given == QLatin1String("~") || given.startsWith(QLatin1String("~/")))
+        given = QDir::homePath() + given.mid(1);
+    const QString dir = QDir::cleanPath(given);
     if (dir.isEmpty() || dir.contains('"') || dir.contains('\\') || dir.contains('\n') || !QFileInfo(dir).isDir())
         return;
     QStringList list = folders();

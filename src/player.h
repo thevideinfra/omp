@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <QObject>
 #include <QProcess>
 #include <QTimer>
@@ -47,7 +48,7 @@ public:
     void setVolume(int volume);
 
     bool shuffle() const { return m_shuffle; }
-    // Shuffles the queue now (the playing song stays); off restores the order.
+    // Shuffles the songs after the playing one; off puts them back in order.
     void setShuffle(bool on);
     // "off", "all" (repeat the queue) or "one" (repeat the song).
     QString repeat() const { return m_repeat; }
@@ -95,7 +96,7 @@ private:
     void updatePlaying();
     void applyRepeat();
     void applyEqualizer();
-    void syncQueueOrder(const QVariantList &playlist);
+    void reorderUpcoming(const std::function<void(QVector<QVariantMap> &)> &order);
 
     QString m_program;
     QStringList m_extraArgs;

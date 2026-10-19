@@ -44,6 +44,23 @@ private slots:
         QCOMPARE(Config::parseFolders("folders_old = [\"/x\"]\n"),
                  QStringList({QDir::homePath() + "/Music"}));
     }
+
+    void aStringValueIsNotAnArrayAndDoesNotSwallowLaterLines()
+    {
+        const QByteArray text = "folders = \"/mnt/music\"\nfont_family = \"Foo\"\n";
+        QCOMPARE(Config::parseFolders(text), QStringList({QDir::homePath() + "/Music"}));
+        QVERIFY(!Config::startsArray("\"/mnt/music\""));
+        QVERIFY(Config::startsArray(" [\"/a\","));
+    }
+
+    void bracketsInsideQuotesAndCommentsDoNotCloseTheArray()
+    {
+        QVERIFY(!Config::closesArray("\"/music/[live]\","));
+        QVERIFY(Config::closesArray("\"/music/[live]\"]"));
+        QVERIFY(!Config::closesArray("# see [x]"));
+        QCOMPARE(Config::parseFolders("folders = [\n  \"/a/[b]\",\n  # see [x]\n  \"/c\",\n]\n"),
+                 QStringList({"/a/[b]", "/c"}));
+    }
 };
 
 QTEST_GUILESS_MAIN(TstConfig)

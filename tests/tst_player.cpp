@@ -103,10 +103,48 @@ private slots:
         QVERIFY(p.position() > 0.2);   // not restarted
     }
 
-    void shuffleKeepsTheSongAndUnshuffleRestoresTheOrder()
+    void shuffleMixesTheUpcomingSongsOnlyAndUnshuffleRestoresThem()
     {
         QTemporaryDir dir;
         Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        QVariantList tracks;
+        QStringList titles;
+        for (const char *t : {"A", "B", "C", "D", "E", "F", "G", "H"}) {
+            tracks << row(writeWav(dir.filePath(QString(t) + ".wav"), 20.0), t);
+            titles << t;
+        }
+        auto order = [&p] {
+            QStringList l;
+            for (int i = 0; i < p.queue()->rowCount(); ++i)
+                l << p.queue()->get(i).value("title").toString();
+            return l;
+        };
+        p.playTracks(tracks, 2);
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 5000);
+
+        p.setShuffle(true);
+        QVERIFY(p.shuffle());
+        QTest::qWait(600);
+        const QStringList shuffled = order();
+        QCOMPARE(shuffled.mid(0, 3), QStringList({"A", "B", "C"}));   // played and playing stay put
+        QStringList upcoming = shuffled.mid(3);
+        upcoming.sort();
+        QCOMPARE(upcoming, QStringList({"D", "E", "F", "G", "H"}));    // nothing lost
+        QCOMPARE(p.current().value("title").toString(), QString("C"));
+        QCOMPARE(p.currentIndex(), 2);
+
+        p.setShuffle(false);
+        QTRY_COMPARE_WITH_TIMEOUT(order(), titles, 3000);
+        QCOMPARE(p.current().value("title").toString(), QString("C"));
+    }
+
+    void startingAQueueWithShuffleOnPlaysTheChosenSongFirstAndKeepsAllSongs()
+    {
+        QTemporaryDir dir;
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.setStartPlayback(true, "off", "Flat");
         p.start();
         QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
         QVariantList tracks;
@@ -115,32 +153,14 @@ private slots:
             tracks << row(writeWav(dir.filePath(QString(t) + ".wav"), 20.0), t);
             titles << t;
         }
-        p.playTracks(tracks, 2);
-        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 5000);
-
-        p.setShuffle(true);
-        QVERIFY(p.shuffle());
-        QTRY_COMPARE_WITH_TIMEOUT(p.queue()->rowCount(), 6, 3000);
-        QTest::qWait(500);
-        QCOMPARE(p.current().value("title").toString(), QString("C"));   // the same song still plays
-        QStringList now;
+        p.playTracks(tracks, 3);
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("D"), 5000);
+        QCOMPARE(p.currentIndex(), 0);   // the song you chose comes first; every other song follows
+        QStringList all;
         for (int i = 0; i < p.queue()->rowCount(); ++i)
-            now << p.queue()->get(i).value("title").toString();
-        QStringList sorted = now;
-        sorted.sort();
-        QCOMPARE(sorted, titles);   // same songs, maybe another order
-        QCOMPARE(now.at(p.currentIndex()), QString("C"));
-
-        p.setShuffle(false);
-        auto order = [&p] {
-            QStringList l;
-            for (int i = 0; i < p.queue()->rowCount(); ++i)
-                l << p.queue()->get(i).value("title").toString();
-            return l;
-        };
-        // The queue follows mpv a moment later (the shuffled index of C may already be 2).
-        QTRY_COMPARE_WITH_TIMEOUT(order(), titles, 3000);
-        QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), 2, 3000);
+            all << p.queue()->get(i).value("title").toString();
+        all.sort();
+        QCOMPARE(all, titles);
     }
 
     void repeatOneKeepsPlayingTheSong()

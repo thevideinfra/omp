@@ -108,7 +108,7 @@ bool Playlists::create(const QString &name)
 
 bool Playlists::remove(const QString &name)
 {
-    if (!QFile::remove(fileFor(cleanName(name))))
+    if (!QFile::remove(fileFor(name)))
         return false;
     reload();
     return true;

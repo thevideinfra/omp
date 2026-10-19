@@ -109,6 +109,8 @@ int main(int argc, char *argv[])
 
     QObject::connect(&settings, &Settings::changed, &library, [&] { library.setRoots(settings.folders()); });
 
+    Playlists playlists;   // declared before the engine: its context property must outlive the QML
+    Autostart autostart;
     QQmlApplicationEngine engine;
     Shell shell(engine, player, theme);
     QQmlContext *ctx = engine.rootContext();
@@ -118,9 +120,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("panelLook", &panelLook);
     ctx->setContextProperty("player", &player);
     ctx->setContextProperty("library", &library);
-    Playlists playlists;
     ctx->setContextProperty("playlists", &playlists);
-    Autostart autostart;
     ctx->setContextProperty("autostart", &autostart);
     ctx->setContextProperty("shell", &shell);
 

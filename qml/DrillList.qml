@@ -18,6 +18,7 @@ Item {
     signal newPlaylistRequested()
     property bool renaming: false
     property bool confirmDelete: false
+    property string selectName: ""   // playlist to select after the next change
 
     // Detail rows: { header, indent, title, subtitle, meta, cover, tracks, start }
     // plays `tracks` from index `start`.
@@ -57,6 +58,15 @@ Item {
         const t = currentTracks()
         if (t.length > 0) pickRequested(t)
     }
+    function doRename(text) {
+        const name = text.trim()
+        selectName = name   // set first: the change signal arrives during rename()
+        if (!playlists.rename(openTitle, name)) {
+            selectName = ""
+            renaming = false
+        }
+        clicked()   // give the keyboard back to the window
+    }
     // Delete removes the selected song from the open playlist.
     function removeSelected() {
         if (kind !== "playlist" || !rightFocus || rows.length === 0) return
@@ -83,6 +93,8 @@ Item {
     }
 
     function showRow(row) {
+        renaming = false
+        confirmDelete = false
         if (row < 0 || row >= top.count) {
             rows = []; allTracks = []; openTitle = ""; detailModel.clear()
             return
@@ -141,9 +153,17 @@ Item {
         }
     }
 
+    // Follow when the playing song changes, not on every queue change (which
+    // would pull the selection back while you browse the pane).
+    property string lastPlayingPath: ""
     Connections {
         target: player
-        function onCurrentChanged() { root.followPlaying() }
+        function onCurrentChanged() {
+            const path = player.current.path ?? ""
+            if (path === root.lastPlayingPath) return
+            root.lastPlayingPath = path
+            root.followPlaying()
+        }
     }
 
     function playRow(row) {
@@ -164,9 +184,15 @@ Item {
         enabled: root.kind === "playlist"
         function onChanged() {
             const keep = detail.currentIndex
-            root.renaming = false
-            root.confirmDelete = false
-            root.showRow(top.currentIndex)
+            // The list is sorted by name: stay on the same playlist (or the renamed one).
+            const name = root.selectName !== "" ? root.selectName : root.openTitle
+            root.selectName = ""
+            let row = -1
+            for (let i = 0; i < top.count; ++i) {
+                if (root.model.get(i).key === name) { row = i; break }
+            }
+            if (row >= 0 && row !== top.currentIndex) top.currentIndex = row   // shows that row
+            else root.showRow(top.currentIndex)
             detail.currentIndex = Math.max(0, Math.min(keep, detail.count - 1))
         }
     }
@@ -251,8 +277,8 @@ Item {
                     font.pixelSize: S.fs(13)
                     background: Rectangle { radius: S.sp(6); color: theme.surface }
                     onVisibleChanged: if (visible) { text = root.openTitle; forceActiveFocus(); selectAll() }
-                    onAccepted: playlists.rename(root.openTitle, text)
-                    Keys.onEscapePressed: root.renaming = false
+                    onAccepted: root.doRename(text)
+                    Keys.onEscapePressed: { root.renaming = false; root.clicked() }
                 }
 
                 Rectangle {
@@ -270,7 +296,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (root.renaming) playlists.rename(root.openTitle, renameField.text)
+                            if (root.renaming) root.doRename(renameField.text)
                             else root.renaming = true
                         }
                     }

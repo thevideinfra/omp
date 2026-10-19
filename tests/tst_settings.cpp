@@ -207,6 +207,38 @@ private slots:
         QCOMPARE(again.folders(), QStringList({b.path()}));
     }
 
+    void rewritingFoldersKeepsEverythingElse()
+    {
+        QTemporaryDir dir, b;
+        const QString f = dir.filePath("config.toml");
+        for (const QByteArray &folders : {QByteArray("folders = \"/mnt/music\"\n"),
+                                          QByteArray("folders = [\"/a/[x]\",\n  # see [y]\n  \"/c\"]\n")}) {
+            QFile cfg(f);
+            QVERIFY(cfg.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            cfg.write("density = \"compact\"\n" + folders + "font_family = \"Foo\"\n[later]\nkeep = 1\n");
+            cfg.close();
+            Settings s(f);
+            s.addFolder(b.path());
+            s.save();
+            const QByteArray out = readFile(f);
+            QVERIFY2(out.contains("density = \"compact\""), out);
+            QVERIFY2(out.contains("font_family = \"Foo\""), out);
+            QVERIFY2(out.contains("[later]\nkeep = 1"), out);
+            QCOMPARE(out.count("folders"), 1);
+            QVERIFY2(!out.contains("see [y]"), out);   // the old array is gone entirely
+        }
+    }
+
+    void folderUrlsAreDecodedAndHomeIsExpanded()
+    {
+        QTemporaryDir dir, odd;
+        const QString oddDir = odd.filePath("Café #1 100%");
+        QVERIFY(QDir().mkpath(oddDir));
+        Settings s(dir.filePath("config.toml"));
+        s.addFolder(QUrl::fromLocalFile(oddDir).toString());   // what a folder dialog returns
+        QVERIFY(s.folders().contains(oddDir));
+    }
+
     void panelLookKeysParseAndValidate()
     {
         const QVariantMap d = Settings::parse("");

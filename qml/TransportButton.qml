@@ -5,7 +5,7 @@ import "Scale.js" as S
 Rectangle {
     id: root
     property string glyph
-    property string icon   // "shuffle", "repeat" or "repeatOne": drawn, not typeset
+    property string icon   // "shuffle", "repeat", "repeatOne", "next" or "previous": drawn, not typeset
     property bool big: false
     property bool active: false   // a toggle that is on
     signal clicked()
@@ -44,6 +44,10 @@ Rectangle {
         height: S.sp(20)
         readonly property color ink: root.lit ? theme.accent : theme.foreground
         onInkChanged: requestPaint()
+        Connections {
+            target: root
+            function onIconChanged() { art.requestPaint() }
+        }
         onWidthChanged: requestPaint()
         Component.onCompleted: requestPaint()
         onPaint: {
@@ -63,7 +67,21 @@ Rectangle {
                 ctx.closePath()
                 ctx.fill()
             }
-            if (root.icon === "shuffle") {
+            if (root.icon === "next" || root.icon === "previous") {
+                const d = root.icon === "next" ? 1 : -1   // a triangle and a bar, facing d
+                const bar = d > 0 ? 15 : 5
+                const tip = d > 0 ? 13 : 7
+                ctx.beginPath()
+                ctx.moveTo(tip - d * 9, 4)
+                ctx.lineTo(tip, 10)
+                ctx.lineTo(tip - d * 9, 16)
+                ctx.closePath()
+                ctx.fill()
+                ctx.beginPath()
+                ctx.moveTo(bar + d * 1, 4)
+                ctx.lineTo(bar + d * 1, 16)
+                ctx.stroke()
+            } else if (root.icon === "shuffle") {
                 ctx.beginPath()
                 ctx.moveTo(2, 5); ctx.lineTo(6, 5); ctx.bezierCurveTo(10, 5, 10, 15, 14, 15); ctx.lineTo(15, 15)
                 ctx.moveTo(2, 15); ctx.lineTo(6, 15); ctx.bezierCurveTo(10, 15, 10, 5, 14, 5); ctx.lineTo(15, 5)

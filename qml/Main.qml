@@ -354,9 +354,9 @@ ApplicationWindow {
                                 active: player.shuffle
                                 onClicked: { player.shuffle = !player.shuffle; keyRoot.forceActiveFocus() }
                             }
-                            TransportButton { glyph: "◀◀"; onClicked: { player.previous(); keyRoot.forceActiveFocus() } }
+                            TransportButton { icon: "previous"; onClicked: { player.previous(); keyRoot.forceActiveFocus() } }
                             TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: { player.togglePause(); keyRoot.forceActiveFocus() } }
-                            TransportButton { glyph: "▶▶"; onClicked: { player.next(); keyRoot.forceActiveFocus() } }
+                            TransportButton { icon: "next"; onClicked: { player.next(); keyRoot.forceActiveFocus() } }
                             TransportButton {
                                 icon: player.repeat === "one" ? "repeatOne" : "repeat"
                                 active: player.repeat !== "off"

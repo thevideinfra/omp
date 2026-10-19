@@ -176,9 +176,9 @@ Window {
                     width: prevBtn.implicitWidth + playBtn.implicitWidth + nextBtn.implicitWidth + 2 * spacing
                     height: Math.max(prevBtn.implicitHeight, playBtn.implicitHeight, nextBtn.implicitHeight)
                     spacing: S.sp(8)
-                    TransportButton { id: prevBtn; glyph: "◀◀"; onClicked: player.previous() }
+                    TransportButton { id: prevBtn; icon: "previous"; onClicked: player.previous() }
                     TransportButton { id: playBtn; glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: player.togglePause() }
-                    TransportButton { id: nextBtn; glyph: "▶▶"; onClicked: player.next() }
+                    TransportButton { id: nextBtn; icon: "next"; onClicked: player.next() }
                 }
 
                 Row {

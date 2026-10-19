@@ -19,6 +19,32 @@ private slots:
         QCOMPARE(t.size, qint64(10));
     }
 
+    void remoteTracksCarryACoverIdAndAStarFlag()
+    {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(
+            R"({"path":"subsonic:42","title":"Remote","artist":"Amy","album":"Beta","cover_id":"al-7","starred":true})", &ok);
+        QVERIFY(ok);
+        QVERIFY(t.isRemote());
+        QCOMPARE(t.coverId, QString("al-7"));
+        QVERIFY(t.starred);
+
+        const Track back = Track::fromJsonLine(t.toJsonLine(), &ok);
+        QCOMPARE(back.coverId, QString("al-7"));
+        QVERIFY(back.starred);
+        const QVariantMap m = back.toMap();
+        QCOMPARE(m.value("coverId").toString(), QString("al-7"));
+        QCOMPARE(m.value("starred").toBool(), true);
+        QCOMPARE(m.value("remote").toBool(), true);
+
+        const Track local = Track::fromJsonLine(R"({"path":"/m/a.flac"})", &ok);
+        QVERIFY(!local.isRemote());
+        QVERIFY(!local.starred);
+        QVERIFY(local.coverId.isEmpty());
+        QCOMPARE(local.toMap().value("remote").toBool(), false);
+        QVERIFY(!local.toJsonLine().contains("cover_id"));   // the local index stays as it was
+    }
+
     void fillsDefaults()
     {
         bool ok = false;

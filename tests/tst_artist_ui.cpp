@@ -82,6 +82,7 @@ private slots:
         window->resize(1000, 600);
         tab->setParentItem(window->contentItem());
         tab->setProperty("kind", "artist");
+        tab->setSize(QSizeF(300, 600));    // a tiled window starts small, then is resized
         tab->setSize(QSizeF(1000, 600));
         tab->setProperty("model", QVariant::fromValue(library->artists()));
         window->show();

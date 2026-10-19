@@ -248,17 +248,18 @@ Item {
         anchors.fill: parent
         orientation: Qt.Horizontal
 
-        // The columns start out equal (half each, a third each for an artist). Assigned once, once
-        // the tab has a width, not bound: any setting change (shuffle, repeat) re-evaluates
-        // bindings and would undo a width the user dragged.
-        property bool sized: false
-        onWidthChanged: {
-            if (sized || width <= 0) return
-            sized = true
+        // The columns stay equal (half each, a third each for an artist) as the window
+        // settles into its size, until the user drags a divider. Assigned, not bound: any
+        // setting change (shuffle, repeat) re-evaluates bindings and would undo a dragged width.
+        property bool userSized: false
+        function equalize() {
+            if (userSized || width <= 0) return
             const share = width / (root.kind === "artist" ? 3 : 2)
             listPane.SplitView.preferredWidth = share
             if (root.kind === "artist") mid.SplitView.preferredWidth = share
         }
+        onWidthChanged: equalize()
+        onResizingChanged: if (resizing) userSized = true
 
         handle: Rectangle {
             implicitWidth: S.sp(7)

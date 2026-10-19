@@ -102,14 +102,14 @@ private slots:
         QCOMPARE(title(3), QString("Gamma"));
     }
 
-    void pickingAnAlbumNarrowsTheSongsOnTheRight()
+    void pickingAnAlbumScrollsToItAndLeavesTheSongsAlone()
     {
         QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 2)));   // 0 = all albums, 2 = Gamma
-        QTRY_COMPARE(rows().size(), 1);
-        QCOMPARE(title(0), QString("G one"));
-        QCOMPARE(tab->property("allTracks").toList().size(), 1);   // Play all plays just that album
+        QCOMPARE(rows().size(), 5);
+        QCOMPARE(tab->property("detailIndex").toInt(), 3);   // the Gamma header
+        QCOMPARE(tab->property("allTracks").toList().size(), 3);
         QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 0)));
-        QTRY_COMPARE(rows().size(), 5);
+        QCOMPARE(tab->property("detailIndex").toInt(), 0);
     }
 
     void rightArrowWalksArtistsAlbumsSongsAndBack()
@@ -119,7 +119,7 @@ private slots:
         QVERIFY(ok.toBool());
         QVERIFY(tab->property("midFocus").toBool());
         QVERIFY(QMetaObject::invokeMethod(tab, "move", Q_ARG(QVariant, 1)));   // Beta
-        QTRY_COMPARE(rows().size(), 2);
+        QTRY_COMPARE(tab->property("albumIndex").toInt(), 1);
         QVERIFY(QMetaObject::invokeMethod(tab, "focusRight", Q_RETURN_ARG(QVariant, ok)));
         QVERIFY(tab->property("rightFocus").toBool());
         QVERIFY(!tab->property("midFocus").toBool());
@@ -133,12 +133,12 @@ private slots:
 
     void anotherArtistStartsBackOnAllAlbums()
     {
-        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 1)));
-        QTRY_COMPARE(rows().size(), 2);
+        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 2)));
         QSignalSpy spy(library, &Library::indexChanged);
         library->setTracks({mk("/m/b1.flac", "B one", "Beta"), mk("/m/b2.flac", "B two", "Beta"),
                             mk("/m/g1.flac", "G one", "Gamma")});
-        QTRY_COMPARE(rows().size(), 5);
+        QTRY_COMPARE(tab->property("albumIndex").toInt(), 0);   // back on "All albums"
+        QCOMPARE(rows().size(), 5);
     }
 };
 

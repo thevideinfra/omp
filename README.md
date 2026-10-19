@@ -120,7 +120,7 @@ Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playl
 
 ## Shuffle, repeat and equalizer
 
-The Artists tab has three columns: the artists, the selected artist's albums with thumbnails ("All albums" first), and the songs. "All albums" lists every album with its songs; picking an album shows just that album, with a large cover. Right/Left move between the columns.
+The Artists tab has three columns: the artists, the selected artist's albums with thumbnails ("All albums" first), and the songs, which always list every album with its songs. Picking an album scrolls the songs to it. Right/Left move between the columns. The columns in Albums, Artists and Playlists can be resized by dragging their dividers (not remembered between runs).
 
 Songs sort by title, artist, album, length or added (newest first), albums by title, artist, length or added, and artists by name, length or added, each with a reverse toggle; the choices are not remembered between runs. The left rail has an area at the top reserved for a logo.
 

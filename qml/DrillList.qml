@@ -5,8 +5,7 @@ import "Scale.js" as S
 
 // An Albums/Artists/Playlists tab: the list on the left, and the selected
 // one's songs on the right. An artist gets a middle column of its albums with
-// thumbnails: "All albums" (every album, each followed by its songs) or one
-// album (just its songs). `kind` is "album", "artist" or "playlist"; `model` is
+// thumbnails; picking one scrolls the songs to that album. `kind` is "album", "artist" or "playlist"; `model` is
 // the list of rows (with `key`). Right/Left arrows move the keyboard between the panes.
 Item {
     id: root
@@ -17,6 +16,7 @@ Item {
     property int albumIndex: 0         // artists: 0 = all albums, n = the nth album
     property var albumGroups: []       // artists: [{ title, artist, tracks }]
     property var artistTracks: []
+    readonly property alias detailIndex: detail.currentIndex
     property string openTitle: ""
     signal clicked()
     signal pickRequested(var tracks)   // add these songs to a playlist
@@ -113,11 +113,24 @@ Item {
     function albumTracksAt(n) {
         return n > 0 && n <= albumGroups.length ? albumGroups[n - 1].tracks : artistTracks
     }
+    // Picking an album scrolls the songs to it; the songs list itself stays as it is.
     function selectAlbum(n) {
         if (n < 0 || n === albumIndex) return
         albumIndex = n
         if (mid.currentIndex !== n) mid.currentIndex = n
-        rebuildDetail()
+        if (n === 0) {
+            detail.currentIndex = 0
+            detail.positionViewAtBeginning()
+            return
+        }
+        let headers = 0
+        for (let i = 0; i < rows.length; ++i) {
+            if (rows[i].header && ++headers === n) {
+                detail.currentIndex = i
+                detail.positionViewAtIndex(i, ListView.Beginning)
+                return
+            }
+        }
     }
 
     function tracksOf(row) {
@@ -158,13 +171,12 @@ Item {
         rebuildDetail()
     }
 
-    // The right pane: the open item's songs, grouped by album for "all albums".
+    // The right pane: the open item's songs, grouped by album for an artist.
     function rebuildDetail() {
-        const one = kind === "artist" && albumIndex > 0 && albumIndex <= albumGroups.length
-        const tracks = one ? albumGroups[albumIndex - 1].tracks : artistTracks
+        const tracks = artistTracks
         allTracks = tracks
         const out = []
-        if (kind !== "artist" || one) {
+        if (kind !== "artist") {
             tracks.forEach((t, i) => out.push({ header: false, indent: false, title: t.title,
                 subtitle: t.artist, meta: t.meta, cover: "", tracks: tracks, start: i,
                 plIndex: t.playlistIndex ?? -1 }))
@@ -254,14 +266,26 @@ Item {
         onTriggered: root.confirmDelete = false
     }
 
-    RowLayout {
+    // The columns can be dragged wider or narrower by their dividers.
+    SplitView {
         anchors.fill: parent
-        spacing: 0
+        orientation: Qt.Horizontal
+
+        handle: Rectangle {
+            implicitWidth: S.sp(7)
+            color: "transparent"
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 1
+                height: parent.height
+                color: SplitHandle.pressed || SplitHandle.hovered ? Qt.alpha(theme.accent, 0.6) : Qt.alpha(theme.foreground, 0.12)
+            }
+        }
 
         ColumnLayout {
-            Layout.preferredWidth: root.kind === "artist" ? Math.max(S.sp(200), root.width * 0.24)
-                                                          : Math.max(S.sp(260), root.width * 0.4)
-            Layout.fillHeight: true
+            SplitView.preferredWidth: root.kind === "artist" ? Math.max(S.sp(200), root.width * 0.24)
+                                                             : Math.max(S.sp(260), root.width * 0.4)
+            SplitView.minimumWidth: S.sp(140)
             spacing: 0
 
             Rectangle {
@@ -296,19 +320,12 @@ Item {
             }
         }
 
-        Rectangle {
-            visible: root.kind === "artist"
-            Layout.preferredWidth: visible ? 1 : 0
-            Layout.fillHeight: true
-            color: Qt.alpha(root.midFocus ? theme.accent : theme.foreground, root.midFocus ? 0.45 : 0.12)
-        }
-
         // The artist's albums, with thumbnails.
         BrowseList {
             id: mid
             visible: root.kind === "artist"
-            Layout.preferredWidth: visible ? Math.max(S.sp(240), root.width * 0.26) : 0
-            Layout.fillHeight: true
+            SplitView.preferredWidth: Math.max(S.sp(240), root.width * 0.26)
+            SplitView.minimumWidth: S.sp(140)
             model: ListModel { id: albumModel }
             onCurrentIndexChanged: root.selectAlbum(currentIndex)
             onClicked: { root.rightFocus = false; root.midFocus = true; root.clicked() }
@@ -317,15 +334,9 @@ Item {
             onMenuRequested: (row) => root.pickRequested(root.albumTracksAt(row))
         }
 
-        Rectangle {
-            Layout.preferredWidth: 1
-            Layout.fillHeight: true
-            color: Qt.alpha(root.rightFocus ? theme.accent : theme.foreground, root.rightFocus ? 0.45 : 0.12)
-        }
-
         ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            SplitView.fillWidth: true
+            SplitView.minimumWidth: S.sp(200)
             spacing: 0
 
             RowLayout {
@@ -336,8 +347,7 @@ Item {
                 UiText {
                     Layout.fillWidth: true
                     visible: !root.renaming
-                    text: root.kind === "artist" && root.albumIndex > 0 && root.albumIndex <= root.albumGroups.length
-                          ? root.openTitle + " — " + root.albumGroups[root.albumIndex - 1].title : root.openTitle
+                    text: root.openTitle
                     font.bold: true
                     elide: Text.ElideRight
                 }
@@ -420,13 +430,12 @@ Item {
                 }
             }
 
-            // A larger cover for a single album (the all-albums view has a cover on each album header).
+            // A larger cover for an album (artists show a cover on each album header).
             Image {
                 id: bigCover
                 readonly property string artSource: {
                     library.coverRevision
-                    const oneAlbum = root.kind === "album" || (root.kind === "artist" && root.albumIndex > 0)
-                    return oneAlbum && root.allTracks.length > 0 ? library.coverFor(root.allTracks[0].path) : ""
+                    return root.kind === "album" && root.allTracks.length > 0 ? library.coverFor(root.allTracks[0].path) : ""
                 }
                 visible: artSource !== ""
                 Layout.alignment: Qt.AlignHCenter

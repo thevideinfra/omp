@@ -53,6 +53,12 @@ ApplicationWindow {
         case Qt.Key_Return:
         case Qt.Key_Enter: currentList().activate(); break
         case Qt.Key_A: currentList().enqueue(); break
+        case Qt.Key_Right:
+            if (!win.searching && win.tab < 2) currentList().focusRight()
+            break
+        case Qt.Key_Left:
+            if (!win.searching && win.tab < 2) currentList().back()
+            break
         case Qt.Key_R: library.rescan(); break
         case Qt.Key_Backspace:
             if (win.searching) break

@@ -212,6 +212,22 @@ void Library::setupWatch()
         m_pollTimer.start();
 }
 
+void Library::setRoots(const QStringList &roots)
+{
+    QStringList cleaned;
+    for (const QString &r : roots)
+        cleaned << QDir::cleanPath(r);
+    if (cleaned == m_roots)
+        return;
+    m_roots = cleaned;
+    browse(QString());
+    setupWatch();
+    if (m_scan.state() != QProcess::NotRunning)
+        m_dirty = true;   // the running scan used the old folders
+    else
+        rescan();
+}
+
 void Library::rescan()
 {
     if (m_scan.state() != QProcess::NotRunning)

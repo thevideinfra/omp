@@ -33,6 +33,8 @@ public:
 
     void setTracks(QVector<Track> tracks);
     void start();
+    // Replaces the music folders and rescans (after the running scan, if any).
+    void setRoots(const QStringList &roots);
 
     bool scanning() const { return m_scan.state() != QProcess::NotRunning; }
     int trackCount() const { return m_tracks.size(); }

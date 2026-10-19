@@ -177,6 +177,36 @@ private slots:
         QCOMPARE(out, QByteArray("density = \"compact\"\nx = 1\ndensity = \"compact\"\n"));
     }
 
+    void foldersParseAddRemoveAndPersist()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        QTemporaryDir a, b;
+        QFile cfg(f);
+        QVERIFY(cfg.open(QIODevice::WriteOnly));
+        cfg.write(QString("density = \"compact\"\nfolders = [\n  \"%1\",\n]\nvolume = 20\n").arg(a.path()).toUtf8());
+        cfg.close();
+
+        Settings s(f);
+        QCOMPARE(s.folders(), QStringList({a.path()}));
+        s.addFolder(b.path());
+        s.addFolder(b.path());                    // twice is once
+        s.addFolder("/definitely/not/a/dir");     // must exist
+        QCOMPARE(s.folders(), QStringList({a.path(), b.path()}));
+        s.removeFolder(a.path());
+        s.removeFolder(b.path());                 // the last one stays
+        QCOMPARE(s.folders(), QStringList({b.path()}));
+        s.save();
+
+        const QByteArray out = readFile(f);
+        QVERIFY(out.contains("density = \"compact\""));
+        QVERIFY(out.contains("volume = 20"));
+        QCOMPARE(out.count("folders"), 1);        // the old multi-line block is gone
+        QVERIFY(out.contains(QString("folders = [\"%1\"]").arg(b.path()).toUtf8()));
+        Settings again(f);
+        QCOMPARE(again.folders(), QStringList({b.path()}));
+    }
+
     void panelLookKeysParseAndValidate()
     {
         const QVariantMap d = Settings::parse("");

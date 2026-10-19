@@ -97,6 +97,10 @@ The App section of Settings has **Start at login (in the tray)**, off by default
 - No scroll gesture.
 - The tray icon is drawn from the theme foreground at startup and on a theme change.
 
+## Songs and music folders
+
+The **Songs** tab lists every track by title; Enter or double-click plays one song, `a` adds it to the queue. The **Library** tab in Settings lists the music folders (default `~/Music`): add one by typing its path or with Browse…, remove with Remove (the last one stays). Changes rescan at once and are saved as `folders = [...]` in `config.toml`. A mounted network share is just another folder here; handling of unmounted shares and slow mounts comes with the shares milestone.
+
 ## Shuffle, repeat and equalizer
 
 The bar under the song has **Shuffle** and **Repeat** (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The Equalizer tab in Settings picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.

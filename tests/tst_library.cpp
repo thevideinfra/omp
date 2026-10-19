@@ -221,6 +221,24 @@ private slots:
         QCOMPARE(lib.albums()->data(lib.albums()->index(0, 0), role).toString(), t.path);
     }
 
+    void changingTheFoldersRescansThem()
+    {
+        QTemporaryDir a, b, state;
+        QVERIFY(makeFlac(a.filePath("one.flac"), false));
+        QVERIFY(makeFlac(b.filePath("two.flac"), false));
+        QVERIFY(makeFlac(b.filePath("three.flac"), false));
+        Library lib({a.path()}, OMA_SCAN_PROGRAM, state.filePath("index.jsonl"));
+        lib.start();
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 1, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+
+        lib.setRoots({a.path(), b.path()});
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 3, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+        lib.setRoots({b.path()});
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 2, 20000);
+    }
+
     void songsAreAllTracksSortedByTitle()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

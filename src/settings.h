@@ -12,6 +12,7 @@ class Settings : public QObject
     Q_PROPERTY(QString fontSize READ fontSize NOTIFY changed)
     Q_PROPERTY(QString fontFamily READ fontFamily NOTIFY changed)
     Q_PROPERTY(QString accent READ accent NOTIFY changed)
+    Q_PROPERTY(QStringList folders READ folders NOTIFY changed)
     Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
     Q_PROPERTY(bool panelShowAccent READ panelShowAccent NOTIFY changed)
     Q_PROPERTY(bool panelCover READ panelCover NOTIFY changed)
@@ -45,6 +46,7 @@ public:
     bool shuffle() const { return m_values.value("shuffle").toBool(); }
     QString repeat() const { return m_values.value("repeat").toString(); }
     QString eqPreset() const { return m_values.value("eqPreset").toString(); }
+    QStringList folders() const { return m_values.value("folders").toStringList(); }
     int volume() const { return m_values.value("volume").toInt(); }
     bool showAccent() const { return m_values.value("showAccent").toBool(); }
     bool panelShowAccent() const { return m_values.value("panelShowAccent").toBool(); }
@@ -62,6 +64,9 @@ public:
     double panelDensityScale() const { return densityScaleFor(panelDensity()); }
     double panelFontScale() const { return fontScaleFor(panelFontSize()); }
 
+    // Music folders; the last one cannot be removed.
+    Q_INVOKABLE void addFolder(const QString &path);
+    Q_INVOKABLE void removeFolder(const QString &path);
     Q_INVOKABLE void set(const QString &prop, const QVariant &value);
     Q_INVOKABLE QStringList fontFamilies() const;
     void save();

@@ -7,6 +7,7 @@
 #include <QFontDatabase>
 #include <QSaveFile>
 
+#include "config.h"
 #include "paths.h"
 #include "theme.h"
 
@@ -151,12 +152,32 @@ QVariantMap Settings::parse(const QByteArray &text)
             v = validated(k, kv.value(k.file));
         out.insert(k.prop, v.isValid() ? v : k.def);
     }
+    out.insert(QStringLiteral("folders"), Config::parseFolders(text));
     return out;
 }
 
 QByteArray Settings::apply(const QByteArray &existing, const QVariantMap &updates)
 {
     QList<QByteArray> lines = existing.split('\n');
+    if (updates.contains(QStringLiteral("folders"))) {
+        // Drop the old folders entry, which may span several lines.
+        QList<QByteArray> kept;
+        bool inArray = false;
+        for (const QByteArray &line : std::as_const(lines)) {
+            const QByteArray trimmed = line.trimmed();
+            if (!inArray && isKeyLine(trimmed, QStringLiteral("folders"))) {
+                inArray = !trimmed.contains(']');
+                continue;
+            }
+            if (inArray) {
+                if (trimmed.contains(']'))
+                    inArray = false;
+                continue;
+            }
+            kept.append(line);
+        }
+        lines = kept;
+    }
     QSet<QString> done;
     for (QByteArray &line : lines) {
         const QByteArray trimmed = line.trimmed();
@@ -173,6 +194,12 @@ QByteArray Settings::apply(const QByteArray &existing, const QVariantMap &update
     QByteArray out = lines.join('\n');
 
     QList<QByteArray> missing;
+    if (updates.contains(QStringLiteral("folders"))) {
+        QStringList quoted;
+        for (const QString &p : updates.value(QStringLiteral("folders")).toStringList())
+            quoted << QStringLiteral("\"%1\"").arg(p);
+        missing.append(QStringLiteral("folders = [%1]").arg(quoted.join(QStringLiteral(", "))).toUtf8());
+    }
     for (const Key &k : keys()) {
         if (updates.contains(k.prop) && !done.contains(k.prop))
             missing.append(formatLine(k, updates.value(k.prop)));
@@ -208,6 +235,32 @@ double Settings::fontScaleFor(const QString &size)
     if (size == QLatin1String("large"))
         return 1.15;
     return 1.0;
+}
+
+void Settings::addFolder(const QString &path)
+{
+    const QString dir = QDir::cleanPath(path.trimmed());
+    if (dir.isEmpty() || dir.contains('"') || dir.contains('\\') || dir.contains('\n') || !QFileInfo(dir).isDir())
+        return;
+    QStringList list = folders();
+    if (list.contains(dir))
+        return;
+    list << dir;
+    m_values.insert(QStringLiteral("folders"), list);
+    m_dirty.insert(QStringLiteral("folders"));
+    emit changed();
+    m_saveTimer.start();
+}
+
+void Settings::removeFolder(const QString &path)
+{
+    QStringList list = folders();
+    if (list.size() <= 1 || !list.removeOne(QDir::cleanPath(path)))
+        return;
+    m_values.insert(QStringLiteral("folders"), list);
+    m_dirty.insert(QStringLiteral("folders"));
+    emit changed();
+    m_saveTimer.start();
 }
 
 void Settings::set(const QString &prop, const QVariant &value)

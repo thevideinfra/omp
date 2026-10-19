@@ -101,16 +101,19 @@ int main(int argc, char *argv[])
                      [&] { settings.set("repeat", player.repeat()); });
     QObject::connect(&player, &Player::eqPresetChanged, &settings,
                      [&] { settings.set("eqPreset", player.eqPreset()); });
-    Library library(Config::folders(),
+    Library library(settings.folders(),
                     qEnvironmentVariable("OMAMUSIC_SCAN",
                                          QCoreApplication::applicationDirPath() + "/omamusic-scan"),
                     Paths::stateDir() + QStringLiteral("/index.jsonl"));
+
+    QObject::connect(&settings, &Settings::changed, &library, [&] { library.setRoots(settings.folders()); });
 
     QQmlApplicationEngine engine;
     Shell shell(engine, player, theme);
     QQmlContext *ctx = engine.rootContext();
     ctx->setContextProperty("theme", &theme);
     ctx->setContextProperty("ui", &appLook);
+    ctx->setContextProperty("settingsStore", &settings);
     ctx->setContextProperty("panelLook", &panelLook);
     ctx->setContextProperty("player", &player);
     ctx->setContextProperty("library", &library);

@@ -40,14 +40,32 @@ Window {
     visible: false
     color: theme.background
 
-    // Close on focus loss, but only after the window has been active once.
+    // Close on focus loss, but only after the window has been active once. The
+    // compositor can hand focus back to the bar on the first pointer motion
+    // right after the click that opened the panel (focus follows the mouse), so
+    // a loss within the first moments only counts if focus has not returned by
+    // the time graceTimer fires.
     property bool wasActive: false
+    property double activeSince: 0
+    readonly property int graceMs: 400
+    Timer {
+        id: graceTimer
+        onTriggered: if (!panel.active) panel.visible = false
+    }
     onActiveChanged: {
         if (active) {
+            graceTimer.stop()
             wasActive = true
+            activeSince = Date.now()
         } else if (wasActive) {
             wasActive = false
-            visible = false
+            const left = graceMs - (Date.now() - activeSince)
+            if (left > 0) {
+                graceTimer.interval = left
+                graceTimer.restart()
+            } else {
+                visible = false
+            }
         }
     }
     onVisibleChanged: if (!visible) frozenHeight = 0
@@ -173,18 +191,10 @@ Window {
                     // Explicit size: a positioner's own size only updates in
                     // polish (see contentHeight).
                     x: (col.width - width) / 2
-                    width: prevBtn.implicitWidth + playBtn.implicitWidth + nextBtn.implicitWidth + 2 * spacing
-                    height: Math.max(prevBtn.implicitHeight, playBtn.implicitHeight, nextBtn.implicitHeight)
-                    spacing: S.sp(8)
-                    TransportButton { id: prevBtn; icon: "previous"; onClicked: player.previous() }
-                    TransportButton { id: playBtn; glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: player.togglePause() }
-                    TransportButton { id: nextBtn; icon: "next"; onClicked: player.next() }
-                }
-
-                Row {
-                    x: (col.width - width) / 2
-                    width: shuffleBtn.implicitWidth + repeatBtn.implicitWidth + spacing
-                    height: Math.max(shuffleBtn.implicitHeight, repeatBtn.implicitHeight)
+                    width: shuffleBtn.implicitWidth + prevBtn.implicitWidth + playBtn.implicitWidth
+                           + nextBtn.implicitWidth + repeatBtn.implicitWidth + 4 * spacing
+                    height: Math.max(shuffleBtn.implicitHeight, prevBtn.implicitHeight, playBtn.implicitHeight,
+                                     nextBtn.implicitHeight, repeatBtn.implicitHeight)
                     spacing: S.sp(8)
                     TransportButton {
                         id: shuffleBtn
@@ -192,6 +202,9 @@ Window {
                         active: player.shuffle
                         onClicked: player.shuffle = !player.shuffle
                     }
+                    TransportButton { id: prevBtn; icon: "previous"; onClicked: player.previous() }
+                    TransportButton { id: playBtn; glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: player.togglePause() }
+                    TransportButton { id: nextBtn; icon: "next"; onClicked: player.next() }
                     TransportButton {
                         id: repeatBtn
                         icon: player.repeat === "one" ? "repeatOne" : "repeat"

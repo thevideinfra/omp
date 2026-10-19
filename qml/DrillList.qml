@@ -171,12 +171,12 @@ Item {
                 }
                 visible: artSource !== ""
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: visible ? S.sp(240) : 0
-                Layout.preferredHeight: visible ? S.sp(240) : 0
+                Layout.preferredWidth: visible ? S.sp(320) : 0
+                Layout.preferredHeight: visible ? S.sp(320) : 0
                 Layout.bottomMargin: visible ? S.sp(8) : 0
                 source: artSource
-                sourceSize.width: 480
-                sourceSize.height: 480
+                sourceSize.width: 640
+                sourceSize.height: 640
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
             }

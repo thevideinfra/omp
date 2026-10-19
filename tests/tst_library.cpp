@@ -239,6 +239,44 @@ private slots:
         QCOMPARE(lib.albumTracks(lib.albums()->get(0).value("key").toString()).size(), 3);
     }
 
+    void newFilesAppearWithoutAManualRescan()
+    {
+        QTemporaryDir music;
+        QTemporaryDir state;
+        QDir(music.path()).mkdir("A");
+        QVERIFY(makeFlac(music.filePath("A/one.flac"), false));
+        Library lib({music.path()}, OMA_SCAN_PROGRAM, state.filePath("index.jsonl"));
+        lib.setWatchDelay(200);
+        lib.start();
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 1, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+        QVERIFY(lib.watching());
+
+        // A new file in a known folder, then one in a brand new folder.
+        QVERIFY(makeFlac(music.filePath("A/two.flac"), false));
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 2, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+        QDir(music.path()).mkdir("B");
+        QVERIFY(makeFlac(music.filePath("B/three.flac"), false));
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 3, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!lib.scanning(), 5000);
+
+        // A file added inside the new folder is seen too: it was watched after the rescan.
+        QVERIFY(makeFlac(music.filePath("B/four.flac"), false));
+        QTRY_COMPARE_WITH_TIMEOUT(lib.trackCount(), 4, 20000);
+    }
+
+    void tooManyDirectoriesFallBackToPolling()
+    {
+        QTemporaryDir music;
+        for (int i = 0; i < 5; ++i)
+            QDir(music.path()).mkdir(QString::number(i));
+        Library lib({music.path()}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setMaxWatchedDirs(3);
+        lib.start();
+        QVERIFY(!lib.watching());
+    }
+
     void embeddedCoverIsExtractedAndCached()
     {
         QTemporaryDir music;

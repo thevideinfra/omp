@@ -21,6 +21,7 @@ qt_add_library(omacore STATIC
     src/instance.cpp src/instance.h
     src/settings.cpp src/settings.h
     src/lookscope.cpp src/lookscope.h
+    src/autostart.cpp src/autostart.h
     src/trayicon.cpp src/trayicon.h
 )
 target_include_directories(omacore PUBLIC src)

@@ -42,6 +42,14 @@ Item {
             spacing: S.sp(14)
 
             LookForm { Layout.fillWidth: true; visible: root.section === 0; target: ui }
+            UiText { visible: root.section === 0; text: qsTr("Startup"); color: theme.dimForeground; px: 12 }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
+                label: qsTr("Start at login (in the tray)")
+                checked: autostart.enabled
+                onToggled: (v) => autostart.enabled = v
+            }
             LookForm { Layout.fillWidth: true; visible: root.section === 1; target: panelLook }
 
             UiText { visible: root.section === 1; text: qsTr("Panel sections"); color: theme.dimForeground; px: 12 }

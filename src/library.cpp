@@ -4,6 +4,7 @@
 
 #include <QCryptographicHash>
 #include <QDebug>
+#include <QDirIterator>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -92,6 +93,19 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     for (QString &r : m_roots)
         r = QDir::cleanPath(r);
 
+    m_rescanTimer.setSingleShot(true);
+    m_rescanTimer.setInterval(3000);
+    connect(&m_rescanTimer, &QTimer::timeout, this, [this] {
+        if (m_scan.state() != QProcess::NotRunning)
+            m_dirty = true;   // rescan as soon as this scan ends
+        else
+            rescan();
+    });
+    m_pollTimer.setInterval(5 * 60 * 1000);
+    connect(&m_pollTimer, &QTimer::timeout, this, &Library::rescan);
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_rescanTimer,
+            qOverload<>(&QTimer::start));
+
     m_scan.setProgram(m_scanProgram);
     connect(&m_scan, &QProcess::readyReadStandardOutput, this, [this] {
         m_scanBuffer += m_scan.readAllStandardOutput();
@@ -111,6 +125,11 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
                 }
                 m_pending.clear();
                 emit scanningChanged();
+                setupWatch();   // pick up folders that appeared
+                if (m_dirty) {
+                    m_dirty = false;
+                    rescan();
+                }
             });
     connect(&m_scan, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
         if (e == QProcess::FailedToStart) {
@@ -156,6 +175,40 @@ void Library::start()
     loadCache();
     browse(QString());
     rescan();
+    setupWatch();
+}
+
+// Watches every directory under the roots, or falls back to polling when
+// there are too many or one cannot be watched.
+void Library::setupWatch()
+{
+    if (!m_watcher.directories().isEmpty())
+        m_watcher.removePaths(m_watcher.directories());
+    QStringList dirs;
+    bool tooMany = false;
+    for (const QString &root : std::as_const(m_roots)) {
+        if (!QFileInfo(root).isDir())
+            continue;
+        dirs << root;
+        QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            dirs << it.next();
+            if (dirs.size() > m_maxWatchedDirs) {
+                tooMany = true;
+                break;
+            }
+        }
+        if (tooMany)
+            break;
+    }
+    const bool ok = !tooMany && !dirs.isEmpty() && m_watcher.addPaths(dirs).isEmpty();
+    if (!ok)
+        m_watcher.removePaths(m_watcher.directories());
+    m_watching = ok;
+    if (ok)
+        m_pollTimer.stop();
+    else if (!m_pollTimer.isActive())
+        m_pollTimer.start();
 }
 
 void Library::rescan()

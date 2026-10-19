@@ -58,6 +58,7 @@ void Shell::handleVerb(const QString &verb)
         togglePanel();
     else if (verb == QLatin1String("quit"))
         quitApp();
+    // "tray" starts the app in the tray with no window, and does nothing to a running one.
 }
 
 void Shell::showMain()

@@ -18,6 +18,7 @@ cmake -S . -B build -G Ninja && cmake --build build
 ./build/omamusic           # show the main window (default verb)
 ./build/omamusic toggle    # show or hide the main window
 ./build/omamusic panel     # toggle the tray panel
+./build/omamusic tray      # start in the tray, no window (used by Start at login)
 ./build/omamusic quit
 ```
 
@@ -79,6 +80,12 @@ Main window:
 | Esc | clear search |
 
 Panel: Esc hides the panel, Space play / pause.
+
+## New files and start at login
+
+Changes under your music folders are noticed on their own: omamusic watches every directory (up to 4096) and rescans 3 seconds after the last change, probing only new or changed files. With more directories, or a folder that cannot be watched, it rescans every 5 minutes instead. `r` still forces a rescan.
+
+The App section of Settings has **Start at login (in the tray)**, off by default. It writes `~/.config/autostart/omamusic.desktop` with `Exec="<path to omamusic>" tray`, which your session runs at login, and removes it when switched off. The `tray` verb starts the app in the tray with no window and does nothing to an instance that is already running. The entry points at the binary you ran it from, so switch it off and on again after moving the binary.
 
 ## Tray
 

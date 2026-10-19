@@ -17,6 +17,7 @@
 #include "library.h"
 #include "lookscope.h"
 #include "paths.h"
+#include "autostart.h"
 #include "player.h"
 #include "settings.h"
 #include "shell.h"
@@ -60,10 +61,10 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(false);
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
-    static const QStringList verbs{"show", "toggle", "panel", "quit"};
+    static const QStringList verbs{"show", "toggle", "panel", "quit", "tray"};
     const QString verb = app.arguments().value(1, QStringLiteral("show"));
     if (!verbs.contains(verb)) {
-        std::fputs("usage: omamusic [show|toggle|panel|quit]\n", stderr);
+        std::fputs("usage: omamusic [show|toggle|panel|quit|tray]\n", stderr);
         return 2;
     }
 
@@ -106,6 +107,8 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("panelLook", &panelLook);
     ctx->setContextProperty("player", &player);
     ctx->setContextProperty("library", &library);
+    Autostart autostart;
+    ctx->setContextProperty("autostart", &autostart);
     ctx->setContextProperty("shell", &shell);
 
     engine.loadFromModule("Omamusic", "Main");

@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QObject>
 #include <QProcess>
+#include <QFileSystemWatcher>
 #include <QQueue>
 #include <QSet>
 #include <QTimer>
@@ -47,6 +48,11 @@ public:
     Q_INVOKABLE void up();
     Q_INVOKABLE void setQuery(const QString &query);
     Q_INVOKABLE QString coverFor(const QString &trackPath);
+    // Whether changes under the roots are noticed through directory watches
+    // (otherwise the library rescans on a timer).
+    bool watching() const { return m_watching; }
+    void setWatchDelay(int ms) { m_rescanTimer.setInterval(ms); }
+    void setMaxWatchedDirs(int n) { m_maxWatchedDirs = n; }
     int coverRevision() const { return m_coverRevision; }
     bool extractingCovers() const { return m_extract.state() != QProcess::NotRunning || !m_extractQueue.isEmpty(); }
 
@@ -61,6 +67,7 @@ private:
     void writeCache() const;
     void drainScanOutput(bool flush);
     void rebuildGroups();
+    void setupWatch();
     QString coverCacheDir() const;
     QString cachedCoverPath(const QString &dir) const;
     void queueExtraction(const QString &dir, const QString &track);
@@ -89,6 +96,13 @@ private:
     RowsModel m_results;
     QString m_folderPath;
     QString m_query;
+
+    QFileSystemWatcher m_watcher;
+    QTimer m_rescanTimer;   // debounce after a directory change
+    QTimer m_pollTimer;     // fallback when the roots cannot be watched
+    bool m_watching = false;
+    bool m_dirty = false;   // a change arrived while a scan was running
+    int m_maxWatchedDirs = 4096;
 
     QProcess m_scan;
     QByteArray m_scanBuffer;

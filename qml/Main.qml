@@ -158,21 +158,6 @@ ApplicationWindow {
                         Layout.margins: S.sp(8)
                         spacing: S.sp(8)
 
-                        TextField {
-                            id: searchField
-                            Layout.fillWidth: true
-                            placeholderText: qsTr("Search ( / )")
-                            color: theme.foreground
-                            placeholderTextColor: theme.muted
-                            selectByMouse: true
-                            font.pixelSize: S.fs(13)
-                            font.family: ui.fontFamily !== "" ? ui.fontFamily : Qt.application.font.family
-                            background: Rectangle { radius: S.sp(6); color: theme.surface }
-                            onTextChanged: library.setQuery(text)
-                            Keys.onEscapePressed: { text = ""; keyRoot.forceActiveFocus() }
-                            Keys.onReturnPressed: keyRoot.forceActiveFocus()
-                        }
-
                         SortBar {
                             visible: win.isTab("Songs") && !win.searching
                             chipHeight: searchField.height
@@ -203,6 +188,21 @@ ApplicationWindow {
                             descending: library.artistDescending
                             onKeyPicked: (k) => { library.artistSort = k; keyRoot.forceActiveFocus() }
                             onReversed: { library.artistDescending = !library.artistDescending; keyRoot.forceActiveFocus() }
+                        }
+
+                        TextField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Search ( / )")
+                            color: theme.foreground
+                            placeholderTextColor: theme.muted
+                            selectByMouse: true
+                            font.pixelSize: S.fs(13)
+                            font.family: ui.fontFamily !== "" ? ui.fontFamily : Qt.application.font.family
+                            background: Rectangle { radius: S.sp(6); color: theme.surface }
+                            onTextChanged: library.setQuery(text)
+                            Keys.onEscapePressed: { text = ""; keyRoot.forceActiveFocus() }
+                            Keys.onReturnPressed: keyRoot.forceActiveFocus()
                         }
 
                         Rectangle {

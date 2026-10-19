@@ -93,6 +93,31 @@ Item {
             cover: r.cover, headerRow: r.header, indent: r.indent }))
         detail.currentIndex = 0
         detail.positionViewAtBeginning()
+        followPlaying()
+    }
+
+    // Path of the song a detail row stands for ("" for album headers).
+    function rowPath(i) {
+        const r = rows[i]
+        return r && !r.header ? r.tracks[r.start].path : ""
+    }
+
+    // The highlighted song follows what is playing, when it is in this view.
+    function followPlaying() {
+        const path = player.current.path ?? ""
+        if (path === "") return
+        for (let i = 0; i < rows.length; ++i) {
+            if (rowPath(i) === path) {
+                detail.currentIndex = i
+                detail.positionViewAtIndex(i, ListView.Contain)
+                return
+            }
+        }
+    }
+
+    Connections {
+        target: player
+        function onCurrentChanged() { root.followPlaying() }
     }
 
     function playRow(row) {
@@ -202,6 +227,8 @@ Item {
                     required property string cover
                     required property bool headerRow
                     required property bool indent
+                readonly property bool nowPlaying: !headerRow && (player.current.path ?? "") !== ""
+                                                   && root.rowPath(index) === player.current.path
                     readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
 
                     width: ListView.view.width
@@ -234,6 +261,7 @@ Item {
                         UiText {
                             width: parent.width
                             text: item.title
+                            color: item.nowPlaying ? theme.accent : theme.foreground
                             font.bold: item.headerRow
                             elide: Text.ElideRight
                         }

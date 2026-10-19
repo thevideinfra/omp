@@ -162,6 +162,25 @@ Item {
                 }
             }
 
+            // A larger cover for an album (artists show a cover on each album header).
+            Image {
+                id: bigCover
+                readonly property string artSource: {
+                    library.coverRevision
+                    return root.kind === "album" && root.allTracks.length > 0 ? library.coverFor(root.allTracks[0].path) : ""
+                }
+                visible: artSource !== ""
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: visible ? S.sp(180) : 0
+                Layout.preferredHeight: visible ? S.sp(180) : 0
+                Layout.bottomMargin: visible ? S.sp(8) : 0
+                source: artSource
+                sourceSize.width: 360
+                sourceSize.height: 360
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+            }
+
             ListView {
                 id: detail
                 Layout.fillWidth: true

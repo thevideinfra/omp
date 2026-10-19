@@ -2,13 +2,13 @@ import QtQuick
 import "Scale.js" as S
 
 // Mouse-wheel scrolling for a Flickable: a fixed distance per wheel notch
-// (about three rows). On Wayland a wheel notch reports a pixel delta of only
+// (about one and a half rows). On Wayland a wheel notch reports a pixel delta of only
 // 15, so wheel events (no scroll phase) use the angle delta instead. Touchpad
 // gestures have a scroll phase and keep their own pixel deltas.
 WheelHandler {
     id: root
     property Flickable view
-    property real notch: S.sp(150)
+    property real notch: S.sp(70)
 
     parent: view
     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad

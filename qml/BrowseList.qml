@@ -4,6 +4,8 @@ import "Scale.js" as S
 ListView {
     id: root
     property int playingRow: -1
+    property int artSize: S.sp(40)   // thumbnail edge
+    property bool sections: false    // group rows under their "initial" (a letter header)
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
@@ -24,6 +26,22 @@ ListView {
 
     FastWheel { view: root }
 
+    section.property: sections ? "initial" : ""
+    section.criteria: ViewSection.FullString
+    section.delegate: Item {
+        required property string section
+        width: ListView.view.width
+        height: section === "" ? 0 : S.sp(26)
+        visible: section !== ""
+        UiText {
+            x: S.sp(12)
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.section
+            color: theme.accent
+            px: 12
+        }
+    }
+
     delegate: Rectangle {
         required property int index
         required property string title
@@ -33,18 +51,18 @@ ListView {
         readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
 
         width: ListView.view.width
-        height: Math.max(S.sp(52), textColumn.implicitHeight + S.sp(8))
+        height: Math.max(S.sp(52), root.artSize + S.sp(12), textColumn.implicitHeight + S.sp(8))
         color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12) : "transparent"
 
         Image {
             id: art
             x: S.sp(8)
             anchors.verticalCenter: parent.verticalCenter
-            width: artSource !== "" ? S.sp(40) : 0
-            height: S.sp(40)
+            width: artSource !== "" ? root.artSize : 0
+            height: root.artSize
             source: artSource
-            sourceSize.width: 80
-            sourceSize.height: 80
+            sourceSize.width: root.artSize * 2
+            sourceSize.height: root.artSize * 2
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
         }

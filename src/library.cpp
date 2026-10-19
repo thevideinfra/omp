@@ -75,6 +75,15 @@ QVariantMap dirRow(const QString &path, const QString &name)
             {"cover", QString()}, {"isDir", true}};
 }
 
+// The letter an artist is filed under in the A-Z list: "#" for anything that is not a letter.
+QString initialOf(const QString &name)
+{
+    const QString t = name.trimmed();
+    if (t.isEmpty() || !t.at(0).isLetter())
+        return QStringLiteral("#");
+    return t.left(1).toUpper();
+}
+
 bool ciLess(const QString &a, const QString &b)
 {
     return QString::compare(a, b, Qt::CaseInsensitive) < 0;
@@ -89,7 +98,7 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     , m_scanProgram(scanProgram)
     , m_cacheFile(cacheFile)
     , m_albums({"key", "title", "subtitle", "meta", "cover"})
-    , m_artists({"key", "title", "subtitle", "meta", "cover"})
+    , m_artists({"key", "title", "subtitle", "meta", "cover", "initial"})
     , m_folder(folderRoles())
     , m_songs(Track::roleNames())
     , m_results(Track::roleNames())
@@ -578,7 +587,8 @@ void Library::rebuildArtists()
                      {"title", name},
                      {"subtitle", QStringLiteral("%1 albums").arg(albumNames.size())},
                      {"meta", QStringLiteral("%1 tracks").arg(m_byArtist.value(name).size())},
-                     {"cover", QString()}});
+                     {"cover", QString()},
+                     {"initial", key == QLatin1String("title") ? initialOf(name) : QString()}});
     }
     m_artists.setRows(rows);
 }

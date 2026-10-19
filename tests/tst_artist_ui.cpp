@@ -38,7 +38,7 @@ static Track mk(const QString &path, const QString &title, const QString &album)
     return t;
 }
 
-// The artists tab (DrillList in "artist" mode): artists, then the artist's albums, then songs.
+// The artists tab (DrillList in "artist" mode): artists, then the artist's albums, then the open album's songs.
 class TstArtistUi : public QObject
 {
     Q_OBJECT
@@ -95,21 +95,21 @@ private slots:
         delete library;
     }
 
-    void theArtistShowsAllItsAlbumsAndSongsAtFirst()
+    void theArtistOpensOnItsFirstAlbum()
     {
-        QTRY_COMPARE(rows().size(), 5);   // Beta, 2 songs, Gamma, 1 song
-        QCOMPARE(title(0), QString("Beta"));
-        QCOMPARE(title(3), QString("Gamma"));
+        QTRY_COMPARE(rows().size(), 2);   // Beta: B one, B two
+        QCOMPARE(title(0), QString("B one"));
+        QCOMPARE(tab->property("albumIndex").toInt(), 0);
     }
 
-    void pickingAnAlbumScrollsToItAndLeavesTheSongsAlone()
+    void pickingAnAlbumShowsItsSongsAndPlayAllPlaysIt()
     {
-        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 2)));   // 0 = all albums, 2 = Gamma
-        QCOMPARE(rows().size(), 5);
-        QCOMPARE(tab->property("detailIndex").toInt(), 3);   // the Gamma header
-        QCOMPARE(tab->property("allTracks").toList().size(), 3);
+        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 1)));   // Gamma
+        QCOMPARE(rows().size(), 1);
+        QCOMPARE(title(0), QString("G one"));
+        QCOMPARE(tab->property("allTracks").toList().size(), 1);
         QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 0)));
-        QCOMPARE(tab->property("detailIndex").toInt(), 0);
+        QCOMPARE(rows().size(), 2);
     }
 
     void rightArrowWalksArtistsAlbumsSongsAndBack()
@@ -118,27 +118,28 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(tab, "focusRight", Q_RETURN_ARG(QVariant, ok)));
         QVERIFY(ok.toBool());
         QVERIFY(tab->property("midFocus").toBool());
-        QVERIFY(QMetaObject::invokeMethod(tab, "move", Q_ARG(QVariant, 1)));   // Beta
+        QVERIFY(QMetaObject::invokeMethod(tab, "move", Q_ARG(QVariant, 1)));   // Gamma
         QTRY_COMPARE(tab->property("albumIndex").toInt(), 1);
+        QCOMPARE(rows().size(), 1);
         QVERIFY(QMetaObject::invokeMethod(tab, "focusRight", Q_RETURN_ARG(QVariant, ok)));
         QVERIFY(tab->property("rightFocus").toBool());
         QVERIFY(!tab->property("midFocus").toBool());
         QVERIFY(QMetaObject::invokeMethod(tab, "back", Q_RETURN_ARG(QVariant, ok)));
         QVERIFY(tab->property("midFocus").toBool());
         QVERIFY(QMetaObject::invokeMethod(tab, "activate"));   // Enter on an album plays it
-        QCOMPARE(player.played.size(), 2);
+        QCOMPARE(player.played.size(), 1);
         QVERIFY(QMetaObject::invokeMethod(tab, "back", Q_RETURN_ARG(QVariant, ok)));
         QVERIFY(!tab->property("midFocus").toBool());
     }
 
     void anotherArtistStartsBackOnAllAlbums()
     {
-        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 2)));
+        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 1)));
         QSignalSpy spy(library, &Library::indexChanged);
         library->setTracks({mk("/m/b1.flac", "B one", "Beta"), mk("/m/b2.flac", "B two", "Beta"),
                             mk("/m/g1.flac", "G one", "Gamma")});
-        QTRY_COMPARE(tab->property("albumIndex").toInt(), 0);   // back on "All albums"
-        QCOMPARE(rows().size(), 5);
+        QTRY_COMPARE(tab->property("albumIndex").toInt(), 0);   // back on the first album
+        QCOMPARE(rows().size(), 2);
     }
 };
 

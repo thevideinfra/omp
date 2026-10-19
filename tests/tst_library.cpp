@@ -312,7 +312,10 @@ private slots:
         QCOMPARE(lib.albumSort(), QString("added"));
 
         QCOMPARE(titles(lib.artists()), QStringList({"Amy", "Zed"}));
-        lib.setArtistSort("length");   // Zed 110 s, Amy 350 s
+        QCOMPARE(lib.artists()->get(0).value("initial").toString(), QString("A"));   // the A-Z sections
+        QCOMPARE(lib.artists()->get(1).value("initial").toString(), QString("Z"));
+        lib.setArtistSort("length");
+        QCOMPARE(lib.artists()->get(0).value("initial").toString(), QString());      // none unless sorted by name   // Zed 110 s, Amy 350 s
         QCOMPARE(titles(lib.artists()), QStringList({"Zed", "Amy"}));
         lib.setArtistSort("added");    // Amy newest 9
         QCOMPARE(titles(lib.artists()), QStringList({"Amy", "Zed"}));

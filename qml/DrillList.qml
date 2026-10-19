@@ -3,15 +3,20 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "Scale.js" as S
 
-// An Albums/Artists tab: the list of albums or artists on the left, and the
-// selected one's songs on the right (an artist shows its albums, each followed
-// by its songs). `kind` is "album", "artist" or "playlist"; `model` is the list
-// of rows (with `key`). Right/Left arrows move the keyboard between the two panes.
+// An Albums/Artists/Playlists tab: the list on the left, and the selected
+// one's songs on the right. An artist gets a middle column of its albums with
+// thumbnails: "All albums" (every album, each followed by its songs) or one
+// album (just its songs). `kind` is "album", "artist" or "playlist"; `model` is
+// the list of rows (with `key`). Right/Left arrows move the keyboard between the panes.
 Item {
     id: root
     property string kind: "album"
     property var model
     property bool rightFocus: false
+    property bool midFocus: false      // artists: the albums column has the keyboard
+    property int albumIndex: 0         // artists: 0 = all albums, n = the nth album
+    property var albumGroups: []       // artists: [{ title, artist, tracks }]
+    property var artistTracks: []
     property string openTitle: ""
     signal clicked()
     signal pickRequested(var tracks)   // add these songs to a playlist
@@ -26,7 +31,9 @@ Item {
     property var allTracks: []
 
     function move(delta) {
-        if (rightFocus) {
+        if (midFocus) {
+            mid.move(delta)
+        } else if (rightFocus) {
             detail.currentIndex = Math.max(0, Math.min(detail.count - 1, detail.currentIndex + delta))
             detail.positionViewAtIndex(detail.currentIndex, ListView.Contain)
         } else {
@@ -35,11 +42,14 @@ Item {
     }
     // Enter plays: the selected item from the list, or the row on the right.
     function activate() {
-        if (rightFocus) playRow(detail.currentIndex)
+        if (midFocus) player.playTracks(albumTracksAt(mid.currentIndex), 0)
+        else if (rightFocus) playRow(detail.currentIndex)
         else if (top.count > 0) player.playTracks(tracksOf(top.currentIndex), 0)
     }
     function enqueue() {
-        if (!rightFocus) {
+        if (midFocus) {
+            player.enqueueTracks(albumTracksAt(mid.currentIndex))
+        } else if (!rightFocus) {
             if (top.count > 0) player.enqueueTracks(tracksOf(top.currentIndex))
         } else if (rows.length > 0) {
             const r = rows[detail.currentIndex]
@@ -48,6 +58,7 @@ Item {
     }
     // The songs the current row stands for, for the playlist picker.
     function currentTracks() {
+        if (midFocus) return albumTracksAt(mid.currentIndex)
         if (rightFocus && rows.length > 0) {
             const r = rows[detail.currentIndex]
             return r.header ? r.tracks : [r.tracks[r.start]]
@@ -76,14 +87,37 @@ Item {
     }
     function focusRight() {
         if (rows.length === 0) return false
+        if (kind === "artist" && !midFocus && !rightFocus) {
+            midFocus = true
+            return true
+        }
+        midFocus = false
         rightFocus = true
         return true
     }
-    // Returns true when it moved the keyboard back to the list.
+    // Returns true when it moved the keyboard back a pane.
     function back() {
-        if (!rightFocus) return false
-        rightFocus = false
-        return true
+        if (rightFocus) {
+            rightFocus = false
+            midFocus = kind === "artist"
+            return true
+        }
+        if (midFocus) {
+            midFocus = false
+            return true
+        }
+        return false
+    }
+
+    // The songs of entry n in the albums column (0 = every album of the artist).
+    function albumTracksAt(n) {
+        return n > 0 && n <= albumGroups.length ? albumGroups[n - 1].tracks : artistTracks
+    }
+    function selectAlbum(n) {
+        if (n < 0 || n === albumIndex) return
+        albumIndex = n
+        if (mid.currentIndex !== n) mid.currentIndex = n
+        rebuildDetail()
     }
 
     function tracksOf(row) {
@@ -96,34 +130,51 @@ Item {
         renaming = false
         confirmDelete = false
         if (row < 0 || row >= top.count) {
-            rows = []; allTracks = []; openTitle = ""; detailModel.clear()
+            rows = []; allTracks = []; openTitle = ""; artistTracks = []; albumGroups = []
+            albumModel.clear(); detailModel.clear()
             return
         }
         openTitle = model.get(row).title
-        const tracks = tracksOf(row)
+        artistTracks = tracksOf(row)
+        albumIndex = 0
+        if (kind === "artist") {
+            const groups = []
+            let album = null
+            artistTracks.forEach(t => {
+                const a = t.album.toLowerCase()
+                if (a !== album) { groups.push({ title: t.album, artist: t.artist, tracks: [] }); album = a }
+                groups[groups.length - 1].tracks.push(t)
+            })
+            albumGroups = groups
+            albumModel.clear()
+            if (groups.length > 0) {
+                albumModel.append({ key: "", title: qsTr("All albums"), subtitle: qsTr("%1 albums").arg(groups.length),
+                    meta: qsTr("%1 tracks").arg(artistTracks.length), cover: artistTracks[0].path })
+                groups.forEach(g => albumModel.append({ key: g.title, title: g.title, subtitle: g.artist,
+                    meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path }))
+            }
+            mid.currentIndex = 0
+        }
+        rebuildDetail()
+    }
+
+    // The right pane: the open item's songs, grouped by album for "all albums".
+    function rebuildDetail() {
+        const one = kind === "artist" && albumIndex > 0 && albumIndex <= albumGroups.length
+        const tracks = one ? albumGroups[albumIndex - 1].tracks : artistTracks
         allTracks = tracks
         const out = []
-        if (kind !== "artist") {
+        if (kind !== "artist" || one) {
             tracks.forEach((t, i) => out.push({ header: false, indent: false, title: t.title,
                 subtitle: t.artist, meta: t.meta, cover: "", tracks: tracks, start: i,
                 plIndex: t.playlistIndex ?? -1 }))
         } else {
-            let group = []
-            const flush = () => {
-                if (group.length === 0) return
-                out.push({ header: true, indent: false, title: group[0].album, subtitle: group[0].artist,
-                    meta: qsTr("%1 tracks").arg(group.length), cover: group[0].path, tracks: group, start: 0 })
-                group.forEach((t, i) => out.push({ header: false, indent: true, title: t.title,
-                    subtitle: t.artist, meta: t.meta, cover: "", tracks: group, start: i }))
-                group = []
-            }
-            let album = null
-            tracks.forEach(t => {
-                const a = t.album.toLowerCase()
-                if (a !== album) { flush(); album = a }
-                group.push(t)
+            albumGroups.forEach(g => {
+                out.push({ header: true, indent: false, title: g.title, subtitle: g.artist,
+                    meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path, tracks: g.tracks, start: 0 })
+                g.tracks.forEach((t, i) => out.push({ header: false, indent: true, title: t.title,
+                    subtitle: t.artist, meta: t.meta, cover: "", tracks: g.tracks, start: i }))
             })
-            flush()
         }
         rows = out
         detailModel.clear()
@@ -208,7 +259,8 @@ Item {
         spacing: 0
 
         ColumnLayout {
-            Layout.preferredWidth: Math.max(S.sp(260), root.width * 0.4)
+            Layout.preferredWidth: root.kind === "artist" ? Math.max(S.sp(200), root.width * 0.24)
+                                                          : Math.max(S.sp(260), root.width * 0.4)
             Layout.fillHeight: true
             spacing: 0
 
@@ -237,11 +289,32 @@ Item {
                 Layout.fillHeight: true
                 model: root.model
                 onCurrentIndexChanged: root.showRow(currentIndex)
-                onClicked: { root.rightFocus = false; root.clicked() }
+                onClicked: { root.rightFocus = false; root.midFocus = false; root.clicked() }
                 onActivated: (row) => player.playTracks(root.tracksOf(row), 0)
                 onEnqueued: (row) => player.enqueueTracks(root.tracksOf(row))
                 onMenuRequested: (row) => root.pickRequested(root.tracksOf(row))
             }
+        }
+
+        Rectangle {
+            visible: root.kind === "artist"
+            Layout.preferredWidth: visible ? 1 : 0
+            Layout.fillHeight: true
+            color: Qt.alpha(root.midFocus ? theme.accent : theme.foreground, root.midFocus ? 0.45 : 0.12)
+        }
+
+        // The artist's albums, with thumbnails.
+        BrowseList {
+            id: mid
+            visible: root.kind === "artist"
+            Layout.preferredWidth: visible ? Math.max(S.sp(240), root.width * 0.26) : 0
+            Layout.fillHeight: true
+            model: ListModel { id: albumModel }
+            onCurrentIndexChanged: root.selectAlbum(currentIndex)
+            onClicked: { root.rightFocus = false; root.midFocus = true; root.clicked() }
+            onActivated: (row) => player.playTracks(root.albumTracksAt(row), 0)
+            onEnqueued: (row) => player.enqueueTracks(root.albumTracksAt(row))
+            onMenuRequested: (row) => root.pickRequested(root.albumTracksAt(row))
         }
 
         Rectangle {
@@ -263,7 +336,8 @@ Item {
                 UiText {
                     Layout.fillWidth: true
                     visible: !root.renaming
-                    text: root.openTitle
+                    text: root.kind === "artist" && root.albumIndex > 0 && root.albumIndex <= root.albumGroups.length
+                          ? root.openTitle + " — " + root.albumGroups[root.albumIndex - 1].title : root.openTitle
                     font.bold: true
                     elide: Text.ElideRight
                 }
@@ -346,12 +420,13 @@ Item {
                 }
             }
 
-            // A larger cover for an album (artists show a cover on each album header).
+            // A larger cover for a single album (the all-albums view has a cover on each album header).
             Image {
                 id: bigCover
                 readonly property string artSource: {
                     library.coverRevision
-                    return root.kind === "album" && root.allTracks.length > 0 ? library.coverFor(root.allTracks[0].path) : ""
+                    const oneAlbum = root.kind === "album" || (root.kind === "artist" && root.albumIndex > 0)
+                    return oneAlbum && root.allTracks.length > 0 ? library.coverFor(root.allTracks[0].path) : ""
                 }
                 visible: artSource !== ""
                 Layout.alignment: Qt.AlignHCenter

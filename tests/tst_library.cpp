@@ -283,6 +283,43 @@ private slots:
         QCOMPARE(lib.songSort(), QString("added"));
     }
 
+    void albumsAndArtistsCanBeSorted()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        QVector<Track> tracks = fixture();   // Zed/Alpha (Two, One), Amy/Beta (Solo), Amy/Singles (Top)
+        tracks[0].duration = 100; tracks[0].mtime = 1;   // Alpha: 110 s, newest file 1
+        tracks[1].duration = 10;  tracks[1].mtime = 1;
+        tracks[2].duration = 50;  tracks[2].mtime = 9;   // Beta
+        tracks[3].duration = 300; tracks[3].mtime = 5;   // Singles
+        lib.setTracks(tracks);
+        const auto titles = [](RowsModel *m) {
+            QStringList out;
+            for (int i = 0; i < m->rowCount(); ++i)
+                out << m->get(i).value("title").toString();
+            return out;
+        };
+        QCOMPARE(titles(lib.albums()), QStringList({"Beta", "Singles", "Alpha"}));   // artist, then album
+        QCOMPARE(lib.albumSort(), QString("artist"));
+        lib.setAlbumSort("title");
+        QCOMPARE(titles(lib.albums()), QStringList({"Alpha", "Beta", "Singles"}));
+        lib.setAlbumSort("length");
+        QCOMPARE(titles(lib.albums()), QStringList({"Beta", "Alpha", "Singles"}));
+        lib.setAlbumSort("added");
+        QCOMPARE(titles(lib.albums()), QStringList({"Beta", "Singles", "Alpha"}));
+        lib.setAlbumDescending(true);
+        QCOMPARE(titles(lib.albums()), QStringList({"Alpha", "Singles", "Beta"}));
+        lib.setAlbumSort("album");   // not an album key: ignored
+        QCOMPARE(lib.albumSort(), QString("added"));
+
+        QCOMPARE(titles(lib.artists()), QStringList({"Amy", "Zed"}));
+        lib.setArtistSort("length");   // Zed 110 s, Amy 350 s
+        QCOMPARE(titles(lib.artists()), QStringList({"Zed", "Amy"}));
+        lib.setArtistSort("added");    // Amy newest 9
+        QCOMPARE(titles(lib.artists()), QStringList({"Amy", "Zed"}));
+        lib.setArtistDescending(true);
+        QCOMPARE(titles(lib.artists()), QStringList({"Zed", "Amy"}));
+    }
+
     void albumRowsDoNotTouchTheDiskForCovers()
     {
         QTemporaryDir dir;

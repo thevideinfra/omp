@@ -120,7 +120,7 @@ Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playl
 
 ## Shuffle, repeat and equalizer
 
-Songs can be sorted by title, artist, album, length or added (newest first) with a reverse toggle; the choice is not remembered between runs. The left rail has an area at the top reserved for a logo.
+Songs sort by title, artist, album, length or added (newest first), albums by title, artist, length or added, and artists by name, length or added, each with a reverse toggle; the choices are not remembered between runs. The left rail has an area at the top reserved for a logo.
 
 The bar under the song has **shuffle and repeat (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The equalizer button (sliders icon) beside the transport buttons opens a popup that picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.
 

@@ -434,7 +434,8 @@ void Library::rebuildGroups()
     QHash<QString, QHash<QString, int>> spellings;
     for (const Track &t : std::as_const(m_tracks))
         ++spellings[fold(t.albumArtist)][t.albumArtist];
-    QHash<QString, QString> display;
+    QHash<QString, QString> &display = m_artistDisplay;
+    display.clear();
     for (auto it = spellings.cbegin(); it != spellings.cend(); ++it) {
         QString best;
         int bestCount = 0;
@@ -453,44 +454,133 @@ void Library::rebuildGroups()
         m_byArtist[display.value(fold(t.albumArtist))].append(t);
     }
 
+    rebuildAlbums();
+    rebuildSongs();
+    rebuildArtists();
+}
+
+namespace {
+double totalLength(const QVector<Track> &tracks)
+{
+    double sum = 0;
+    for (const Track &t : tracks)
+        sum += t.duration;
+    return sum;
+}
+
+qint64 newest(const QVector<Track> &tracks)
+{
+    qint64 m = 0;
+    for (const Track &t : tracks)
+        m = qMax(m, t.mtime);
+    return m;
+}
+}
+
+void Library::setAlbumSort(const QString &key)
+{
+    static const QStringList keys{"title", "artist", "length", "added"};
+    if (!keys.contains(key) || key == m_albumSort)
+        return;
+    m_albumSort = key;
+    rebuildAlbums();
+    emit albumSortChanged();
+}
+
+void Library::setAlbumDescending(bool on)
+{
+    if (on == m_albumDescending)
+        return;
+    m_albumDescending = on;
+    rebuildAlbums();
+    emit albumSortChanged();
+}
+
+void Library::setArtistSort(const QString &key)
+{
+    static const QStringList keys{"title", "length", "added"};
+    if (!keys.contains(key) || key == m_artistSort)
+        return;
+    m_artistSort = key;
+    rebuildArtists();
+    emit artistSortChanged();
+}
+
+void Library::setArtistDescending(bool on)
+{
+    if (on == m_artistDescending)
+        return;
+    m_artistDescending = on;
+    rebuildArtists();
+    emit artistSortChanged();
+}
+
+void Library::rebuildAlbums()
+{
     struct Album { QString key, name, artist; QVector<Track> tracks; };
     QVector<Album> albums;
     for (auto it = m_byAlbum.cbegin(); it != m_byAlbum.cend(); ++it) {
         QVector<Track> sorted = it.value();
         std::sort(sorted.begin(), sorted.end(), trackLess);
         albums.append({it.key(), sorted.first().album,
-                       display.value(fold(sorted.first().albumArtist)), sorted});
+                       m_artistDisplay.value(fold(sorted.first().albumArtist)), sorted});
     }
-    std::sort(albums.begin(), albums.end(), [](const Album &a, const Album &b) {
-        const int byArtist = QString::compare(a.artist, b.artist, Qt::CaseInsensitive);
-        return byArtist != 0 ? byArtist < 0 : ciLess(a.name, b.name);
+    const QString key = m_albumSort;
+    const auto byArtist = [](const Album &a, const Album &b) {
+        const int c = QString::compare(a.artist, b.artist, Qt::CaseInsensitive);
+        return c != 0 ? c < 0 : ciLess(a.name, b.name);
+    };
+    const auto byTitle = [](const Album &a, const Album &b) {
+        const int c = QString::compare(a.name, b.name, Qt::CaseInsensitive);
+        return c != 0 ? c < 0 : ciLess(a.artist, b.artist);
+    };
+    std::sort(albums.begin(), albums.end(), [&](const Album &a, const Album &b) {
+        if (key == QLatin1String("length") && totalLength(a.tracks) != totalLength(b.tracks))
+            return totalLength(a.tracks) < totalLength(b.tracks);
+        if (key == QLatin1String("added") && newest(a.tracks) != newest(b.tracks))
+            return newest(a.tracks) > newest(b.tracks);   // newest first
+        return key == QLatin1String("title") ? byTitle(a, b) : byArtist(a, b);
     });
-    QVector<QVariantMap> albumRows;
+    if (m_albumDescending)
+        std::reverse(albums.begin(), albums.end());
+    QVector<QVariantMap> rows;
     for (const Album &a : std::as_const(albums)) {
-        albumRows.append({{"key", a.key},
-                          {"title", a.name},
-                          {"subtitle", a.artist},
-                          {"meta", QStringLiteral("%1 tracks").arg(a.tracks.size())},
-                          {"cover", a.tracks.first().path}});   // resolved lazily by coverFor()
+        rows.append({{"key", a.key},
+                     {"title", a.name},
+                     {"subtitle", a.artist},
+                     {"meta", QStringLiteral("%1 tracks").arg(a.tracks.size())},
+                     {"cover", a.tracks.first().path}});   // resolved lazily by coverFor()
     }
-    m_albums.setRows(albumRows);
+    m_albums.setRows(rows);
+}
 
-    rebuildSongs();
-
+void Library::rebuildArtists()
+{
     QStringList names = m_byArtist.keys();
-    std::sort(names.begin(), names.end(), ciLess);
-    QVector<QVariantMap> artistRows;
+    const QString key = m_artistSort;
+    std::sort(names.begin(), names.end(), [&](const QString &a, const QString &b) {
+        const QVector<Track> &ta = m_byArtist[a];
+        const QVector<Track> &tb = m_byArtist[b];
+        if (key == QLatin1String("length") && totalLength(ta) != totalLength(tb))
+            return totalLength(ta) < totalLength(tb);
+        if (key == QLatin1String("added") && newest(ta) != newest(tb))
+            return newest(ta) > newest(tb);   // newest first
+        return ciLess(a, b);
+    });
+    if (m_artistDescending)
+        std::reverse(names.begin(), names.end());
+    QVector<QVariantMap> rows;
     for (const QString &name : std::as_const(names)) {
         QSet<QString> albumNames;
         for (const Track &t : m_byArtist.value(name))
             albumNames.insert(fold(t.album));
-        artistRows.append({{"key", name},
-                           {"title", name},
-                           {"subtitle", QStringLiteral("%1 albums").arg(albumNames.size())},
-                           {"meta", QStringLiteral("%1 tracks").arg(m_byArtist.value(name).size())},
-                           {"cover", QString()}});
+        rows.append({{"key", name},
+                     {"title", name},
+                     {"subtitle", QStringLiteral("%1 albums").arg(albumNames.size())},
+                     {"meta", QStringLiteral("%1 tracks").arg(m_byArtist.value(name).size())},
+                     {"cover", QString()}});
     }
-    m_artists.setRows(artistRows);
+    m_artists.setRows(rows);
 }
 
 QVariantList Library::tracksForPaths(const QStringList &paths) const

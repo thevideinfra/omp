@@ -29,6 +29,11 @@ class Library : public QObject
     // How the Songs list is ordered: "title", "artist", "album", "length" or "added" (newest first).
     Q_PROPERTY(QString songSort READ songSort WRITE setSongSort NOTIFY songSortChanged)
     Q_PROPERTY(bool songDescending READ songDescending WRITE setSongDescending NOTIFY songSortChanged)
+    // Albums: "title", "artist" (the default), "length" or "added"; artists: "title", "length" or "added".
+    Q_PROPERTY(QString albumSort READ albumSort WRITE setAlbumSort NOTIFY albumSortChanged)
+    Q_PROPERTY(bool albumDescending READ albumDescending WRITE setAlbumDescending NOTIFY albumSortChanged)
+    Q_PROPERTY(QString artistSort READ artistSort WRITE setArtistSort NOTIFY artistSortChanged)
+    Q_PROPERTY(bool artistDescending READ artistDescending WRITE setArtistDescending NOTIFY artistSortChanged)
     Q_PROPERTY(QStringList offlineRoots READ offlineRoots NOTIFY offlineChanged)
 
 public:
@@ -55,6 +60,14 @@ public:
     void setSongSort(const QString &key);
     bool songDescending() const { return m_songDescending; }
     void setSongDescending(bool on);
+    QString albumSort() const { return m_albumSort; }
+    void setAlbumSort(const QString &key);
+    bool albumDescending() const { return m_albumDescending; }
+    void setAlbumDescending(bool on);
+    QString artistSort() const { return m_artistSort; }
+    void setArtistSort(const QString &key);
+    bool artistDescending() const { return m_artistDescending; }
+    void setArtistDescending(bool on);
     QStringList offlineRoots() const { return m_offline; }
 
     Q_INVOKABLE void rescan();
@@ -82,6 +95,8 @@ signals:
     void coversChanged();
     void offlineChanged();
     void songSortChanged();
+    void albumSortChanged();
+    void artistSortChanged();
 
 private:
     void loadCache();
@@ -92,6 +107,8 @@ private:
     bool isOnline(const QString &path) const;
     void finishScan();
     void rebuildSongs();
+    void rebuildAlbums();
+    void rebuildArtists();
     QString coverCacheDir() const;
     QString cachedCoverPath(const QString &dir) const;
     void queueExtraction(const QString &dir, const QString &track);
@@ -133,6 +150,11 @@ private:
     QProcess m_scan;
     QByteArray m_scanBuffer;
     QVector<Track> m_pending;
+    QString m_albumSort = QStringLiteral("artist");
+    bool m_albumDescending = false;
+    QString m_artistSort = QStringLiteral("title");
+    bool m_artistDescending = false;
+    QHash<QString, QString> m_artistDisplay;   // folded album artist -> the spelling shown
     QString m_songSort = QStringLiteral("title");
     bool m_songDescending = false;
     QStringList m_pendingOffline;

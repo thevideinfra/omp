@@ -173,48 +173,36 @@ ApplicationWindow {
                             Keys.onReturnPressed: keyRoot.forceActiveFocus()
                         }
 
-                        Row {
+                        SortBar {
                             visible: win.isTab("Songs") && !win.searching
-                            Layout.preferredHeight: searchField.height
-                            spacing: S.sp(4)
-                            Repeater {
-                                model: [["title", qsTr("Title")], ["artist", qsTr("Artist")], ["album", qsTr("Album")],
-                                        ["length", qsTr("Length")], ["added", qsTr("Added")]]
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    readonly property bool on: library.songSort === modelData[0]
-                                    width: sortLabel.implicitWidth + S.sp(20)
-                                    height: searchField.height
-                                    radius: S.sp(6)
-                                    color: on || sortArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
-                                    border.width: 1
-                                    border.color: on ? theme.accent : (sortArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12))
-                                    UiText { id: sortLabel; anchors.centerIn: parent; text: modelData[1]; color: parent.on ? theme.accent : theme.foreground }
-                                    MouseArea {
-                                        id: sortArea
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: { library.songSort = modelData[0]; keyRoot.forceActiveFocus() }
-                                    }
-                                }
-                            }
-                            Rectangle {
-                                width: searchField.height
-                                height: searchField.height
-                                radius: S.sp(6)
-                                color: library.songDescending || dirArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
-                                border.width: 1
-                                border.color: library.songDescending ? theme.accent : (dirArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12))
-                                UiText { anchors.centerIn: parent; text: "⇅"; color: library.songDescending ? theme.accent : theme.foreground }
-                                MouseArea {
-                                    id: dirArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: { library.songDescending = !library.songDescending; keyRoot.forceActiveFocus() }
-                                }
-                            }
+                            chipHeight: searchField.height
+                            options: [["title", qsTr("Title")], ["artist", qsTr("Artist")], ["album", qsTr("Album")],
+                                      ["length", qsTr("Length")], ["added", qsTr("Added")]]
+                            sortKey: library.songSort
+                            descending: library.songDescending
+                            onKeyPicked: (k) => { library.songSort = k; keyRoot.forceActiveFocus() }
+                            onReversed: { library.songDescending = !library.songDescending; keyRoot.forceActiveFocus() }
+                        }
+
+                        SortBar {
+                            visible: win.isTab("Albums") && !win.searching
+                            chipHeight: searchField.height
+                            options: [["title", qsTr("Title")], ["artist", qsTr("Artist")],
+                                      ["length", qsTr("Length")], ["added", qsTr("Added")]]
+                            sortKey: library.albumSort
+                            descending: library.albumDescending
+                            onKeyPicked: (k) => { library.albumSort = k; keyRoot.forceActiveFocus() }
+                            onReversed: { library.albumDescending = !library.albumDescending; keyRoot.forceActiveFocus() }
+                        }
+
+                        SortBar {
+                            visible: win.isTab("Artists") && !win.searching
+                            chipHeight: searchField.height
+                            options: [["title", qsTr("Name")], ["length", qsTr("Length")], ["added", qsTr("Added")]]
+                            sortKey: library.artistSort
+                            descending: library.artistDescending
+                            onKeyPicked: (k) => { library.artistSort = k; keyRoot.forceActiveFocus() }
+                            onReversed: { library.artistDescending = !library.artistDescending; keyRoot.forceActiveFocus() }
                         }
 
                         Rectangle {

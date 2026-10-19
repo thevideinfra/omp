@@ -60,6 +60,8 @@ ApplicationWindow {
             if (!win.searching && win.tab < 2) currentList().back()
             break
         case Qt.Key_R: library.rescan(); break
+        case Qt.Key_S: player.shuffle = !player.shuffle; break
+        case Qt.Key_O: player.cycleRepeat(); break
         case Qt.Key_Backspace:
             if (win.searching) break
             if (win.tab === 2) library.up()
@@ -299,9 +301,20 @@ ApplicationWindow {
                         Row {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: S.sp(8)
+                            TransportButton {
+                                glyph: qsTr("Shuffle")
+                                active: player.shuffle
+                                onClicked: { player.shuffle = !player.shuffle; keyRoot.forceActiveFocus() }
+                            }
                             TransportButton { glyph: "◀◀"; onClicked: { player.previous(); keyRoot.forceActiveFocus() } }
                             TransportButton { glyph: player.playing ? "❚❚" : "▶"; big: true; onClicked: { player.togglePause(); keyRoot.forceActiveFocus() } }
                             TransportButton { glyph: "▶▶"; onClicked: { player.next(); keyRoot.forceActiveFocus() } }
+                            TransportButton {
+                                glyph: player.repeat === "one" ? qsTr("Repeat one")
+                                       : player.repeat === "all" ? qsTr("Repeat all") : qsTr("Repeat")
+                                active: player.repeat !== "off"
+                                onClicked: { player.cycleRepeat(); keyRoot.forceActiveFocus() }
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true

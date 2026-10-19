@@ -94,6 +94,13 @@ int main(int argc, char *argv[])
     player.setStartVolume(settings.volume());
     QObject::connect(&player, &Player::volumeChanged, &settings,
                      [&] { settings.set("volume", player.volume()); });
+    player.setStartPlayback(settings.shuffle(), settings.repeat(), settings.eqPreset());
+    QObject::connect(&player, &Player::shuffleChanged, &settings,
+                     [&] { settings.set("shuffle", player.shuffle()); });
+    QObject::connect(&player, &Player::repeatChanged, &settings,
+                     [&] { settings.set("repeat", player.repeat()); });
+    QObject::connect(&player, &Player::eqPresetChanged, &settings,
+                     [&] { settings.set("eqPreset", player.eqPreset()); });
     Library library(Config::folders(),
                     qEnvironmentVariable("OMAMUSIC_SCAN",
                                          QCoreApplication::applicationDirPath() + "/omamusic-scan"),

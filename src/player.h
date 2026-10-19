@@ -20,6 +20,10 @@ class Player : public QObject
     Q_PROPERTY(int currentIndex READ currentIndex NOTIFY currentIndexChanged)
     Q_PROPERTY(QVariantMap current READ current NOTIFY currentChanged)
     Q_PROPERTY(RowsModel *queue READ queue CONSTANT)
+    Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY shuffleChanged)
+    Q_PROPERTY(QString repeat READ repeat WRITE setRepeat NOTIFY repeatChanged)
+    Q_PROPERTY(QString eqPreset READ eqPreset WRITE setEqPreset NOTIFY eqPresetChanged)
+    Q_PROPERTY(QStringList eqPresets READ eqPresets CONSTANT)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
 
 public:
@@ -41,6 +45,20 @@ public:
     QString error() const { return m_error; }
 
     void setVolume(int volume);
+
+    bool shuffle() const { return m_shuffle; }
+    // Shuffles the queue now (the playing song stays); off restores the order.
+    void setShuffle(bool on);
+    // "off", "all" (repeat the queue) or "one" (repeat the song).
+    QString repeat() const { return m_repeat; }
+    void setRepeat(const QString &mode);
+    Q_INVOKABLE void cycleRepeat();
+    QString eqPreset() const { return m_eqPreset; }
+    void setEqPreset(const QString &preset);
+    QStringList eqPresets() const;
+    Q_INVOKABLE QVariantList eqGains(const QString &preset) const;
+    // Applied when mpv starts; set before start().
+    void setStartPlayback(bool shuffle, const QString &repeat, const QString &eqPreset);
     // The volume mpv starts (and restarts) at; set before start().
     void setStartVolume(int volume) { m_startVolume = qBound(0, volume, 130); }
 
@@ -64,6 +82,9 @@ signals:
     void currentIndexChanged();
     void currentChanged();
     void errorChanged();
+    void shuffleChanged();
+    void repeatChanged();
+    void eqPresetChanged();
 
 private:
     void onConnected();
@@ -72,6 +93,9 @@ private:
     void setReady(bool ready);
     void setError(const QString &error);
     void updatePlaying();
+    void applyRepeat();
+    void applyEqualizer();
+    void syncQueueOrder(const QVariantList &playlist);
 
     QString m_program;
     QStringList m_extraArgs;
@@ -94,5 +118,8 @@ private:
     int m_volume = 100;
     int m_startVolume = 100;
     int m_index = -1;
+    bool m_shuffle = false;
+    QString m_repeat = QStringLiteral("off");
+    QString m_eqPreset = QStringLiteral("Flat");
     QString m_error;
 };

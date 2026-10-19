@@ -103,6 +103,89 @@ private slots:
         QVERIFY(p.position() > 0.2);   // not restarted
     }
 
+    void shuffleKeepsTheSongAndUnshuffleRestoresTheOrder()
+    {
+        QTemporaryDir dir;
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        QVariantList tracks;
+        QStringList titles;
+        for (const char *t : {"A", "B", "C", "D", "E", "F"}) {
+            tracks << row(writeWav(dir.filePath(QString(t) + ".wav"), 20.0), t);
+            titles << t;
+        }
+        p.playTracks(tracks, 2);
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 5000);
+
+        p.setShuffle(true);
+        QVERIFY(p.shuffle());
+        QTRY_COMPARE_WITH_TIMEOUT(p.queue()->rowCount(), 6, 3000);
+        QTest::qWait(500);
+        QCOMPARE(p.current().value("title").toString(), QString("C"));   // the same song still plays
+        QStringList now;
+        for (int i = 0; i < p.queue()->rowCount(); ++i)
+            now << p.queue()->get(i).value("title").toString();
+        QStringList sorted = now;
+        sorted.sort();
+        QCOMPARE(sorted, titles);   // same songs, maybe another order
+        QCOMPARE(now.at(p.currentIndex()), QString("C"));
+
+        p.setShuffle(false);
+        QTRY_COMPARE_WITH_TIMEOUT(p.currentIndex(), 2, 3000);
+        QStringList restored;
+        for (int i = 0; i < p.queue()->rowCount(); ++i)
+            restored << p.queue()->get(i).value("title").toString();
+        QCOMPARE(restored, titles);
+    }
+
+    void repeatOneKeepsPlayingTheSong()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 0.6);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        p.playTracks({row(a, "A")}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!p.playing(), 4000);   // off: it ends
+
+        p.setRepeat("one");
+        QCOMPARE(p.repeat(), QString("one"));
+        p.playTracks({row(a, "A")}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 3000);
+        QTest::qWait(1800);
+        QVERIFY(p.playing());   // three times its length later
+
+        p.cycleRepeat();
+        QCOMPARE(p.repeat(), QString("off"));
+        p.setRepeat("bogus");
+        QCOMPARE(p.repeat(), QString("off"));
+    }
+
+    void equalizerPresetsApplyAtStartAndWhilePlaying()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 5.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.setStartPlayback(false, "all", "Rock");
+        QCOMPARE(p.eqPreset(), QString("Rock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        p.playTracks({row(a, "A")}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);
+        QVERIFY(p.error().isEmpty());
+
+        p.setEqPreset("Bass Boost");
+        QCOMPARE(p.eqPreset(), QString("Bass Boost"));
+        p.setEqPreset("nope");
+        QCOMPARE(p.eqPreset(), QString("Bass Boost"));
+        p.setEqPreset("Flat");
+        QTest::qWait(400);
+        QVERIFY(p.playing());
+        QVERIFY(p.position() > 0.2);
+        QVERIFY(p.eqPresets().contains("Jazz"));
+    }
+
     void reportsMissingMpv()
     {
         QTemporaryDir dir;

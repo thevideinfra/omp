@@ -53,6 +53,9 @@ Tray panel changes show the next time the panel opens, because Hyprland does not
 | `panel_font_family` | any installed family | system default (empty) |
 | `panel_accent` | `theme` or a palette colour name | `theme` |
 | `volume` | `0`-`130`, saved when you change the volume | `100` |
+| `shuffle` | `true` / `false` (shuffle when a queue starts) | `false` |
+| `repeat` | `off`, `all`, `one` | `off` |
+| `eq_preset` | `Flat`, `Bass Boost`, `Treble Boost`, `Rock`, `Pop`, `Jazz`, `Classical`, `Vocal`, `Dance`, `Loudness` | `Flat` |
 | `panel_cover` | `true` / `false` | `true` |
 | `panel_seek` | `true` / `false` | `true` |
 | `panel_volume` | `true` / `false` | `true` |
@@ -93,6 +96,10 @@ The App section of Settings has **Start at login (in the tray)**, off by default
 - Middle-click: play / pause.
 - No scroll gesture.
 - The tray icon is drawn from the theme foreground at startup and on a theme change.
+
+## Shuffle, repeat and equalizer
+
+The bar under the song has **Shuffle** and **Repeat** (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The Equalizer tab in Settings picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.
 
 ## Cover art
 

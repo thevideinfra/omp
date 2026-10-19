@@ -46,6 +46,9 @@ const QVector<Key> &keys()
         {"panelUpNext", "panel_up_next", Type::Bool, true, {}},
         {"panelUpNextCount", "panel_up_next_count", Type::Int, 4, {}},
         {"volume", "volume", Type::Int, 100, {}, kMaxVolume},
+        {"shuffle", "shuffle", Type::Bool, false, {}},
+        {"repeat", "repeat", Type::Enum, QString("off"), {"off", "all", "one"}},
+        {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
     };
     return k;
 }

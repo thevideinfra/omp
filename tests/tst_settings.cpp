@@ -186,6 +186,14 @@ private slots:
         QCOMPARE(d.value("panelAccent").toString(), QString("theme"));
         QCOMPARE(d.value("showAccent").toBool(), true);
         QCOMPARE(d.value("volume").toInt(), 100);
+        QCOMPARE(d.value("shuffle").toBool(), false);
+        QCOMPARE(d.value("repeat").toString(), QString("off"));
+        QCOMPARE(d.value("eqPreset").toString(), QString("Flat"));
+        const QVariantMap m2 = Settings::parse("shuffle = true\nrepeat = \"one\"\neq_preset = \"Rock\"\n");
+        QCOMPARE(m2.value("shuffle").toBool(), true);
+        QCOMPARE(m2.value("repeat").toString(), QString("one"));
+        QCOMPARE(m2.value("eqPreset").toString(), QString("Rock"));
+        QCOMPARE(Settings::parse("repeat = \"sideways\"\n").value("repeat").toString(), QString("off"));
         QCOMPARE(Settings::parse("volume = 40\n").value("volume").toInt(), 40);
         QCOMPARE(Settings::parse("volume = 900\n").value("volume").toInt(), 130);
         QCOMPARE(d.value("panelShowAccent").toBool(), true);

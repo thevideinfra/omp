@@ -22,6 +22,7 @@ qt_add_library(omacore STATIC
     src/settings.cpp src/settings.h
     src/lookscope.cpp src/lookscope.h
     src/autostart.cpp src/autostart.h
+    src/equalizer.cpp src/equalizer.h
     src/trayicon.cpp src/trayicon.h
 )
 target_include_directories(omacore PUBLIC src)
@@ -40,6 +41,7 @@ qt_add_qml_module(omamusic
         qml/Main.qml
         qml/BrowseList.qml
         qml/DrillList.qml
+        qml/EqualizerForm.qml
         qml/FastWheel.qml
         qml/Panel.qml
         qml/SeekBar.qml

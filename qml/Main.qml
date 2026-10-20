@@ -358,7 +358,8 @@ ApplicationWindow {
                     width: parent.width - S.sp(20)
                     horizontalAlignment: Text.AlignRight
                     text: player.error !== "" ? player.error
-                          : library.scanning ? qsTr("Scanning…") : ""
+                          : library.scanning ? qsTr("Scanning…")
+                          : subsonic.status.indexOf("Server offline") === 0 || subsonic.status.indexOf("Syncing") === 0 ? subsonic.status : ""
                 }
 
                 RowLayout {

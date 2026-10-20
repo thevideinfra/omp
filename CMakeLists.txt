@@ -49,6 +49,8 @@ qt_add_qml_module(omamusic
         qml/EqualizerForm.qml
         qml/EqualizerPopup.qml
         qml/LibraryForm.qml
+        qml/ServerForm.qml
+        qml/ChipButton.qml
         qml/PlaylistPicker.qml
         qml/FastWheel.qml
         qml/Panel.qml

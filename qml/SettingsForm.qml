@@ -84,6 +84,7 @@ Item {
             }
             LookForm { Layout.fillWidth: true; visible: root.section === 1; target: panelLook }
             LibraryForm { Layout.fillWidth: true; visible: root.section === 2 }
+            ServerForm { Layout.fillWidth: true; visible: root.section === 2 }
 
             UiText { visible: root.section === 1; text: qsTr("Panel sections"); color: theme.dimForeground; px: 12 }
             ToggleRow { visible: root.section === 1; Layout.fillWidth: true; label: qsTr("Cover"); checked: panelLook.panelCover; onToggled: (v) => panelLook.set("panelCover", v) }

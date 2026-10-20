@@ -8,6 +8,8 @@ Menu {
     id: root
     property var tracks: []
     property bool canRemove: false   // the songs sit in a local playlist
+    property int queueRow: -1        // set for a row of the Queue tab: it can be removed or moved
+    property int queueCount: 0
     property bool canGoArtist: true  // false when the Artists tab is hidden
     property bool canGoAlbum: true
     property string folderPath: ""   // set for a music folder at the top of Libraries: it can be removed
@@ -25,6 +27,8 @@ Menu {
     function play() { player.playTracks(tracks, 0) }
     function enqueue() { player.enqueueTracks(tracks) }
     function playNext() { player.playNext(tracks) }
+    function removeFromQueue() { player.removeAt(queueRow) }
+    function moveInQueue(delta) { player.moveRow(queueRow, queueRow + delta) }
     function toggleFavorite() { subsonic.toggleStar(tracks[0].path) }
 
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -69,6 +73,9 @@ Menu {
     Entry { objectName: "play"; text: qsTr("Play"); enabled: root.tracks.length > 0; onTriggered: root.play() }
     Entry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
     Entry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
+    Entry { objectName: "removeQueue"; wanted: root.queueRow >= 0; text: qsTr("Remove from queue"); onTriggered: root.removeFromQueue() }
+    Entry { objectName: "moveUp"; wanted: root.queueRow >= 0; enabled: root.queueRow > 0; text: qsTr("Move up"); onTriggered: root.moveInQueue(-1) }
+    Entry { objectName: "moveDown"; wanted: root.queueRow >= 0; enabled: root.queueRow < root.queueCount - 1; text: qsTr("Move down"); onTriggered: root.moveInQueue(1) }
     // Add to playlist: a submenu with a new playlist and the existing local ones.
     delegate: Component { Entry {} }   // how submenus are drawn in this menu
     Menu {

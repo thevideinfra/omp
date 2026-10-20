@@ -47,6 +47,7 @@ class TstBrowseTable : public QObject
     StubPlaylists playlists;
     RowsModel *model = nullptr;
     QQmlEngine *engine = nullptr;
+    QQmlContext *context = nullptr;
     QQuickWindow *window = nullptr;
     QQuickItem *list = nullptr;
 
@@ -71,7 +72,7 @@ private slots:
         model = new RowsModel({"title", "subtitle", "meta", "cover"}, this);
         model->setRows({{{"title", "T"}, {"subtitle", "A — B"}, {"meta", "1:00"}, {"cover", "/m/a.flac"}}});
         engine = new QQmlEngine(this);
-        auto *ctx = new QQmlContext(engine->rootContext(), engine);
+        auto *ctx = context = new QQmlContext(engine->rootContext(), engine);
         ctx->setContextProperty("theme", theme);
         ctx->setContextProperty("ui", look);
         ctx->setContextProperty("settingsStore", settings);
@@ -117,7 +118,7 @@ private slots:
     void aSortHeaderStripAsksForTheClickedSort()
     {
         QQmlComponent comp(engine, QUrl::fromLocalFile(QStringLiteral(OMA_QML_DIR "/SortHeader.qml")));
-        QObject *o = comp.create(engine->rootContext());
+        QObject *o = comp.create(context);
         QVERIFY2(o, qPrintable(comp.errorString()));
         auto *strip = qobject_cast<QQuickItem *>(o);
         strip->setParentItem(window->contentItem());
@@ -133,6 +134,49 @@ private slots:
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(390, 215));
         QCOMPARE(sort.at(1).at(0).toString(), QString("added"));
         delete strip;
+    }
+
+    void aReorderableListMovesARowByDragging()
+    {
+        model->setRows({{{"title", "A"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/a.flac"}},
+                        {{"title", "B"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/b.flac"}},
+                        {{"title", "C"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/c.flac"}},
+                        {{"title", "D"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/d.flac"}}});
+        QTest::qWait(50);
+        QSignalSpy moved(list, SIGNAL(moveRequested(int, int)));
+        const int rowH = 52;                                             // a table row at normal density
+        const int top = 30;                                           // below the table header
+        const auto rowY = [&](int i) { return top + i * rowH + rowH / 2; };
+
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, QPoint(300, rowY(0)));   // grab A
+        QTest::mouseMove(window, QPoint(300, rowY(1)));
+        QTest::mouseMove(window, QPoint(300, rowY(2)));
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, QPoint(300, rowY(2)));
+        QCOMPARE(moved.count(), 0);                                   // not reorderable yet: a plain click
+
+        list->setProperty("reorderable", true);
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, QPoint(300, rowY(0)));
+        QTest::mouseMove(window, QPoint(300, rowY(1)));
+        QTest::mouseMove(window, QPoint(300, rowY(2)));
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, QPoint(300, rowY(2)));
+        QCOMPARE(moved.count(), 1);
+        QCOMPARE(moved.at(0).at(0).toInt(), 0);
+        QCOMPARE(moved.at(0).at(1).toInt(), 2);
+
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(300, rowY(1)));   // a click is not a drag
+        QCOMPARE(moved.count(), 1);
+    }
+
+    void removeSelectedAsksToRemoveTheCurrentRowWhenRemovable()
+    {
+        QSignalSpy removed(list, SIGNAL(removeRequested(int)));
+        list->setProperty("currentIndex", 2);
+        QVERIFY(QMetaObject::invokeMethod(list, "removeSelected"));
+        QCOMPARE(removed.count(), 0);                                 // not removable
+        list->setProperty("removable", true);
+        QVERIFY(QMetaObject::invokeMethod(list, "removeSelected"));
+        QCOMPARE(removed.count(), 1);
+        QCOMPARE(removed.at(0).at(0).toInt(), 2);
     }
 
     void aRightClickOnTheHeaderAsksForTheColumnMenu()

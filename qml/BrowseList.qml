@@ -41,6 +41,14 @@ ListView {
     // Something shown after the last row (the Libraries tab puts the server there).
     property Component footerComponent
     footer: footerComponent
+    // A list whose rows can be taken out (Delete) or dragged to another place (the Queue).
+    property bool removable: false
+    property bool reorderable: false
+    property int dragFrom: -1
+    property int dropAt: -1
+    signal removeRequested(int row)
+    signal moveRequested(int from, int to)
+    function removeSelected() { if (removable && count > 0 && currentIndex >= 0) removeRequested(currentIndex) }
     signal sortRequested(string key)
     signal columnsRequested(real x, real y)   // right-click on the header, with the window position
     signal activated(int row)
@@ -63,6 +71,18 @@ ListView {
     function pick() { if (count > 0) menuRequested(currentIndex) }
 
     FastWheel { view: root }
+
+    // Where a dragged row would land.
+    Rectangle {
+        readonly property Item target: root.dropAt >= 0 ? root.itemAtIndex(root.dropAt) : null
+        visible: root.dragFrom >= 0 && target !== null
+        z: 5
+        x: 0
+        width: root.width
+        height: 3
+        y: target ? (root.dropAt > root.dragFrom ? target.y + target.height : target.y) - 1 : 0
+        color: theme.accent
+    }
 
     headerPositioning: ListView.OverlayHeader
     header: Rectangle {
@@ -188,6 +208,7 @@ ListView {
         readonly property string artistText: dash >= 0 ? subtitle.substring(0, dash) : subtitle
         readonly property string albumText: dash >= 0 ? subtitle.substring(dash + 3) : ""
 
+        opacity: root.dragFrom === index ? 0.45 : 1
         width: ListView.view.width
         height: root.table ? Math.max(S.sp(52), root.artSize + S.sp(12))
                            : Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
@@ -229,7 +250,7 @@ ListView {
 
         function cellText(id) {
             switch (id) {
-            case "title": return title
+            case "title": return (index === root.playingRow ? "▶  " : "") + title
             case "artist": return artistText
             case "album": return albumText
             case "albumartist": return info.albumArtist ?? ""
@@ -353,9 +374,30 @@ ListView {
 
         MouseArea {
             id: rowArea
+            property point pressAt
             anchors.fill: parent
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onPressed: (mouse) => { pressAt = mapToItem(root.contentItem, mouse.x, mouse.y) }
+            onPositionChanged: (mouse) => {
+                if (!root.reorderable || !(mouse.buttons & Qt.LeftButton)) return
+                const p = mapToItem(root.contentItem, mouse.x, mouse.y)
+                if (root.dragFrom < 0 && Math.abs(p.y - pressAt.y) > S.sp(8)) {
+                    root.dragFrom = index
+                    root.currentIndex = index
+                }
+                if (root.dragFrom === index) {
+                    const at = root.indexAt(p.x, p.y)
+                    if (at >= 0) root.dropAt = at
+                }
+            }
+            onReleased: {
+                if (root.dragFrom !== index) return
+                const from = index, to = root.dropAt
+                root.dragFrom = -1
+                root.dropAt = -1
+                if (to >= 0 && to !== from) root.moveRequested(from, to)
+            }
             onClicked: (mouse) => {
                 root.currentIndex = index
                 if (mouse.button === Qt.RightButton) {

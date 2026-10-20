@@ -53,7 +53,24 @@ ApplicationWindow {
         keyRoot.forceActiveFocus()
     }
 
-    function showContext(tracks, x, y, canRemove, folderPath) {
+    // Up/Down moves the selection; with Shift, in the Queue, it moves the selected song itself.
+    function moveSelection(delta, shift) {
+        const l = currentList()
+        if (shift && isTab("Queue") && !searching) {
+            const from = l.currentIndex, to = from + delta
+            if (to >= 0 && to < player.queue.count) {
+                player.moveRow(from, to)
+                l.currentIndex = to
+                l.positionViewAtIndex(to, ListView.Contain)
+            }
+            return
+        }
+        l.move(delta)
+    }
+
+    function showContext(tracks, x, y, canRemove, folderPath, queueRow) {
+        contextMenu.queueRow = queueRow ?? -1
+        contextMenu.queueCount = player.queue.count
         contextMenu.tracks = tracks
         contextMenu.canRemove = canRemove
         contextMenu.folderPath = folderPath ?? ""
@@ -93,9 +110,9 @@ ApplicationWindow {
             break
         }
         case Qt.Key_J:
-        case Qt.Key_Down: currentList().move(1); break
+        case Qt.Key_Down: win.moveSelection(1, e.modifiers & Qt.ShiftModifier); break
         case Qt.Key_K:
-        case Qt.Key_Up: currentList().move(-1); break
+        case Qt.Key_Up: win.moveSelection(-1, e.modifiers & Qt.ShiftModifier); break
         case Qt.Key_Return:
         case Qt.Key_Enter: currentList().activate(); break
         case Qt.Key_A: currentList().enqueue(); break
@@ -442,7 +459,11 @@ ApplicationWindow {
                             playingRow: player.currentIndex
                             onActivated: (row) => player.jumpTo(row)
                             onMenuRequested: (row) => picker.openFor([player.queue.get(row)])
-                            onContextRequested: (row, x, y) => win.showContext([player.queue.get(row)], x, y, false)
+                            onContextRequested: (row, x, y) => win.showContext([player.queue.get(row)], x, y, false, "", row)
+                            removable: true
+                            reorderable: true
+                            onRemoveRequested: (row) => { player.removeAt(row); currentIndex = Math.min(row, player.queue.count - 1) }
+                            onMoveRequested: (from, to) => { player.moveRow(from, to); currentIndex = to }
                         }
 
                         SettingsForm { }   // Settings

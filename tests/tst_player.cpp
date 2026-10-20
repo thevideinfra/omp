@@ -153,6 +153,79 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 3000);
     }
 
+    void removeAtDropsASongAndKeepsTheRestInStep()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 5.0), b = writeWav(dir.filePath("b.wav"), 5.0);
+        const QString c = writeWav(dir.filePath("c.wav"), 5.0), d = writeWav(dir.filePath("d.wav"), 5.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        const auto order = [&] {
+            QStringList o;
+            for (int i = 0; i < p.queue()->rowCount(); ++i)
+                o << p.queue()->get(i).value("title").toString();
+            return o;
+        };
+        p.playTracks({row(a, "A"), row(b, "B"), row(c, "C"), row(d, "D")}, 1);       // B is playing
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 3000);
+
+        p.removeAt(3);                                                              // after the playing song
+        QCOMPARE(order(), QStringList({"A", "B", "C"}));
+        QCOMPARE(p.current().value("title").toString(), QString("B"));
+        p.removeAt(0);                                                              // before it
+        QCOMPARE(order(), QStringList({"B", "C"}));
+        QCOMPARE(p.currentIndex(), 0);
+        QCOMPARE(p.current().value("title").toString(), QString("B"));              // still B, now first
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 3000);
+
+        p.next();                                                                   // mpv agrees about the order
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 3000);
+
+        p.previous();
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 3000);
+        p.removeAt(0);                                                              // the playing one: playback moves on
+        QCOMPARE(order(), QStringList({"C"}));
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 3000);
+        p.removeAt(9);                                                              // out of range: nothing
+        QCOMPARE(p.queue()->rowCount(), 1);
+    }
+
+    void moveRowReordersTheQueueAndMpvFollows()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 5.0), b = writeWav(dir.filePath("b.wav"), 5.0);
+        const QString c = writeWav(dir.filePath("c.wav"), 5.0), d = writeWav(dir.filePath("d.wav"), 5.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        const auto order = [&] {
+            QStringList o;
+            for (int i = 0; i < p.queue()->rowCount(); ++i)
+                o << p.queue()->get(i).value("title").toString();
+            return o;
+        };
+        p.playTracks({row(a, "A"), row(b, "B"), row(c, "C"), row(d, "D")}, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("A"), 3000);
+
+        p.moveRow(3, 1);                                                            // D up to second place
+        QCOMPARE(order(), QStringList({"A", "D", "B", "C"}));
+        QCOMPARE(p.currentIndex(), 0);
+        p.moveRow(0, 2);                                                            // the playing song down
+        QCOMPARE(order(), QStringList({"D", "B", "A", "C"}));
+        QCOMPARE(p.currentIndex(), 2);
+        QCOMPARE(p.current().value("title").toString(), QString("A"));
+        p.moveRow(1, 3);                                                            // across the playing one
+        QCOMPARE(order(), QStringList({"D", "A", "C", "B"}));
+        QCOMPARE(p.currentIndex(), 1);
+        QCOMPARE(p.current().value("title").toString(), QString("A"));
+
+        p.next();                                                                   // mpv has the same order
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 3000);
+        p.moveRow(5, 0);                                                            // out of range: nothing
+        QCOMPARE(order(), QStringList({"D", "A", "C", "B"}));
+    }
+
     void enqueueAndClear()
     {
         QTemporaryDir dir;

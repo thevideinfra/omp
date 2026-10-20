@@ -78,6 +78,10 @@ public:
     Q_INVOKABLE void seekTo(double seconds);
     Q_INVOKABLE void jumpTo(int index);
     Q_INVOKABLE void clearQueue();
+    // Takes a song out of the queue; the one playing is skipped to the next.
+    Q_INVOKABLE void removeAt(int index);
+    // Moves a song so that it ends up at index `to`; the playing song keeps playing.
+    Q_INVOKABLE void moveRow(int from, int to);
 
 signals:
     void readyChanged();

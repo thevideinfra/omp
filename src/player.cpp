@@ -283,6 +283,41 @@ void Player::jumpTo(int index)
     m_client.setProperty("pause", false);
 }
 
+void Player::removeAt(int index)
+{
+    if (index < 0 || index >= m_queue.rowCount())
+        return;
+    QVector<QVariantMap> rows = m_queue.rows();
+    rows.remove(index);
+    m_queue.setRows(rows);
+    m_client.command({QStringLiteral("playlist-remove"), index});
+    if (index < m_index) {   // an earlier song went: the playing one moved up a place
+        --m_index;
+        emit currentIndexChanged();
+    }
+    emit currentChanged();
+}
+
+void Player::moveRow(int from, int to)
+{
+    const int n = m_queue.rowCount();
+    if (from < 0 || from >= n || to < 0 || to >= n || from == to)
+        return;
+    QVector<QVariantMap> rows = m_queue.rows();
+    rows.insert(to, rows.takeAt(from));
+    m_queue.setRows(rows);
+    // mpv's playlist-move puts the entry *before* the given index.
+    m_client.command({QStringLiteral("playlist-move"), from, to > from ? to + 1 : to});
+    if (m_index == from)
+        m_index = to;
+    else if (from < m_index && to >= m_index)
+        --m_index;
+    else if (from > m_index && to <= m_index)
+        ++m_index;
+    emit currentIndexChanged();
+    emit currentChanged();
+}
+
 void Player::clearQueue()
 {
     // mpv's playlist-clear keeps the entry that is playing, so the song carries on.

@@ -16,6 +16,12 @@ public:
     Q_INVOKABLE void playTracks(const QVariantList &t, int start) { played = t; playedStart = start; }
     Q_INVOKABLE void enqueueTracks(const QVariantList &t) { queued = t; }
     Q_INVOKABLE void playNext(const QVariantList &t) { next = t; }
+    Q_INVOKABLE void removeAt(int i) { removed << i; }
+    Q_INVOKABLE void moveRow(int from, int to) { moves << QPoint(from, to); }
+    Q_PROPERTY(int queueCount MEMBER queueCount)
+    QList<int> removed;
+    QList<QPoint> moves;
+    int queueCount = 4;
     QVariantList played, queued, next;
     int playedStart = -1;
 };
@@ -206,6 +212,29 @@ private slots:
         QSignalSpy removed(menu, SIGNAL(removeFromPlaylist()));
         QVERIFY(QMetaObject::invokeMethod(entry("remove"), "triggered"));
         QCOMPARE(removed.count(), 1);
+    }
+
+    void queueRowsCanBeRemovedAndMoved()
+    {
+        menu->setProperty("tracks", QVariantList{song("/m/a.flac")});
+        menu->setProperty("queueRow", -1);
+        QVERIFY(!entry("removeQueue")->property("wanted").toBool());   // only for a row of the Queue tab
+        menu->setProperty("queueRow", 2);
+        menu->setProperty("queueCount", 4);
+        QVERIFY(entry("removeQueue")->property("wanted").toBool());
+        QVERIFY(entry("moveUp")->property("enabled").toBool());
+        QVERIFY(entry("moveDown")->property("enabled").toBool());
+        QVERIFY(QMetaObject::invokeMethod(entry("removeQueue"), "triggered"));
+        QCOMPARE(player.removed, QList<int>({2}));
+        QVERIFY(QMetaObject::invokeMethod(entry("moveUp"), "triggered"));
+        QVERIFY(QMetaObject::invokeMethod(entry("moveDown"), "triggered"));
+        QCOMPARE(player.moves, QList<QPoint>({QPoint(2, 1), QPoint(2, 3)}));
+
+        menu->setProperty("queueRow", 0);
+        QVERIFY(!entry("moveUp")->property("enabled").toBool());       // the first cannot go up
+        menu->setProperty("queueRow", 3);
+        QVERIFY(!entry("moveDown")->property("enabled").toBool());     // nor the last down
+        menu->setProperty("queueRow", -1);
     }
 
     void aMusicFolderRowCanBeRemovedFromTheLibrary()

@@ -100,6 +100,25 @@ private slots:
         QCOMPARE(p.queue()->get(2).value("title").toString(), QString("C"));
     }
 
+    void aResolverTurnsServerPathsIntoStreamUrls()
+    {
+        QTemporaryDir dir;
+        const QString wav = writeWav(dir.filePath("a.wav"), 4.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.setPathResolver([&](const QString &path) { return path == "subsonic:1" ? wav : path; });
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        p.playTracks({row("subsonic:1", "Remote")}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(p.position() > 0.1, 5000);       // it really played the wav
+        QCOMPARE(p.queue()->get(0).value("path").toString(), QString("subsonic:1"));   // the queue keeps the id
+
+        p.enqueue(row("subsonic:1", "Again"));                    // enqueue and shuffle resolve too
+        p.setShuffle(true);
+        QTRY_COMPARE_WITH_TIMEOUT(p.queue()->rowCount(), 2, 3000);
+        QCOMPARE(p.queue()->get(1).value("path").toString(), QString("subsonic:1"));
+    }
+
     void enqueueAndClear()
     {
         QTemporaryDir dir;

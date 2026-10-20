@@ -34,6 +34,9 @@ public:
     ~Player() override;
 
     void start();
+    // Turns a queue path into what mpv loads (a server song's id into its stream URL);
+    // the queue itself keeps the original path.
+    void setPathResolver(std::function<QString(const QString &)> resolver) { m_resolver = std::move(resolver); }
 
     bool ready() const { return m_ready; }
     bool playing() const { return m_playing; }
@@ -98,6 +101,9 @@ private:
     void applyEqualizer();
     void reorderUpcoming(const std::function<void(QVector<QVariantMap> &)> &order);
 
+    QString resolve(const QString &path) const { return m_resolver ? m_resolver(path) : path; }
+
+    std::function<QString(const QString &)> m_resolver;
     QString m_program;
     QStringList m_extraArgs;
     QString m_socketPath;

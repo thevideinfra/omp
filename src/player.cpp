@@ -198,7 +198,7 @@ void Player::playTracks(const QVariantList &tracks, int startIndex)
     }
     m_queue.setRows(rows);
     for (int i = 0; i < rows.size(); ++i) {
-        m_client.command({QStringLiteral("loadfile"), rows.at(i).value("path").toString(),
+        m_client.command({QStringLiteral("loadfile"), resolve(rows.at(i).value("path").toString()),
                           i == 0 ? QStringLiteral("replace") : QStringLiteral("append")});
     }
     if (startIndex > 0)
@@ -215,7 +215,7 @@ void Player::enqueue(const QVariantMap &track)
     QVariantMap row = track;
     row.insert(QStringLiteral("seq"), qMax(seq, int(m_queue.rowCount())));
     m_queue.append(row);
-    m_client.command({QStringLiteral("loadfile"), track.value("path").toString(),
+    m_client.command({QStringLiteral("loadfile"), resolve(track.value("path").toString()),
                       QStringLiteral("append-play")});
     emit currentChanged();
 }
@@ -359,7 +359,7 @@ void Player::reorderUpcoming(const std::function<void(QVector<QVariantMap> &)> &
     for (int i = 0; i < upcoming.size(); ++i)
         m_client.command({QStringLiteral("playlist-remove"), m_index + 1});
     for (const QVariantMap &r : std::as_const(upcoming))
-        m_client.command({QStringLiteral("loadfile"), r.value(QStringLiteral("path")).toString(),
+        m_client.command({QStringLiteral("loadfile"), resolve(r.value(QStringLiteral("path")).toString()),
                           QStringLiteral("append")});
     rows.resize(m_index + 1);
     rows += upcoming;

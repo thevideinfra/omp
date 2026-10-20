@@ -5,7 +5,9 @@
 #include "library.h"
 #include "secrets.h"
 #include "settings.h"
+#include "player.h"
 #include "subsonicsource.h"
+#include "testutil.h"
 #include "subsonicclient.h"
 #include "track.h"
 
@@ -197,6 +199,27 @@ private slots:
         source2.start();
         QCOMPARE(again.songs()->rowCount(), 5);                  // at once, from the cache
         QTRY_VERIFY(source2.status().startsWith("Connected"));
+    }
+
+    void mpvStreamsASongFromTheServerUrl()
+    {
+        QTemporaryDir dir;
+        FakeSubsonic fake;
+        QFile wav(writeWav(dir.filePath("s.wav"), 4.0));
+        QVERIFY(wav.open(QIODevice::ReadOnly));
+        fake.setBinary("stream", wav.readAll(), "audio/wav");
+        SubsonicClient client;
+        client.setServer(fake.url(), "amy", "sesame");
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.setPathResolver([&](const QString &path) { return client.streamUrl(path.mid(9)).toString(QUrl::FullyEncoded); });
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        QVariantMap row{{"path", "subsonic:42"}, {"title", "Far"}, {"artist", "Amy"}, {"album", "Beta"},
+                        {"duration", 4.0}, {"subtitle", "Amy — Beta"}, {"meta", "0:04"}, {"cover", ""}};
+        p.playTracks({row}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.position() > 0.3, 8000);
+        QVERIFY(fake.count("stream") >= 1);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("id"), QString("42"));
     }
 
     void aDeadServerKeepsTheCachedSongs()

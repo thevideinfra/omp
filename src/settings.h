@@ -16,6 +16,8 @@ class Settings : public QObject
     Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
     Q_PROPERTY(bool saveLayout READ saveLayout NOTIFY changed)
     Q_PROPERTY(bool saveSort READ saveSort NOTIFY changed)
+    Q_PROPERTY(bool railCollapsed READ railCollapsed NOTIFY changed)
+    Q_PROPERTY(bool showSourceTags READ showSourceTags NOTIFY changed)
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
     Q_PROPERTY(QString serverUrl READ serverUrl NOTIFY changed)
     Q_PROPERTY(QString serverUser READ serverUser NOTIFY changed)
@@ -56,6 +58,8 @@ public:
     bool serverEnabled() const { return m_values.value("serverEnabled").toBool(); }
     QString serverUrl() const { return m_values.value("serverUrl").toString(); }
     QString serverUser() const { return m_values.value("serverUser").toString(); }
+    bool railCollapsed() const { return m_values.value("railCollapsed").toBool(); }
+    bool showSourceTags() const { return m_values.value("showSourceTags").toBool(); }
     bool saveSort() const { return m_values.value("saveSort").toBool(); }
     QString sortSongs() const { return m_values.value("sortSongs").toString(); }
     QString sortAlbums() const { return m_values.value("sortAlbums").toString(); }

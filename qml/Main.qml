@@ -99,11 +99,15 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 spacing: 0
 
-                // left rail
+                // left rail: names and pictures, or only the pictures when collapsed
                 Rectangle {
+                    id: rail
+                    readonly property bool collapsed: settingsStore.railCollapsed
                     Layout.fillHeight: true
-                    Layout.preferredWidth: S.sp(140)
+                    Layout.preferredWidth: collapsed ? S.sp(60) : S.sp(168)
                     color: theme.sunken
+                    clip: true
+                    Behavior on Layout.preferredWidth { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
                     // Room for a logo; the name stands in until there is one.
                     Item {
@@ -115,7 +119,7 @@ ApplicationWindow {
                         height: S.sp(64)
                         UiText {
                             anchors.centerIn: parent
-                            text: "omamusic"
+                            text: rail.collapsed ? "om" : "omamusic"
                             color: theme.accent
                             px: 16
                         }
@@ -125,31 +129,81 @@ ApplicationWindow {
                         anchors.fill: parent
                         anchors.margins: S.sp(8)
                         anchors.topMargin: logoArea.y + logoArea.height + S.sp(8)
+                        anchors.bottomMargin: S.sp(52)
                         spacing: S.sp(4)
                         Repeater {
                             model: win.tabNames
                             delegate: Rectangle {
+                                id: tabRow
                                 required property int index
                                 required property string modelData
+                                readonly property bool current: win.tab === index && !win.searching
                                 width: parent.width
-                                height: S.sp(36)
+                                height: S.sp(38)
                                 radius: S.sp(6)
-                                color: win.tab === index && !win.searching ? Qt.alpha(theme.accent, 0.12) : "transparent"
-                                border.width: win.tab === index && !win.searching ? 1 : 0
+                                color: current ? Qt.alpha(theme.accent, 0.12)
+                                       : tabArea.containsMouse ? Qt.alpha(theme.foreground, 0.06) : "transparent"
+                                border.width: current ? 1 : 0
                                 border.color: Qt.alpha(theme.accent, 0.45)
-                                UiText {
+                                TabIcon {
+                                    id: tabIcon
+                                    x: rail.collapsed ? (parent.width - width) / 2 : S.sp(10)
                                     anchors.verticalCenter: parent.verticalCenter
-                                    x: S.sp(10)
+                                    kind: tabRow.modelData.toLowerCase()
+                                    ink: win.tab === tabRow.index ? theme.accent : theme.foreground
+                                }
+                                UiText {
+                                    visible: !rail.collapsed
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: S.sp(10) + tabIcon.width + S.sp(10)
                                     text: modelData
                                     color: win.tab === index ? theme.accent : theme.foreground
                                 }
                                 MouseArea {
+                                    id: tabArea
                                     anchors.fill: parent
+                                    hoverEnabled: true
                                     onClicked: { win.tab = index; searchField.text = ""; keyRoot.forceActiveFocus() }
                                 }
+                                ToolTip.visible: rail.collapsed && tabArea.containsMouse
+                                ToolTip.text: modelData
+                                ToolTip.delay: 400
                             }
                         }
                     }
+
+                    // Collapse or expand the rail.
+                    Rectangle {
+                        id: collapseButton
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: S.sp(8)
+                        x: S.sp(8)
+                        width: parent.width - S.sp(16)
+                        height: S.sp(34)
+                        radius: S.sp(6)
+                        color: collapseArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
+                        border.width: 1
+                        border.color: collapseArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
+                        UiText {
+                            anchors.centerIn: parent
+                            text: rail.collapsed ? "»" : "«  " + qsTr("Collapse")
+                            px: 14
+                        }
+                        MouseArea {
+                            id: collapseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { settingsStore.set("railCollapsed", !rail.collapsed); keyRoot.forceActiveFocus() }
+                        }
+                    }
+                }
+
+                // The divider between the rail and the first column.
+                Rectangle {
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 2
+                    color: Qt.alpha(theme.accent, 0.35)
                 }
 
                 // content

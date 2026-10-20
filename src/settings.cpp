@@ -53,6 +53,8 @@ const QVector<Key> &keys()
         {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
         {"saveLayout", "save_layout", Type::Bool, false, {}},
         {"saveSort", "save_sort", Type::Bool, false, {}},
+        {"railCollapsed", "rail_collapsed", Type::Bool, false, {}},
+        {"showSourceTags", "show_source_tags", Type::Bool, true, {}},
         {"serverEnabled", "server_enabled", Type::Bool, false, {}},
         {"serverUrl", "server_url", Type::String, QString(), {}},
         {"serverUser", "server_user", Type::String, QString(), {}},

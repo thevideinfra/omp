@@ -132,6 +132,22 @@ private slots:
         QCOMPARE(again.sortAlbums(), QString());
     }
 
+    void railAndTagOptionsDefaultAndPersist()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QVERIFY(!s.railCollapsed());          // the rail starts expanded
+            QVERIFY(s.showSourceTags());          // and the local/server tags show
+            s.set("railCollapsed", true);
+            s.set("showSourceTags", false);
+        }
+        Settings again(f);
+        QVERIFY(again.railCollapsed());
+        QVERIFY(!again.showSourceTags());
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

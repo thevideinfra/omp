@@ -61,6 +61,13 @@ Item {
             ToggleRow {
                 visible: root.section === 0
                 Layout.fillWidth: true
+                label: qsTr("Show local / server tags on songs")
+                checked: settingsStore.showSourceTags
+                onToggled: (v) => settingsStore.set("showSourceTags", v)
+            }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
                 label: qsTr("Remember sort order")
                 checked: settingsStore.saveSort
                 onToggled: (v) => settingsStore.set("saveSort", v)

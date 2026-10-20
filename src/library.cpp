@@ -340,7 +340,7 @@ void Library::restoreSortState(const QString &tab, const QString &state)
 
 void Library::setSongSort(const QString &key)
 {
-    static const QStringList keys{"title", "artist", "album", "length", "added"};
+    static const QStringList keys{"title", "artist", "album", "year", "length", "added", "favorite"};
     if (!keys.contains(key) || key == m_songSort)
         return;
     m_songSort = key;
@@ -379,6 +379,13 @@ void Library::rebuildSongs()
             return ciLess(a.artist, b.artist);
         if (key == QLatin1String("album") && QString::compare(a.album, b.album, Qt::CaseInsensitive) != 0)
             return ciLess(a.album, b.album);
+        if (key == QLatin1String("year") && a.year != b.year) {
+            if (a.year == 0 || b.year == 0)
+                return b.year == 0 && a.year != 0;   // unknown years go last
+            return a.year < b.year;
+        }
+        if (key == QLatin1String("favorite") && a.starred != b.starred)
+            return a.starred;
         if (key == QLatin1String("length") && a.duration != b.duration)
             return a.duration < b.duration;
         if (key == QLatin1String("added") && a.mtime != b.mtime)

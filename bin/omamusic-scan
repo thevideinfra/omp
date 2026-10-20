@@ -50,6 +50,15 @@ def load_cache(path):
     return cache
 
 
+def year_of(tags):
+    """The four-digit year from the date, year or original date tag, 0 when there is none."""
+    for key in ("date", "year", "originaldate", "originalyear"):
+        value = str(tags.get(key, "")).strip()
+        if len(value) >= 4 and value[:4].isdigit():
+            return int(value[:4])
+    return 0
+
+
 def first_int(value):
     try:
         return int(str(value).split("/")[0])
@@ -84,6 +93,7 @@ def probe(path):
         "album": tags.get("album", ""),
         "track": first_int(tags.get("track", 0)),
         "disc": first_int(tags.get("disc", tags.get("discnumber", 0))),
+        "year": year_of(tags),
         "duration": duration,
     }
 
@@ -147,7 +157,8 @@ def scan_folder(folder, cache):
             return
         _, path, size, mtime = item
         entry = cache.get(path)
-        if not (entry and entry.get("size") == size and entry.get("mtime") == mtime):
+        # An entry from before years were read has no "year": probe it again once.
+        if not (entry and entry.get("size") == size and entry.get("mtime") == mtime and "year" in entry):
             try:
                 info = probe(path)
             except ProbeTimeout:

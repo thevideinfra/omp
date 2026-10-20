@@ -114,11 +114,33 @@ class ScanTest(unittest.TestCase):
                         "title": "Cached",
                         "size": st.st_size,
                         "mtime": int(st.st_mtime),
+                        "year": 0,
                     }
                 )
                 + "\n"
             )
             self.assertEqual(scan("--cache", str(cache), d)[0]["title"], "Cached")
+
+    def test_reads_the_year_from_the_date_or_year_tag(self):
+        with tempfile.TemporaryDirectory() as d:
+            make_flac(Path(d) / "a.flac", title="A", date="2019-05-01")
+            make_flac(Path(d) / "b.flac", title="B", year="1987")
+            make_flac(Path(d) / "c.flac", title="C")
+            years = {e["title"]: e["year"] for e in scan(d)}
+            self.assertEqual(years, {"A": 2019, "B": 1987, "C": 0})
+
+    def test_a_cache_entry_from_before_years_is_probed_again(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "a.flac"
+            make_flac(f, title="Real", date="2001")
+            st = f.stat()
+            cache = Path(d) / "cache.jsonl"
+            cache.write_text(
+                json.dumps({"path": str(f), "title": "Old", "size": st.st_size, "mtime": int(st.st_mtime)}) + "\n"
+            )
+            e = scan("--cache", str(cache), d)[0]
+            self.assertEqual(e["title"], "Real")
+            self.assertEqual(e["year"], 2001)
 
     def test_cache_miss_reprobes(self):
         with tempfile.TemporaryDirectory() as d:

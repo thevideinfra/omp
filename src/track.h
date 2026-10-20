@@ -13,6 +13,7 @@ struct Track
     QString album;
     int track = 0;
     int disc = 0;
+    int year = 0;          // 0 when unknown
     double duration = 0;
     qint64 size = 0;
     qint64 mtime = 0;

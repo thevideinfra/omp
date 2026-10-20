@@ -124,6 +124,7 @@ Track SubsonicClient::parseSong(const QJsonObject &o)
         t.album = QStringLiteral("Unknown Album");
     t.track = o.value("track").toInt();
     t.disc = o.value("discNumber").toInt();
+    t.year = o.value("year").toInt();
     t.duration = o.value("duration").toDouble();
     t.size = o.value("size").toInteger();
     const QDateTime created = QDateTime::fromString(o.value("created").toString(), Qt::ISODate);

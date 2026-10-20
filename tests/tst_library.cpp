@@ -283,6 +283,36 @@ private slots:
         QCOMPARE(lib.songSort(), QString("added"));
     }
 
+    void songsSortByYearAndByFavorite()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        Track a = mk("/m/a.flac", "Alpha", "Amy", "X", 1); a.year = 2010;
+        Track b = mk("/m/b.flac", "Bravo", "Amy", "X", 2); b.year = 1990;
+        Track c = mk("/m/c.flac", "Charlie", "Amy", "X", 3);                 // no year
+        Track r = mk("subsonic:1", "Delta", "Amy", "Y", 1); r.year = 2000; r.starred = true;
+        Track r2 = mk("subsonic:2", "Echo", "Amy", "Y", 2); r2.starred = true;
+        lib.setTracks({a, b, c});
+        lib.setRemoteTracks({r, r2});
+        const auto titles = [&] {
+            QStringList out;
+            for (int i = 0; i < lib.songs()->rowCount(); ++i)
+                out << lib.songs()->get(i).value("title").toString();
+            return out;
+        };
+        lib.setSongSort("year");
+        QCOMPARE(titles(), QStringList({"Bravo", "Delta", "Alpha", "Charlie", "Echo"}));   // unknown years last, by title
+        lib.setSongDescending(true);
+        QCOMPARE(titles(), QStringList({"Echo", "Charlie", "Alpha", "Delta", "Bravo"}));
+        lib.setSongDescending(false);
+        lib.setSongSort("favorite");
+        QCOMPARE(titles(), QStringList({"Delta", "Echo", "Alpha", "Bravo", "Charlie"}));   // starred first, then by title
+        lib.setStarred("subsonic:2", false);
+        lib.setSongSort("title");                                                           // re-sort after a change
+        lib.setSongSort("favorite");
+        QCOMPARE(titles().first(), QString("Delta"));
+        QCOMPARE(titles().at(1), QString("Alpha"));
+    }
+
     void albumsAndArtistsCanBeSorted()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

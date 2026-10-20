@@ -27,6 +27,7 @@ Track Track::fromJsonLine(const QByteArray &line, bool *ok)
         t.album = QStringLiteral("Unknown Album");
     t.track = o.value("track").toInt();
     t.disc = o.value("disc").toInt();
+    t.year = o.value("year").toInt();
     t.duration = o.value("duration").toDouble();
     t.size = o.value("size").toInteger();
     t.mtime = o.value("mtime").toInteger();
@@ -49,6 +50,8 @@ QByteArray Track::toJsonLine() const
         {"size", size},
         {"mtime", mtime},
     };
+    if (year > 0)
+        o.insert("year", year);
     if (!coverId.isEmpty())
         o.insert("cover_id", coverId);
     if (starred)
@@ -66,6 +69,7 @@ QVariantMap Track::toMap() const
         {"album", album},
         {"track", track},
         {"disc", disc},
+        {"year", year},
         {"duration", duration},
         {"subtitle", artist + QStringLiteral(" — ") + album},
         {"meta", formatTime(duration)},
@@ -79,7 +83,7 @@ QVariantMap Track::toMap() const
 QStringList Track::roleNames()
 {
     return {"path", "title", "artist", "albumArtist", "album", "track",
-            "disc", "duration", "subtitle", "meta", "cover", "coverId", "starred", "remote"};
+            "disc", "year", "duration", "subtitle", "meta", "cover", "coverId", "starred", "remote"};
 }
 
 QString Track::formatTime(double seconds)

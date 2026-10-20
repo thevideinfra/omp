@@ -11,12 +11,17 @@ ListView {
     // Song lists as a table: Title, Artist, Album and Time in aligned columns under a header row.
     property bool table: false
     readonly property real timeW: S.sp(52)
+    readonly property real yearW: S.sp(56)
     readonly property real badgeW: S.sp(120)
     readonly property real tableLeft: S.sp(8) + artSize + S.sp(10)
-    readonly property real colSpace: Math.max(0, width - tableLeft - S.sp(12) - timeW - S.sp(10) - badgeW - S.sp(10))
+    readonly property real colSpace: Math.max(0, width - tableLeft - S.sp(12) - timeW - S.sp(10) - badgeW - S.sp(10) - yearW)
     readonly property real titleW: colSpace * 0.44
     readonly property real artistW: colSpace * 0.28
     readonly property real albumW: colSpace * 0.28
+    // x of the divider before each column after the first, and before the time
+    readonly property var dividerXs: [tableLeft + titleW - S.sp(6), tableLeft + titleW + artistW - S.sp(6),
+                                      tableLeft + titleW + artistW + albumW - S.sp(6),
+                                      tableLeft + titleW + artistW + albumW + yearW - S.sp(6)]
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
@@ -48,7 +53,8 @@ ListView {
             x: root.tableLeft
             height: parent.height
             Repeater {
-                model: [[qsTr("Title"), root.titleW], [qsTr("Artist"), root.artistW], [qsTr("Album"), root.albumW]]
+                model: [[qsTr("Title"), root.titleW], [qsTr("Artist"), root.artistW],
+                        [qsTr("Album"), root.albumW], [qsTr("Year"), root.yearW]]
                 UiText {
                     required property var modelData
                     width: modelData[1]
@@ -57,6 +63,17 @@ ListView {
                     color: theme.dimForeground
                     px: 12
                 }
+            }
+        }
+        Repeater {   // dividers between the column titles
+            model: root.table ? root.dividerXs : []
+            Rectangle {
+                required property real modelData
+                x: modelData
+                y: S.sp(6)
+                width: 1
+                height: parent.height - S.sp(12)
+                color: Qt.alpha(theme.foreground, 0.2)
             }
         }
         UiText {
@@ -112,6 +129,7 @@ ListView {
                                          : cover.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
         readonly property bool favorite: { library.starredRevision; return root.songRows && cover !== "" && library.isStarred(cover) }
 
+        readonly property int yearValue: root.table && cover !== "" ? library.yearFor(cover) : 0
         readonly property int dash: subtitle.indexOf(" — ")
         readonly property string artistText: dash >= 0 ? subtitle.substring(0, dash) : subtitle
         readonly property string albumText: dash >= 0 ? subtitle.substring(dash + 3) : ""
@@ -154,6 +172,23 @@ ListView {
                 elide: Text.ElideRight
             }
             UiText { visible: cover !== ""; width: root.albumW; text: albumText; color: theme.dimForeground; elide: Text.ElideRight }
+            UiText {
+                visible: cover !== ""
+                width: root.yearW
+                text: yearValue > 0 ? yearValue : ""
+                color: theme.dimForeground
+            }
+        }
+        Repeater {   // the same dividers down every row
+            model: root.table ? root.dividerXs : []
+            Rectangle {
+                required property real modelData
+                x: modelData
+                y: 0
+                width: 1
+                height: parent.height
+                color: Qt.alpha(theme.foreground, 0.1)
+            }
         }
 
         Column {

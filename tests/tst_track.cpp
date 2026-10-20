@@ -45,6 +45,18 @@ private slots:
         QVERIFY(!local.toJsonLine().contains("cover_id"));   // the local index stays as it was
     }
 
+    void yearRoundTripsAndStaysOutOfTheIndexWhenUnknown()
+    {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(R"({"path":"/m/a.flac","year":2019})", &ok);
+        QCOMPARE(t.year, 2019);
+        QCOMPARE(Track::fromJsonLine(t.toJsonLine(), &ok).year, 2019);
+        QCOMPARE(t.toMap().value("year").toInt(), 2019);
+        QVERIFY(Track::roleNames().contains("year"));
+        const Track none = Track::fromJsonLine(R"({"path":"/m/b.flac"})", &ok);
+        QCOMPARE(none.year, 0);
+    }
+
     void fillsDefaults()
     {
         bool ok = false;

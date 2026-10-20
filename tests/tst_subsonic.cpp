@@ -90,7 +90,7 @@ private slots:
         const QJsonObject o = QJsonDocument::fromJson(R"({
             "id":"42","title":"Far","artist":"Amy","album":"Beta","track":3,"discNumber":2,
             "duration":201,"size":5000000,"created":"2021-03-04T05:06:07Z","coverArt":"al-1",
-            "starred":"2022-01-01T00:00:00Z","displayAlbumArtist":"Amy & Co"})").object();
+            "starred":"2022-01-01T00:00:00Z","displayAlbumArtist":"Amy & Co","year":1999})").object();
         const Track t = SubsonicClient::parseSong(o);
         QCOMPARE(t.path, QString("subsonic:42"));
         QCOMPARE(t.title, QString("Far"));
@@ -103,6 +103,7 @@ private slots:
         QCOMPARE(t.size, qint64(5000000));
         QCOMPARE(t.mtime, QDateTime(QDate(2021, 3, 4), QTime(5, 6, 7), QTimeZone::UTC).toSecsSinceEpoch());
         QCOMPARE(t.coverId, QString("al-1"));
+        QCOMPARE(t.year, 1999);
         QVERIFY(t.starred);
         QVERIFY(t.isRemote());
 

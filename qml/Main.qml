@@ -239,7 +239,8 @@ ApplicationWindow {
                             visible: win.isTab("Songs") && !win.searching
                             chipHeight: searchField.height
                             options: [["title", qsTr("Title")], ["artist", qsTr("Artist")], ["album", qsTr("Album")],
-                                      ["length", qsTr("Length")], ["added", qsTr("Added")]]
+                                      ["year", qsTr("Year")], ["length", qsTr("Length")], ["added", qsTr("Added")],
+                                      ["favorite", qsTr("Favorite")]]
                             sortKey: library.songSort
                             descending: library.songDescending
                             onKeyPicked: (k) => { library.songSort = k; keyRoot.forceActiveFocus() }

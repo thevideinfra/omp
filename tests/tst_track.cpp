@@ -57,6 +57,22 @@ private slots:
         QCOMPARE(none.year, 0);
     }
 
+    void remotePathsCarryTheServerAndOldOnesBelongToTheFirst()
+    {
+        QCOMPARE(Track::remotePath("s2", "42"), QString("subsonic:s2/42"));
+        QCOMPARE(Track::serverOf("subsonic:s2/42"), QString("s2"));
+        QCOMPARE(Track::songIdOf("subsonic:s2/42"), QString("42"));
+        // Before several servers there was one: its songs were "subsonic:<id>".
+        QCOMPARE(Track::serverOf("subsonic:42"), QString("s1"));
+        QCOMPARE(Track::songIdOf("subsonic:42"), QString("42"));
+        QCOMPARE(Track::normalized("subsonic:42"), QString("subsonic:s1/42"));
+        QCOMPARE(Track::normalized("subsonic:s2/42"), QString("subsonic:s2/42"));
+        QCOMPARE(Track::normalized("/music/a.flac"), QString("/music/a.flac"));   // local paths stay
+        QCOMPARE(Track::serverOf("/music/a.flac"), QString());
+        QVERIFY(Track::isRemotePath("subsonic:s2/42"));
+        QVERIFY(!Track::isRemotePath("/music/subsonic:x"));
+    }
+
     void fillsDefaults()
     {
         bool ok = false;

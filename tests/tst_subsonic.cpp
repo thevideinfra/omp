@@ -207,7 +207,7 @@ private slots:
         QVERIFY(source.status().startsWith("Connected"));
         QCOMPARE(source.state(), QString("connected"));
         QTRY_COMPARE(settings.serverType(), QString("navidrome"));   // remembered for when the server is down
-        QVERIFY(QFileInfo::exists(dir.filePath("subsonic.jsonl")));
+        QVERIFY(QFileInfo::exists(dir.filePath("subsonic-s1.jsonl")));
         QVERIFY(settings.serverEnabled());
         settings.save();
         QFile cfg(dir.filePath("config.toml"));
@@ -266,7 +266,7 @@ private slots:
         QCOMPARE(playlists.list()->get(0).value("title").toString(), QString("Road"));
         QCOMPARE(playlists.list()->get(1).value("title").toString(), QString("Favorites"));
         const QString favKey = playlists.list()->get(1).value("key").toString();
-        QCOMPARE(playlists.paths(favKey), QStringList({"subsonic:a1-1", "subsonic:a2-1"}));
+        QCOMPARE(playlists.paths(favKey), QStringList({"subsonic:s1/a1-1", "subsonic:s1/a2-1"}));
         QVERIFY(playlists.list()->get(1).value("readOnly").toBool());
 
         source.remove();
@@ -355,7 +355,7 @@ private slots:
         SubsonicClient client;
         client.setServer(fake.url(), "amy", "sesame");
         Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
-        p.setPathResolver([&](const QString &path) { return client.streamUrl(path.mid(9)).toString(QUrl::FullyEncoded); });
+        p.setPathResolver([&](const QString &path) { return client.streamUrl(Track::songIdOf(path)).toString(QUrl::FullyEncoded); });
         p.start();
         QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
         QVariantMap row{{"path", "subsonic:42"}, {"title", "Far"}, {"artist", "Amy"}, {"album", "Beta"},

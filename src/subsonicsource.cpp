@@ -42,7 +42,8 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
     connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
         setStatus(tr("Server offline: %1").arg(message), false, QStringLiteral("offline"));   // the cached songs stay
     });
-    m_library.setCoverFetcher([this](const QString &coverId, const QString &dest) {
+    m_library.setCoverFetcher([this](const QString &serverId, const QString &coverId, const QString &dest) {
+        Q_UNUSED(serverId)   // one server for now
         if (!m_client.configured())
             return false;   // asked again once the server settings are in
         m_client.download(m_client.coverUrl(coverId, 600), [this, coverId, dest](bool ok, const QByteArray &bytes) {
@@ -109,7 +110,7 @@ void SubsonicSource::toggleStar(const QString &path)
     const bool now = !m_library.isStarred(path);
     m_library.setStarred(path, now);
     publishLists(m_serverPlaylists);   // Favorites follows
-    m_client.setStarred(path.mid(9), now, [this, path, now](bool ok, const QString &err) {
+    m_client.setStarred(Track::songIdOf(path), now, [this, path, now](bool ok, const QString &err) {
         if (ok)
             return;
         m_library.setStarred(path, !now);   // the server refused: put it back

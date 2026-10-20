@@ -3,6 +3,7 @@
 #include <QHash>
 #include <functional>
 
+#include <QMap>
 #include <QObject>
 #include <QProcess>
 #include <QFileSystemWatcher>
@@ -47,8 +48,10 @@ public:
     // The local songs (the scanned index).
     void setTracks(QVector<Track> tracks);
     // The songs of a Subsonic server, listed beside the local ones; they never appear in the folder tree.
-    void setRemoteTracks(QVector<Track> tracks);
-    void loadRemoteCache();
+    // The songs of one server ("s1" is the first); each server's songs and cache stay apart.
+    void setRemoteTracks(const QString &serverId, QVector<Track> tracks);
+    void setRemoteTracks(QVector<Track> tracks) { setRemoteTracks(QStringLiteral("s1"), std::move(tracks)); }
+    void loadRemoteCache(const QString &serverId = QStringLiteral("s1"));
     // The server songs marked as favorites, in title order.
     QStringList starredRemotePaths() const;
     Q_INVOKABLE bool isStarred(const QString &path) const;
@@ -57,19 +60,19 @@ public:
     // The keys of the rows that stand for this song's artist and album in the Artists and Albums lists.
     Q_INVOKABLE QString artistKeyFor(const QString &path) const;
     Q_INVOKABLE QString albumKeyFor(const QString &path) const;
-    Q_INVOKABLE int yearFor(const QString &path) const { return m_byPath.value(path).year; }
+    Q_INVOKABLE int yearFor(const QString &path) const { return m_byPath.value(Track::normalized(path)).year; }
     // Marks a server song as a favorite (or not) in place: the lists are not rebuilt.
     void setStarred(const QString &path, bool starred);
     int starredRevision() const { return m_starredRevision; }
     // Asks for a server cover to be downloaded to a file; returns false when it cannot
     // right now (no server settings yet), so the library asks again later.
-    void setCoverFetcher(std::function<bool(const QString &coverId, const QString &destFile)> fetcher)
+    void setCoverFetcher(std::function<bool(const QString &serverId, const QString &coverId, const QString &destFile)> fetcher)
     {
         m_coverFetcher = std::move(fetcher);
     }
     // The download for a cover id finished (the file is in place).
     void coverFetched(const QString &coverId);
-    void writeRemoteCache() const;
+    void writeRemoteCache(const QString &serverId = QStringLiteral("s1")) const;
     void start();
     // Replaces the music folders and rescans (after the running scan, if any).
     void setRoots(const QStringList &roots);
@@ -142,7 +145,7 @@ private:
     void finishScan();
     void rebuildSongs();
     void combine();
-    QString remoteCacheFile() const;
+    QString remoteCacheFile(const QString &serverId) const;
     void rebuildAlbums();
     void rebuildArtists();
     QString coverCacheDir() const;
@@ -156,7 +159,7 @@ private:
     QString m_cacheFile;
 
     QVector<Track> m_local;    // scanned from the music folders
-    QVector<Track> m_remote;   // from a Subsonic server
+    QMap<QString, QVector<Track>> m_remote;   // server id -> its songs
     QVector<Track> m_tracks;   // both, what the lists are built from
     QHash<QString, QVector<Track>> m_byAlbum;    // album key -> tracks
     QHash<QString, Track> m_byPath;
@@ -170,9 +173,9 @@ private:
     bool m_ffmpegMissing = false;
     int m_coverRevision = 0;
     int m_starredRevision = 0;
-    std::function<bool(const QString &, const QString &)> m_coverFetcher;
+    std::function<bool(const QString &, const QString &, const QString &)> m_coverFetcher;
     QSet<QString> m_remoteCoversAsked;   // cover ids already requested this run
-    QString remoteCoverFile(const QString &coverId) const;
+    QString remoteCoverFile(const QString &serverId, const QString &coverId) const;
 
     RowsModel m_albums;
     RowsModel m_artists;

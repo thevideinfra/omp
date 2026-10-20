@@ -1,8 +1,10 @@
 #include "scrobbletracker.h"
 
+#include "track.h"
+
 QString ScrobbleTracker::idOf(const QString &path)
 {
-    return path.startsWith(QLatin1String("subsonic:")) ? path.mid(9) : QString();
+    return path.startsWith(QLatin1String("subsonic:")) ? Track::songIdOf(path) : QString();
 }
 
 void ScrobbleTracker::update(const QString &path, double position, double duration)

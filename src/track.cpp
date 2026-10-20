@@ -91,3 +91,29 @@ QString Track::formatTime(double seconds)
     const int s = qRound(seconds);
     return QStringLiteral("%1:%2").arg(s / 60).arg(s % 60, 2, 10, QLatin1Char('0'));
 }
+
+QString Track::remotePath(const QString &serverId, const QString &songId)
+{
+    return QStringLiteral("subsonic:") + serverId + QLatin1Char('/') + songId;
+}
+
+QString Track::serverOf(const QString &path)
+{
+    if (!isRemotePath(path))
+        return {};
+    const int slash = path.indexOf(QLatin1Char('/'));
+    return slash < 0 ? QStringLiteral("s1") : path.mid(9, slash - 9);
+}
+
+QString Track::songIdOf(const QString &path)
+{
+    if (!isRemotePath(path))
+        return {};
+    const int slash = path.indexOf(QLatin1Char('/'));
+    return slash < 0 ? path.mid(9) : path.mid(slash + 1);
+}
+
+QString Track::normalized(const QString &path)
+{
+    return isRemotePath(path) ? remotePath(serverOf(path), songIdOf(path)) : path;
+}

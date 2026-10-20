@@ -20,7 +20,15 @@ struct Track
     QString coverId;       // a server song's cover art id
     bool starred = false;  // a server song marked as a favorite
 
-    bool isRemote() const { return path.startsWith(QLatin1String("subsonic:")); }
+    bool isRemote() const { return isRemotePath(path); }
+
+    // A server song's path is "subsonic:<server id>/<song id>". Before there were several servers it
+    // was "subsonic:<song id>"; those belong to the first server, "s1".
+    static bool isRemotePath(const QString &path) { return path.startsWith(QLatin1String("subsonic:")); }
+    static QString remotePath(const QString &serverId, const QString &songId);
+    static QString serverOf(const QString &path);      // "" for a local path
+    static QString songIdOf(const QString &path);
+    static QString normalized(const QString &path);    // an old-style remote path in the new style
 
     static Track fromJsonLine(const QByteArray &line, bool *ok = nullptr);
     QByteArray toJsonLine() const;

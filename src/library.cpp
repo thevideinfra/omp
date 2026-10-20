@@ -27,7 +27,8 @@ QString fold(const QString &s)
 QString albumKey(const Track &t)
 {
     // A server album never merges with a local album of the same name.
-    return fold(t.albumArtist) + QChar(0x1f) + fold(t.album) + (t.isRemote() ? QStringLiteral("\x1f""S") : QString());
+    return fold(t.albumArtist) + QChar(0x1f) + fold(t.album)
+           + (t.isRemote() ? QStringLiteral("\x1f""S") + Track::serverOf(t.path) : QString());   // never merged across sources
 }
 
 bool trackLess(const Track &a, const Track &b)
@@ -478,23 +479,29 @@ void Library::setTracks(QVector<Track> tracks)
     combine();
 }
 
-void Library::setRemoteTracks(QVector<Track> tracks)
+void Library::setRemoteTracks(const QString &serverId, QVector<Track> tracks)
 {
-    m_remote = std::move(tracks);
+    for (Track &t : tracks)
+        t.path = Track::normalized(t.path);   // the old "subsonic:<id>" style becomes "subsonic:s1/<id>"
+    if (tracks.isEmpty())
+        m_remote.remove(serverId);
+    else
+        m_remote.insert(serverId, std::move(tracks));
     combine();
 }
 
-QString Library::remoteCacheFile() const
+QString Library::remoteCacheFile(const QString &serverId) const
 {
-    return QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/subsonic.jsonl");
+    return QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/subsonic-") + serverId + QStringLiteral(".jsonl");
 }
 
 QStringList Library::starredRemotePaths() const
 {
     QVector<Track> starred;
-    for (const Track &t : m_remote)
-        if (t.starred)
-            starred.append(t);
+    for (const QVector<Track> &list : std::as_const(m_remote))
+        for (const Track &t : list)
+            if (t.starred)
+                starred.append(t);
     std::sort(starred.begin(), starred.end(), [](const Track &a, const Track &b) { return ciLess(a.title, b.title); });
     QStringList out;
     for (const Track &t : starred)
@@ -504,7 +511,7 @@ QStringList Library::starredRemotePaths() const
 
 QVariantMap Library::trackInfo(const QString &path) const
 {
-    const auto it = m_byPath.constFind(path);
+    const auto it = m_byPath.constFind(Track::normalized(path));
     if (it == m_byPath.cend())
         return {};
     const Track &t = it.value();
@@ -515,27 +522,29 @@ QVariantMap Library::trackInfo(const QString &path) const
 
 QString Library::artistKeyFor(const QString &path) const
 {
-    const auto it = m_byPath.constFind(path);
+    const auto it = m_byPath.constFind(Track::normalized(path));
     return it == m_byPath.cend() ? QString() : m_artistDisplay.value(fold(it->albumArtist));
 }
 
 QString Library::albumKeyFor(const QString &path) const
 {
-    const auto it = m_byPath.constFind(path);
+    const auto it = m_byPath.constFind(Track::normalized(path));
     return it == m_byPath.cend() ? QString() : albumKey(*it);
 }
 
 bool Library::isStarred(const QString &path) const
 {
-    return m_byPath.value(path).starred;
+    return m_byPath.value(Track::normalized(path)).starred;
 }
 
-void Library::setStarred(const QString &path, bool starred)
+void Library::setStarred(const QString &rawPath, bool starred)
 {
-    if (!path.startsWith(QLatin1String("subsonic:")))
+    if (!Track::isRemotePath(rawPath))
         return;
+    const QString path = Track::normalized(rawPath);
     bool changed = false;
-    for (QVector<Track> *list : {&m_remote, &m_tracks}) {
+    QString serverId = Track::serverOf(path);
+    for (QVector<Track> *list : {&m_remote[serverId], &m_tracks}) {
         for (Track &t : *list) {
             if (t.path == path && t.starred != starred) {
                 t.starred = starred;
@@ -549,29 +558,33 @@ void Library::setStarred(const QString &path, bool starred)
     if (!changed)
         return;
     ++m_starredRevision;
-    writeRemoteCache();
+    writeRemoteCache(serverId);
     emit starredChanged();
 }
 
-void Library::loadRemoteCache()
+void Library::loadRemoteCache(const QString &serverId)
 {
-    QFile f(remoteCacheFile());
-    if (!f.open(QIODevice::ReadOnly))
-        return;
+    QFile f(remoteCacheFile(serverId));
+    if (!f.open(QIODevice::ReadOnly)) {
+        // The one cache file from before several servers is the first server's.
+        f.setFileName(QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/subsonic.jsonl"));
+        if (serverId != QLatin1String("s1") || !f.open(QIODevice::ReadOnly))
+            return;
+    }
     QVector<Track> tracks;
     while (!f.atEnd()) {
         bool ok = false;
         const Track t = Track::fromJsonLine(f.readLine(), &ok);
-        if (ok && t.isRemote())
+        if (ok && t.isRemote() && Track::serverOf(t.path) == serverId)
             tracks.append(t);
     }
     if (!tracks.isEmpty())
-        setRemoteTracks(tracks);
+        setRemoteTracks(serverId, tracks);
 }
 
-void Library::writeRemoteCache() const
+void Library::writeRemoteCache(const QString &serverId) const
 {
-    const QString file = remoteCacheFile();
+    const QString file = remoteCacheFile(serverId);
     if (!QDir().mkpath(QFileInfo(file).absolutePath())) {
         qWarning() << "cannot create the cache directory for" << file;
         return;
@@ -581,7 +594,7 @@ void Library::writeRemoteCache() const
         qWarning() << "cannot write the server cache" << file << f.errorString();
         return;
     }
-    for (const Track &t : m_remote) {
+    for (const Track &t : m_remote.value(serverId)) {
         f.write(t.toJsonLine());
         f.write("\n");
     }
@@ -591,7 +604,9 @@ void Library::writeRemoteCache() const
 
 void Library::combine()
 {
-    m_tracks = m_local + m_remote;
+    m_tracks = m_local;
+    for (const QVector<Track> &list : std::as_const(m_remote))
+        m_tracks += list;
     m_coverCache.clear();
     rebuildGroups();
     browse(m_folderPath);
@@ -781,7 +796,7 @@ QVariantList Library::tracksForPaths(const QStringList &paths) const
 {
     QVariantList out;
     for (int i = 0; i < paths.size(); ++i) {
-        const auto it = m_byPath.constFind(paths.at(i));
+        const auto it = m_byPath.constFind(Track::normalized(paths.at(i)));
         if (it == m_byPath.cend())
             continue;
         QVariantMap m = it->toMap();
@@ -879,9 +894,9 @@ void Library::setQuery(const QString &query)
     m_results.setRows(rows);
 }
 
-QString Library::remoteCoverFile(const QString &coverId) const
+QString Library::remoteCoverFile(const QString &serverId, const QString &coverId) const
 {
-    const QByteArray hex = QCryptographicHash::hash(coverId.toUtf8(), QCryptographicHash::Sha1).toHex();
+    const QByteArray hex = QCryptographicHash::hash((serverId + QLatin1Char('/') + coverId).toUtf8(), QCryptographicHash::Sha1).toHex();
     return coverCacheDir() + QStringLiteral("/remote-") + QString::fromLatin1(hex) + QStringLiteral(".jpg");
 }
 
@@ -893,16 +908,19 @@ void Library::coverFetched(const QString &)
 
 QString Library::coverFor(const QString &trackPath)
 {
-    if (trackPath.startsWith(QLatin1String("subsonic:"))) {   // a server song: never touches the local disk
-        const QString coverId = m_byPath.value(trackPath).coverId;
+    if (Track::isRemotePath(trackPath)) {   // a server song: never touches the local disk
+        const QString path = Track::normalized(trackPath);
+        const QString coverId = m_byPath.value(path).coverId;
         if (coverId.isEmpty())
             return QString();
-        const QString file = remoteCoverFile(coverId);
+        const QString serverId = Track::serverOf(path);
+        const QString file = remoteCoverFile(serverId, coverId);
         if (QFileInfo::exists(file))
             return QUrl::fromLocalFile(file).toString();
-        if (m_coverFetcher && !m_remoteCoversAsked.contains(coverId)
-            && m_coverFetcher(coverId, file))
-            m_remoteCoversAsked.insert(coverId);
+        const QString asked = serverId + QLatin1Char('/') + coverId;
+        if (m_coverFetcher && !m_remoteCoversAsked.contains(asked)
+            && m_coverFetcher(serverId, coverId, file))
+            m_remoteCoversAsked.insert(asked);
         return QString();
     }
     if (trackPath.isEmpty() || !isOnline(trackPath))   // never touch a share that may be hung

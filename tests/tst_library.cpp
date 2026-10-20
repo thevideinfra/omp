@@ -487,12 +487,62 @@ private slots:
         QCOMPARE(spy.count(), 2);
         QCOMPARE(index.count(), 0);                               // the lists stay as they are
         QVERIFY(lib.isStarred("subsonic:1"));
-        QCOMPARE(lib.starredRemotePaths(), QStringList({"subsonic:1", "subsonic:2"}));   // by title
+        QCOMPARE(lib.starredRemotePaths(), QStringList({"subsonic:s1/1", "subsonic:s1/2"}));   // by title
         lib.setStarred("subsonic:2", false);
-        QCOMPARE(lib.starredRemotePaths(), QStringList({"subsonic:1"}));
+        QCOMPARE(lib.starredRemotePaths(), QStringList({"subsonic:s1/1"}));
         QVERIFY(lib.tracksForPaths({"subsonic:1"}).first().toMap().value("starred").toBool());
         lib.setStarred("/local/x.flac", true);                    // only server songs can be favorites
         QCOMPARE(spy.count(), 3);
+    }
+
+    void eachServerKeepsItsOwnSongsAndCache()
+    {
+        QTemporaryDir state;
+        const QString cache = state.filePath("index.jsonl");
+        Library lib({"/m"}, "/nonexistent-scanner", cache);
+        lib.setTracks({mk("/m/a.flac", "Local", "Amy", "X", 1)});
+        Track one = mk("subsonic:s1/1", "FromOne", "Amy", "Beta", 1);
+        Track two = mk("subsonic:s2/1", "FromTwo", "Amy", "Beta", 1);    // the same album name on another server
+        lib.setRemoteTracks("s1", {one});
+        lib.setRemoteTracks("s2", {two});
+        QCOMPARE(lib.songs()->rowCount(), 3);
+        QStringList albums;
+        for (int i = 0; i < lib.albums()->rowCount(); ++i)
+            albums << lib.albums()->get(i).value("title").toString();
+        QCOMPARE(albums.count("Beta"), 2);                             // never merged across servers
+
+        lib.writeRemoteCache("s1");
+        lib.writeRemoteCache("s2");
+        QVERIFY(QFileInfo::exists(state.filePath("subsonic-s1.jsonl")));
+        QVERIFY(QFileInfo::exists(state.filePath("subsonic-s2.jsonl")));
+
+        lib.setRemoteTracks("s1", {});                                 // dropping one server leaves the other
+        QCOMPARE(lib.songs()->rowCount(), 2);
+
+        Library again({"/m"}, "/nonexistent-scanner", cache);
+        again.loadRemoteCache("s2");
+        QCOMPARE(again.songs()->rowCount(), 1);
+        QCOMPARE(again.songs()->get(0).value("title").toString(), QString("FromTwo"));
+    }
+
+    void songsFromBeforeSeveralServersBelongToTheFirstOne()
+    {
+        QTemporaryDir state;
+        const QString cache = state.filePath("index.jsonl");
+        {   // the old single cache file, with the old path style
+            QFile f(state.filePath("subsonic.jsonl"));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(R"({"path":"subsonic:77","title":"Old","artist":"Amy","album":"Beta","cover_id":"c1","starred":true})" "\n");
+        }
+        Library lib({"/m"}, "/nonexistent-scanner", cache);
+        lib.loadRemoteCache("s1");
+        QCOMPARE(lib.songs()->rowCount(), 1);
+        QCOMPARE(lib.songs()->get(0).value("path").toString(), QString("subsonic:s1/77"));   // upgraded as it was read
+        QVERIFY(lib.isStarred("subsonic:77"));                         // and the old name still finds it
+        QCOMPARE(lib.tracksForPaths({"subsonic:77"}).size(), 1);       // so old playlists keep working
+        QCOMPARE(lib.tracksForPaths({"subsonic:s1/77"}).size(), 1);
+        lib.loadRemoteCache("s2");                                     // the old file is not another server's
+        QCOMPARE(lib.songs()->rowCount(), 1);
     }
 
     void serverSongsSurviveARestartThroughTheirOwnCache()
@@ -506,7 +556,7 @@ private slots:
             r.starred = true;
             lib.setRemoteTracks({r});
             lib.writeRemoteCache();
-            QVERIFY(QFileInfo::exists(state.filePath("subsonic.jsonl")));
+            QVERIFY(QFileInfo::exists(state.filePath("subsonic-s1.jsonl")));
             QVERIFY(!QFileInfo::exists(cache));                  // the local index is not touched
         }
         Library again({"/m"}, "/nonexistent-scanner", cache);

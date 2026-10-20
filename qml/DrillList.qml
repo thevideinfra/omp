@@ -642,21 +642,47 @@ Item {
                     readonly property bool favorite: { library.starredRevision; return songPath !== "" && library.isStarred(songPath) }
 
                     width: ListView.view.width
-                    height: headerRow ? Math.max(S.sp(52), headCol.implicitHeight + S.sp(8)) : S.sp(42)
+                    // In the all-albums view each album gets a big cover and a roomy header, so the albums stand apart.
+                    readonly property bool bigHeaders: root.kind === "artist" && !root.albumsColumn
+                    readonly property real headArt: bigHeaders ? S.sp(88) : S.sp(40)
+                    height: headerRow ? Math.max(S.sp(52), headArt + S.sp(28), headCol.implicitHeight + S.sp(8))
+                                      : (bigHeaders ? S.sp(46) : S.sp(42))
                     color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
                            : detailArea.containsMouse ? Qt.alpha(theme.foreground, 0.09)   // hover, like the left panel
                            : headerRow ? Qt.alpha(theme.foreground, 0.05)
                            : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
+                    Rectangle {   // the line above each album header (the all-albums view)
+                        visible: item.headerRow && item.bigHeaders
+                        width: parent.width
+                        height: 2
+                        color: Qt.alpha(theme.accent, 0.45)
+                    }
+                    Rectangle {   // no cover: a quiet placeholder of the same size
+                        x: S.sp(8)
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: item.headArt
+                        height: item.headArt
+                        visible: item.headerRow && item.bigHeaders && art.status !== Image.Ready
+                        radius: S.sp(4)
+                        color: Qt.alpha(theme.foreground, 0.06)
+                        TabIcon {
+                            anchors.centerIn: parent
+                            width: parent.width * 0.5
+                            height: width
+                            kind: "albums"
+                            ink: Qt.alpha(theme.foreground, 0.3)
+                        }
+                    }
                     Image {
                         id: art
                         x: S.sp(8)
                         anchors.verticalCenter: parent.verticalCenter
-                        width: item.headerRow && item.artSource !== "" ? S.sp(40) : 0
-                        height: S.sp(40)
+                        width: item.headerRow && (item.artSource !== "" || item.bigHeaders) ? item.headArt : 0
+                        height: item.headArt
                         source: item.headerRow ? item.artSource : ""
-                        sourceSize.width: 80
-                        sourceSize.height: 80
+                        sourceSize.width: item.headArt * 2
+                        sourceSize.height: item.headArt * 2
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                     }
@@ -675,6 +701,7 @@ Item {
                             text: item.title
                             color: item.nowPlaying ? theme.accent : theme.foreground
                             font.bold: item.headerRow
+                            px: item.headerRow && item.bigHeaders ? 16 : 13
                             elide: Text.ElideRight
                         }
                         UiText {

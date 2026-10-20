@@ -200,6 +200,7 @@ ListView {
             case "added": return (info.mtime ?? 0) > 0 ? Qt.formatDate(new Date(info.mtime * 1000), "yyyy-MM-dd") : ""
             case "size": return (info.size ?? 0) > 0 ? (info.size / 1048576).toFixed(1) + " MB" : ""
             case "format": return info.format ?? ""
+            case "favorite": return favorite ? "♥" : ""
             case "playlists": return playlistsText
             case "time": return meta
             }
@@ -220,7 +221,8 @@ ListView {
                 anchors.verticalCenter: parent.verticalCenter
                 horizontalAlignment: modelData.right ? Text.AlignRight : Text.AlignLeft
                 text: folder ? (index === 1 ? subtitle : (modelData.id === "title" ? title : "")) : cellText(modelData.id)
-                color: modelData.id === "title" && !folder ? (index === root.playingRow ? theme.accent : theme.foreground)
+                color: modelData.id === "favorite" ? theme.accent
+                       : modelData.id === "title" && !folder ? (index === root.playingRow ? theme.accent : theme.foreground)
                        : folder && modelData.id === "title" ? theme.foreground : theme.dimForeground
                 elide: Text.ElideRight
             }
@@ -272,7 +274,7 @@ ListView {
             }
             spacing: S.sp(8)
             UiText {
-                visible: favorite
+                visible: favorite && !(root.table && root.columns.indexOf("favorite") >= 0)   // the column already says it
                 anchors.verticalCenter: parent.verticalCenter
                 text: "♥"
                 color: theme.accent

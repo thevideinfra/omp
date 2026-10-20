@@ -260,18 +260,6 @@ ApplicationWindow {
                         spacing: S.sp(8)
 
                         SortBar {
-                            visible: win.isTab("Songs") && !win.searching
-                            chipHeight: searchField.height
-                            options: [["title", qsTr("Title")], ["artist", qsTr("Artist")], ["album", qsTr("Album")],
-                                      ["year", qsTr("Year")], ["length", qsTr("Length")], ["added", qsTr("Added")],
-                                      ["favorite", qsTr("Favorite")]]
-                            sortKey: library.songSort
-                            descending: library.songDescending
-                            onKeyPicked: (k) => { library.songSort = k; keyRoot.forceActiveFocus() }
-                            onReversed: { library.songDescending = !library.songDescending; keyRoot.forceActiveFocus() }
-                        }
-
-                        SortBar {
                             visible: win.isTab("Albums") && !win.searching
                             chipHeight: searchField.height
                             options: [["title", qsTr("Title")], ["artist", qsTr("Artist")],
@@ -380,6 +368,10 @@ ApplicationWindow {
                             table: true
                             columns: settingsStore.songColumns
                             onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
+                            sortable: true
+                            sortKey: library.songSort
+                            sortDescending: library.songDescending
+                            onSortRequested: (key) => win.sortSongsBy(key)
                             model: library.songs
                             onActivated: (row) => player.playTracks([library.songs.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.songs.get(row))

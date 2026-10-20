@@ -82,7 +82,7 @@ const Key *findKey(const QString &prop)
 const QStringList &allColumns()
 {
     static const QStringList all{"title", "artist", "album", "albumartist", "year", "track", "added", "size",
-                                 "format", "playlists", "time"};
+                                 "format", "favorite", "playlists", "time"};
     return all;
 }
 

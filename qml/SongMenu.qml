@@ -11,7 +11,8 @@ Menu {
     property bool canGoArtist: true  // false when the Artists tab is hidden
     property bool canGoAlbum: true
     property string folderPath: ""   // set for a music folder at the top of Libraries: it can be removed
-    signal addToPlaylist(var tracks)
+    signal newPlaylist(var tracks)                         // "New playlist…" in the submenu
+    signal addToPlaylistNamed(string name, var tracks)   // an existing playlist in the submenu
     signal removeFromPlaylist()
     signal removeFolder(string path)
     signal goToArtist(string path)
@@ -52,6 +53,13 @@ Menu {
             text: entry.text
             color: entry.enabled ? theme.foreground : theme.dimForeground
         }
+        arrow: UiText {   // the little arrow of an entry that opens a submenu
+            x: entry.width - width - S.sp(10)
+            anchors.verticalCenter: parent.verticalCenter
+            visible: entry.subMenu !== null
+            text: "▸"
+            color: theme.dimForeground
+        }
         background: Rectangle {
             radius: S.sp(6)
             color: entry.highlighted ? Qt.alpha(theme.accent, 0.15) : "transparent"
@@ -61,7 +69,37 @@ Menu {
     Entry { objectName: "play"; text: qsTr("Play"); enabled: root.tracks.length > 0; onTriggered: root.play() }
     Entry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
     Entry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
-    Entry { objectName: "playlist"; text: qsTr("Add to playlist…"); enabled: root.tracks.length > 0; onTriggered: root.addToPlaylist(root.tracks) }
+    // Add to playlist: a submenu with a new playlist and the existing local ones.
+    delegate: Component { Entry {} }   // how submenus are drawn in this menu
+    Menu {
+        id: playlistMenu
+        objectName: "playlistMenu"
+        title: qsTr("Add to playlist")
+        enabled: root.tracks.length > 0
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: S.sp(4)
+        delegate: Component { Entry {} }
+        background: Rectangle {
+            implicitWidth: S.sp(210)
+            radius: S.sp(8)
+            color: theme.background
+            border.width: 1
+            border.color: Qt.alpha(theme.accent, 0.5)
+        }
+        Entry { objectName: "newPlaylist"; text: qsTr("New playlist…"); onTriggered: root.newPlaylist(root.tracks) }
+        MenuSeparator {
+            contentItem: Rectangle { implicitHeight: 1; color: Qt.alpha(theme.foreground, 0.15) }
+        }
+        Repeater {
+            model: { playlists.revision; return playlists.names() }
+            Entry {
+                required property string modelData
+                objectName: "pl:" + modelData
+                text: modelData
+                onTriggered: root.addToPlaylistNamed(modelData, root.tracks)
+            }
+        }
+    }
     Entry { objectName: "artist"; wanted: root.single && root.canGoArtist; text: qsTr("Go to artist"); onTriggered: root.goToArtist(root.tracks[0].path) }
     Entry { objectName: "album"; wanted: root.single && root.canGoAlbum; text: qsTr("Go to album"); onTriggered: root.goToAlbum(root.tracks[0].path) }
     Entry {

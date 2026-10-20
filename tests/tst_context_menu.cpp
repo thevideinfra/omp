@@ -32,6 +32,18 @@ signals:
     void changed();
 };
 
+class StubPlaylists : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(int revision MEMBER revision NOTIFY changed)
+public:
+    Q_INVOKABLE QStringList names() const { return list; }
+    QStringList list{"Chill", "Road"};
+    int revision = 0;
+signals:
+    void changed();
+};
+
 class StubSubsonic : public QObject
 {
     Q_OBJECT
@@ -50,6 +62,7 @@ class TstContextMenu : public QObject
     StubPlayer player;
     StubLibrary library;
     StubSubsonic subsonic;
+    StubPlaylists playlists;
     QQmlEngine *engine = nullptr;
     QObject *menu = nullptr;
     QQuickWindow *window = nullptr;
@@ -65,11 +78,13 @@ private slots:
         theme = new Theme(dir.filePath("none.toml"), this);
         engine = new QQmlEngine(this);
         auto *ctx = new QQmlContext(engine->rootContext(), engine);
+        ctx->setContextProperty("settingsStore", settings);
         ctx->setContextProperty("theme", theme);
         ctx->setContextProperty("ui", look);
         ctx->setContextProperty("player", &player);
         ctx->setContextProperty("library", &library);
         ctx->setContextProperty("subsonic", &subsonic);
+        ctx->setContextProperty("playlists", &playlists);
         // A window to hold the menu, as Main.qml does.
         QQmlComponent holder(engine);
         holder.setData("import QtQuick\nimport QtQuick.Controls\nApplicationWindow { width: 400; height: 300; visible: true }", QUrl());
@@ -102,10 +117,6 @@ private slots:
         QCOMPARE(player.playedStart, 0);
         QVERIFY(QMetaObject::invokeMethod(menu, "enqueue"));
         QCOMPARE(player.queued.size(), 1);
-        QSignalSpy add(menu, SIGNAL(addToPlaylist(QVariant)));
-        QVERIFY(QMetaObject::invokeMethod(entry("playlist"), "triggered"));
-        QCOMPARE(add.count(), 1);
-        QCOMPARE(add.first().first().value<QVariantList>().size(), 1);
     }
 
     void playNextAndGoToArtistAndAlbum()
@@ -125,6 +136,50 @@ private slots:
         menu->setProperty("tracks", QVariantList{song("/m/a.flac"), song("/m/b.flac")});   // an album row: no single artist
         QVERIFY(!entry("artist")->property("wanted").toBool());
         QVERIFY(!entry("album")->property("wanted").toBool());
+    }
+
+    void addToPlaylistOpensASubmenuOfNewAndExistingPlaylists()
+    {
+        menu->setProperty("tracks", QVariantList{song("/m/a.flac")});
+        QObject *sub = menu->findChild<QObject *>("playlistMenu");
+        QVERIFY(sub);
+        const auto item = [&](int i) {
+            QQuickItem *o = nullptr;
+            QMetaObject::invokeMethod(sub, "itemAt", Q_RETURN_ARG(QQuickItem *, o), Q_ARG(int, i));
+            return static_cast<QObject *>(o);
+        };
+        const auto texts = [&] {
+            QStringList out;
+            for (int i = 0; i < sub->property("count").toInt(); ++i)
+                out << (item(i) ? item(i)->property("text").toString() : QString());
+            return out;
+        };
+        // New playlist, a separator, then the local playlists by name.
+        QCOMPARE(sub->property("count").toInt(), 4);
+        QCOMPARE(texts().value(0), QString("New playlist…"));
+        QCOMPARE(texts().value(2), QString("Chill"));
+        QCOMPARE(texts().value(3), QString("Road"));
+
+        QSignalSpy created(menu, SIGNAL(newPlaylist(QVariant)));
+        QVERIFY(QMetaObject::invokeMethod(item(0), "triggered"));
+        QCOMPARE(created.count(), 1);
+        QCOMPARE(created.at(0).at(0).value<QVariantList>().size(), 1);
+
+        QSignalSpy added(menu, SIGNAL(addToPlaylistNamed(QString, QVariant)));
+        QVERIFY(QMetaObject::invokeMethod(item(3), "triggered"));
+        QCOMPARE(added.count(), 1);
+        QCOMPARE(added.at(0).at(0).toString(), QString("Road"));
+        QCOMPARE(added.at(0).at(1).value<QVariantList>().size(), 1);
+
+        playlists.list << "Zed";                                 // a playlist made later shows up
+        ++playlists.revision;
+        emit playlists.changed();
+        QTRY_COMPARE(sub->property("count").toInt(), 5);
+        QCOMPARE(texts().value(4), QString("Zed"));
+        playlists.list.removeLast();
+        ++playlists.revision;
+        emit playlists.changed();
+        QTRY_COMPARE(sub->property("count").toInt(), 4);
     }
 
     void aSingleServerSongCanBeFavoritedOrUnfavorited()

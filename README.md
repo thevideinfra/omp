@@ -89,7 +89,7 @@ Main window:
 | Enter | play selection |
 | a | add selection to queue |
 | m | add selection to a playlist |
-| right-click | menu at the pointer: Play, Play next, Add to queue, Add to playlist, Go to artist / album (one song), Add to / Remove from favorites (one server song), Remove from playlist (in a local playlist); Esc closes it |
+| right-click | menu at the pointer: Play, Play next, Add to queue, Add to playlist (a submenu: New playlist… and your playlists), Go to artist / album (one song), Add to / Remove from favorites (one server song), Remove from playlist (in a local playlist); Esc closes it |
 | s / o | toggle shuffle / cycle repeat |
 | f | star / unstar the playing server song |
 | Delete | remove the selected song from the open playlist |

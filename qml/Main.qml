@@ -676,7 +676,8 @@ ApplicationWindow {
     ColumnMenu { id: columnMenu; onClosed: keyRoot.forceActiveFocus() }
     SongMenu {
         id: contextMenu
-        onAddToPlaylist: (tracks) => picker.openFor(tracks)
+        onNewPlaylist: (tracks) => picker.openNew(tracks)
+        onAddToPlaylistNamed: (name, tracks) => playlists.addPaths(name, tracks.map(t => t.path))
         onGoToArtist: (path) => win.goTo("Artists", artistsTab, library.artistKeyFor(path))
         onGoToAlbum: (path) => win.goTo("Albums", albumsTab, library.albumKeyFor(path))
         onRemoveFolder: (path) => settingsStore.removeFolder(path)

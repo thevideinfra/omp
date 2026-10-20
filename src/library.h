@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QHash>
+#include <functional>
+
 #include <QObject>
 #include <QProcess>
 #include <QFileSystemWatcher>
@@ -46,6 +48,14 @@ public:
     // The songs of a Subsonic server, listed beside the local ones; they never appear in the folder tree.
     void setRemoteTracks(QVector<Track> tracks);
     void loadRemoteCache();
+    // Asks for a server cover to be downloaded to a file; returns false when it cannot
+    // right now (no server settings yet), so the library asks again later.
+    void setCoverFetcher(std::function<bool(const QString &coverId, const QString &destFile)> fetcher)
+    {
+        m_coverFetcher = std::move(fetcher);
+    }
+    // The download for a cover id finished (the file is in place).
+    void coverFetched(const QString &coverId);
     void writeRemoteCache() const;
     void start();
     // Replaces the music folders and rescans (after the running scan, if any).
@@ -143,6 +153,9 @@ private:
     QString m_extractDir;
     bool m_ffmpegMissing = false;
     int m_coverRevision = 0;
+    std::function<bool(const QString &, const QString &)> m_coverFetcher;
+    QSet<QString> m_remoteCoversAsked;   // cover ids already requested this run
+    QString remoteCoverFile(const QString &coverId) const;
 
     RowsModel m_albums;
     RowsModel m_artists;

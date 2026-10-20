@@ -779,8 +779,32 @@ void Library::setQuery(const QString &query)
     m_results.setRows(rows);
 }
 
+QString Library::remoteCoverFile(const QString &coverId) const
+{
+    const QByteArray hex = QCryptographicHash::hash(coverId.toUtf8(), QCryptographicHash::Sha1).toHex();
+    return coverCacheDir() + QStringLiteral("/remote-") + QString::fromLatin1(hex) + QStringLiteral(".jpg");
+}
+
+void Library::coverFetched(const QString &)
+{
+    ++m_coverRevision;
+    emit coversChanged();
+}
+
 QString Library::coverFor(const QString &trackPath)
 {
+    if (trackPath.startsWith(QLatin1String("subsonic:"))) {   // a server song: never touches the local disk
+        const QString coverId = m_byPath.value(trackPath).coverId;
+        if (coverId.isEmpty())
+            return QString();
+        const QString file = remoteCoverFile(coverId);
+        if (QFileInfo::exists(file))
+            return QUrl::fromLocalFile(file).toString();
+        if (m_coverFetcher && !m_remoteCoversAsked.contains(coverId)
+            && m_coverFetcher(coverId, file))
+            m_remoteCoversAsked.insert(coverId);
+        return QString();
+    }
     if (trackPath.isEmpty() || !isOnline(trackPath))   // never touch a share that may be hung
         return QString();
     const QString dir = QFileInfo(trackPath).absolutePath();

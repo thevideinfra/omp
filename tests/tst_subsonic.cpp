@@ -222,6 +222,43 @@ private slots:
         QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("id"), QString("42"));
     }
 
+    void serverCoversDownloadOncePerCoverIdAndShowUpAsFileUrls()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.setBinary("getCoverArt", QByteArray("\xff\xd8\xff\xe0 fake jpeg"), "image/jpeg");
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        client.setServer(fake.url(), "amy", "sesame");
+        SubsonicSource source(settings, library, secrets, client);
+
+        Track a, b;
+        a.path = "subsonic:1"; a.title = "One"; a.artist = a.albumArtist = "Amy"; a.album = "Beta"; a.coverId = "al-1";
+        b = a; b.path = "subsonic:2"; b.title = "Two";
+        library.setRemoteTracks({a, b});
+        QSignalSpy changed(&library, &Library::coversChanged);
+
+        QCOMPARE(library.coverFor("subsonic:1"), QString());      // queued, not there yet
+        QCOMPARE(library.coverFor("subsonic:2"), QString());      // same cover id: no second request
+        QTRY_COMPARE(changed.count(), 1);
+        const QString url = library.coverFor("subsonic:2");
+        QVERIFY(url.startsWith("file://"));
+        QVERIFY(url.endsWith(".jpg"));
+        QVERIFY(QFileInfo::exists(QUrl(url).toLocalFile()));
+        QCOMPARE(library.coverFor("subsonic:1"), url);
+        QCOMPARE(fake.count("getCoverArt"), 1);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("size"), QString("600"));
+
+        Track none = a;
+        none.path = "subsonic:3"; none.coverId.clear();
+        library.setRemoteTracks({none});
+        QCOMPARE(library.coverFor("subsonic:3"), QString());      // no cover id: nothing to ask for
+        QCOMPARE(fake.count("getCoverArt"), 1);
+    }
+
     void aDeadServerKeepsTheCachedSongs()
     {
         QTemporaryDir dir;

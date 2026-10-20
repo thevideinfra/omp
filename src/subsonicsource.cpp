@@ -1,5 +1,9 @@
 #include "subsonicsource.h"
 
+#include <QDir>
+#include <QFileInfo>
+#include <QSaveFile>
+
 SubsonicSource::SubsonicSource(Settings &settings, Library &library, Secrets &secrets,
                                SubsonicClient &client, QObject *parent)
     : QObject(parent)
@@ -18,6 +22,18 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Secrets &se
     });
     connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
         setStatus(tr("Server offline: %1").arg(message));   // the cached songs stay
+    });
+    m_library.setCoverFetcher([this](const QString &coverId, const QString &dest) {
+        if (!m_client.configured())
+            return false;   // asked again once the server settings are in
+        m_client.download(m_client.coverUrl(coverId, 600), [this, coverId, dest](bool ok, const QByteArray &bytes) {
+            if (!ok || bytes.isEmpty() || !QDir().mkpath(QFileInfo(dest).absolutePath()))
+                return;
+            QSaveFile f(dest);
+            if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() && f.commit())
+                m_library.coverFetched(coverId);
+        });
+        return true;
     });
     connect(&m_settings, &Settings::changed, this, &SubsonicSource::onSettingsChanged);
     m_signature = QStringLiteral("%1|%2|%3").arg(m_settings.serverEnabled()).arg(m_settings.serverUrl(), m_settings.serverUser());

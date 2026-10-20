@@ -52,7 +52,8 @@ ListView {
 
         width: ListView.view.width
         height: Math.max(S.sp(52), root.artSize + S.sp(12), textColumn.implicitHeight + S.sp(8))
-        color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12) : "transparent"
+        color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
+               : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
         Image {
             id: art

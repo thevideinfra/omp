@@ -259,27 +259,6 @@ ApplicationWindow {
                         Layout.margins: S.sp(8)
                         spacing: S.sp(8)
 
-                        SortBar {
-                            visible: win.isTab("Albums") && !win.searching
-                            chipHeight: searchField.height
-                            options: [["title", qsTr("Title")], ["artist", qsTr("Artist")],
-                                      ["length", qsTr("Length")], ["added", qsTr("Added")]]
-                            sortKey: library.albumSort
-                            descending: library.albumDescending
-                            onKeyPicked: (k) => { library.albumSort = k; keyRoot.forceActiveFocus() }
-                            onReversed: { library.albumDescending = !library.albumDescending; keyRoot.forceActiveFocus() }
-                        }
-
-                        SortBar {
-                            visible: win.isTab("Artists") && !win.searching
-                            chipHeight: searchField.height
-                            options: [["title", qsTr("Name")], ["length", qsTr("Length")], ["added", qsTr("Added")]]
-                            sortKey: library.artistSort
-                            descending: library.artistDescending
-                            onKeyPicked: (k) => { library.artistSort = k; keyRoot.forceActiveFocus() }
-                            onReversed: { library.artistDescending = !library.artistDescending; keyRoot.forceActiveFocus() }
-                        }
-
                         TextField {
                             id: searchField
                             Layout.fillWidth: true

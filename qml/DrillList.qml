@@ -117,6 +117,17 @@ Item {
         if (r.header) return
         playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
     }
+    // A click on a sort header of the albums or artists list: ascending first, then descending.
+    function sortBy(key) {
+        if (kind === "album") {
+            if (library.albumSort === key) library.albumDescending = !library.albumDescending
+            else { library.albumSort = key; library.albumDescending = false }
+        } else if (kind === "artist") {
+            if (library.artistSort === key) library.artistDescending = !library.artistDescending
+            else { library.artistSort = key; library.artistDescending = false }
+        }
+    }
+
     // Selects the row with this key in the left list (for "Go to artist / album").
     function selectKey(key) {
         for (let i = 0; i < top.count; ++i) {
@@ -348,6 +359,17 @@ Item {
             PaneHeader {
                 text: root.kind === "artist" ? qsTr("Artists") : root.kind === "album" ? qsTr("Albums") : qsTr("Playlists")
                 count: top.count
+            }
+
+            SortHeader {
+                visible: root.kind !== "playlist"
+                Layout.fillWidth: true
+                Layout.preferredHeight: visible ? implicitHeight : 0
+                options: root.kind === "album" ? [["title", "Title"], ["artist", "Artist"], ["length", "Length"], ["added", "Added"]]
+                                               : [["title", "Name"], ["length", "Length"], ["added", "Added"]]
+                sortKey: root.kind === "album" ? library.albumSort : library.artistSort
+                descending: root.kind === "album" ? library.albumDescending : library.artistDescending
+                onSortRequested: (key) => root.sortBy(key)
             }
 
             Rectangle {

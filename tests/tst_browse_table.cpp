@@ -114,6 +114,27 @@ private slots:
         QCOMPARE(sort.at(2).at(0).toString(), QString("length"));   // Time sorts by length
     }
 
+    void aSortHeaderStripAsksForTheClickedSort()
+    {
+        QQmlComponent comp(engine, QUrl::fromLocalFile(QStringLiteral(OMA_QML_DIR "/SortHeader.qml")));
+        QObject *o = comp.create(engine->rootContext());
+        QVERIFY2(o, qPrintable(comp.errorString()));
+        auto *strip = qobject_cast<QQuickItem *>(o);
+        strip->setParentItem(window->contentItem());
+        strip->setY(200);
+        strip->setSize(QSizeF(400, 30));
+        strip->setProperty("options", QVariantList{QVariantList{"title", "Title"}, QVariantList{"artist", "Artist"},
+                                                   QVariantList{"length", "Length"}, QVariantList{"added", "Added"}});
+        QSignalSpy sort(strip, SIGNAL(sortRequested(QString)));
+        QTest::qWait(50);   // let the row lay out its cells
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(150, 215));   // the second of four cells
+        QCOMPARE(sort.count(), 1);
+        QCOMPARE(sort.at(0).at(0).toString(), QString("artist"));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, QPoint(390, 215));
+        QCOMPARE(sort.at(1).at(0).toString(), QString("added"));
+        delete strip;
+    }
+
     void aRightClickOnTheHeaderAsksForTheColumnMenu()
     {
         QSignalSpy menu(list, SIGNAL(columnsRequested(qreal, qreal)));

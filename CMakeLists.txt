@@ -59,7 +59,7 @@ qt_add_qml_module(omamusic
         qml/FastWheel.qml
         qml/Panel.qml
         qml/SeekBar.qml
-        qml/SortBar.qml
+        qml/SortHeader.qml
         qml/TransportButton.qml
         qml/Fmt.js
         qml/Columns.js

@@ -80,14 +80,17 @@ ListView {
                 required property int index
                 readonly property bool clickable: root.sortable && modelData.sort !== ""
                 readonly property bool sorted: clickable && root.sortKey === modelData.sort
-                x: modelData.x
+                // The cell runs from one divider to the next, so its hover shade never crosses one.
+                x: modelData.x - S.sp(6)
                 width: modelData.w
                 height: parent.height
                 Rectangle {
                     anchors.fill: parent
+                    anchors.leftMargin: index > 0 ? 1 : 0
                     color: headArea.containsMouse && cell.clickable ? Qt.alpha(theme.accent, 0.1) : "transparent"
                 }
                 UiText {
+                    x: S.sp(6)
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - S.sp(12)
                     horizontalAlignment: modelData.right ? Text.AlignRight : Text.AlignLeft
@@ -98,7 +101,6 @@ ListView {
                 }
                 Rectangle {   // the divider before this column
                     visible: index > 0
-                    x: -S.sp(6)
                     y: S.sp(6)
                     width: 1
                     height: parent.height - S.sp(12)

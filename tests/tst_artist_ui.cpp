@@ -176,6 +176,20 @@ private slots:
         settings->set("saveLayout", false);
     }
 
+    void aClickOnASortHeaderSortsAscendingThenDescending()
+    {
+        QCOMPARE(library->artistSort(), QString("title"));
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortBy", Q_ARG(QVariant, QString("length"))));
+        QCOMPARE(library->artistSort(), QString("length"));
+        QVERIFY(!library->artistDescending());
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortBy", Q_ARG(QVariant, QString("length"))));
+        QVERIFY(library->artistDescending());                       // the same header again: descending
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortBy", Q_ARG(QVariant, QString("added"))));
+        QCOMPARE(library->artistSort(), QString("added"));
+        QVERIFY(!library->artistDescending());                      // another header starts ascending
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortBy", Q_ARG(QVariant, QString("title"))));   // put it back
+    }
+
     void selectKeyOpensTheArtistWithThatKey()
     {
         QVariant ok;

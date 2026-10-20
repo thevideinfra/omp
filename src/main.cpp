@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
     player.start();
     library.start();
     subsonic.start();
+    subsonic.attach(player);
     shell.handleVerb(verb);
     return app.exec();
 }

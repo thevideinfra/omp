@@ -48,6 +48,8 @@ public:
     void fetchLibrary();
     // The server's playlists as { name, paths } (paths are "subsonic:<id>"); all or nothing.
     void fetchPlaylists();
+    // "Now playing" (submission false) or "played" (true). Failures are only logged.
+    void scrobble(const QString &id, bool submission);
 
 signals:
     void pingDone(bool ok, const QString &message);

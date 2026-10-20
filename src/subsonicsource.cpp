@@ -1,5 +1,7 @@
 #include "subsonicsource.h"
 
+#include "player.h"
+
 #include <QDebug>
 #include <QDir>
 #include <QFileInfo>
@@ -44,6 +46,14 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
         });
         return true;
     });
+    connect(&m_scrobbles, &ScrobbleTracker::nowPlaying, this, [this](const QString &id) {
+        if (m_settings.serverEnabled() && m_client.configured())
+            m_client.scrobble(id, false);
+    });
+    connect(&m_scrobbles, &ScrobbleTracker::submit, this, [this](const QString &id) {
+        if (m_settings.serverEnabled() && m_client.configured())
+            m_client.scrobble(id, true);
+    });
     connect(&m_settings, &Settings::changed, this, &SubsonicSource::onSettingsChanged);
     m_signature = QStringLiteral("%1|%2|%3").arg(m_settings.serverEnabled()).arg(m_settings.serverUrl(), m_settings.serverUser());
 }
@@ -66,6 +76,20 @@ void SubsonicSource::start()
 {
     m_library.loadRemoteCache();
     sync();
+}
+
+void SubsonicSource::attach(Player &player)
+{
+    const auto feed = [this, &player] {
+        noteProgress(player.current().value(QStringLiteral("path")).toString(), player.position(), player.duration());
+    };
+    connect(&player, &Player::currentChanged, this, feed);
+    connect(&player, &Player::positionChanged, this, feed);
+}
+
+void SubsonicSource::noteProgress(const QString &path, double position, double duration)
+{
+    m_scrobbles.update(path, position, duration);
 }
 
 void SubsonicSource::onSettingsChanged()

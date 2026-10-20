@@ -28,6 +28,7 @@ qt_add_library(omacore STATIC
     src/mpris.cpp src/mpris.h
     src/subsonicclient.cpp src/subsonicclient.h
     src/secrets.cpp src/secrets.h
+    src/scrobbletracker.cpp src/scrobbletracker.h
     src/subsonicsource.cpp src/subsonicsource.h
 )
 target_include_directories(omacore PUBLIC src)

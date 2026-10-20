@@ -4,12 +4,15 @@
 
 #include "library.h"
 #include "playlists.h"
+#include "scrobbletracker.h"
 #include "secrets.h"
 #include "settings.h"
 #include "subsonicclient.h"
 
 // Keeps the server's songs in the library: shows the cached ones at once, syncs
 // in the background, and keeps the cache when the server cannot be reached.
+class Player;
+
 class SubsonicSource : public QObject
 {
     Q_OBJECT
@@ -24,6 +27,10 @@ public:
     bool syncing() const { return m_syncing; }
 
     void start();
+    // Follows what the player plays, to scrobble server songs.
+    void attach(Player &player);
+    // The playing song's path, position and duration (what attach() feeds; also for tests).
+    void noteProgress(const QString &path, double position, double duration);
     Q_INVOKABLE void sync();
     // Checks a server before it is saved; the answer arrives as `testResult`.
     Q_INVOKABLE void testConnection(const QString &url, const QString &user, const QString &password);
@@ -49,6 +56,7 @@ private:
     Secrets &m_secrets;
     SubsonicClient &m_client;
     QVariantList m_serverPlaylists;   // what the last sync fetched
+    ScrobbleTracker m_scrobbles;
     QString m_status;
     bool m_syncing = false;
     QString m_signature;   // enabled|url|user: a change means the password and library are stale

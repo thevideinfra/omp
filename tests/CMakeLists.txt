@@ -22,6 +22,7 @@ oma_test(tst_playlists)
 oma_test(tst_trayicon)
 oma_test(tst_mpris)
 oma_test(tst_secrets)
+oma_test(tst_scrobble)
 oma_test(tst_subsonic)
 target_sources(tst_subsonic PRIVATE fakesubsonic.h)   # moc for the fake server
 target_link_libraries(tst_mpris PRIVATE Qt6::DBus)

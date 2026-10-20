@@ -250,6 +250,40 @@ private slots:
         QCOMPARE(playlists.list()->rowCount(), 0);
     }
 
+    void playedServerSongsAreScrobbledToTheServer()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 1}});
+        fake.setResult("scrobble", {});
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Playlists playlists(dir.filePath("pl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        SubsonicSource source(settings, library, playlists, secrets, client);
+        source.saveServer(fake.url(), "amy", "sesame", true);
+        QTRY_VERIFY(source.status().startsWith("Connected"));
+
+        source.noteProgress("subsonic:a1-1", 0.1, 200);
+        QTRY_COMPARE(fake.count("scrobble"), 1);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("id"), QString("a1-1"));
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("submission"), QString("false"));
+        source.noteProgress("subsonic:a1-1", 120, 200);
+        QTRY_COMPARE(fake.count("scrobble"), 2);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("submission"), QString("true"));
+        source.noteProgress("/local/song.flac", 0.1, 200);        // local songs are not reported
+        QTest::qWait(200);
+        QCOMPARE(fake.count("scrobble"), 2);
+
+        settings.set("serverEnabled", false);                    // and nothing goes out when the server is off
+        source.noteProgress("subsonic:a1-1", 0.1, 200);
+        source.noteProgress("subsonic:a2-1", 0.1, 200);
+        QTest::qWait(200);
+        QCOMPARE(fake.count("scrobble"), 2);
+    }
+
     void mpvStreamsASongFromTheServerUrl()
     {
         QTemporaryDir dir;

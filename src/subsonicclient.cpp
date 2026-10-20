@@ -1,6 +1,7 @@
 #include "subsonicclient.h"
 
 #include <QCryptographicHash>
+#include <QDebug>
 #include <QDateTime>
 #include <QJsonArray>
 #include <QPointer>
@@ -255,4 +256,14 @@ void SubsonicClient::fetchPlaylists()
                        });
         }
     });
+}
+
+void SubsonicClient::scrobble(const QString &id, bool submission)
+{
+    call(QStringLiteral("scrobble"),
+         {{"id", id}, {"submission", submission ? QStringLiteral("true") : QStringLiteral("false")}},
+         [id](bool ok, const QJsonObject &, const QString &err) {
+             if (!ok)
+                 qWarning() << "scrobble failed for" << id << err;
+         });
 }

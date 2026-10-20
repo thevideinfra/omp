@@ -6,6 +6,7 @@ ListView {
     id: root
     property int playingRow: -1
     property int artSize: S.sp(40)   // thumbnail edge
+    property string slotIcon: ""      // a TabIcon kind for rows with no cover (the folders in Libraries)
     property bool songRows: false    // rows are songs: a heart marks the favorites
     property bool showSource: true   // a "local" / "server" tag, when the row's songs are known
     property bool sections: false    // group rows under their "initial" (a letter header)
@@ -183,21 +184,21 @@ ListView {
 
         // A row that stands for music (a song, an album) always has an art slot, so the text lines
         // up; without a cover it shows a quiet placeholder.
-        readonly property bool hasSlot: cover !== ""
+        readonly property bool hasSlot: cover !== "" || root.slotIcon !== ""
         Rectangle {
             x: S.sp(8)
             anchors.verticalCenter: parent.verticalCenter
             width: root.artSize
             height: root.artSize
-            visible: hasSlot && art.status !== Image.Ready
+            visible: hasSlot && (cover === "" || art.status !== Image.Ready)
             radius: S.sp(4)
             color: Qt.alpha(theme.foreground, 0.06)
             TabIcon {
                 anchors.centerIn: parent
                 width: parent.width * 0.5
                 height: width
-                kind: "albums"
-                ink: Qt.alpha(theme.foreground, 0.3)
+                kind: cover === "" ? root.slotIcon : "albums"
+                ink: Qt.alpha(theme.foreground, cover === "" ? 0.55 : 0.3)
             }
         }
         Image {

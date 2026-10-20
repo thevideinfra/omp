@@ -55,6 +55,8 @@ public:
 
 signals:
     void pingDone(bool ok, const QString &message);
+    // After a good ping: the server software ("navidrome", "airsonic"... empty for classic Subsonic) and its version.
+    void serverInfo(const QString &type, const QString &version);
     void libraryProgress(int done, int total);
     void libraryFetched(const QVector<Track> &tracks);
     void libraryFailed(const QString &message);

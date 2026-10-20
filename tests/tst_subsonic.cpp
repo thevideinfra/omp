@@ -67,6 +67,24 @@ private slots:
         QVERIFY(spy.at(1).at(1).toString().contains("Wrong username or password"));
     }
 
+    void pingReportsWhichServerSoftwareAnswered()
+    {
+        FakeSubsonic fake;
+        fake.setResult("ping", R"J("type":"navidrome","serverVersion":"0.64.2 (10114574)","openSubsonic":true)J");
+        SubsonicClient c;
+        c.setServer(fake.url(), "amy", "sesame");
+        QSignalSpy info(&c, &SubsonicClient::serverInfo);
+        c.ping();
+        QTRY_COMPARE(info.count(), 1);
+        QCOMPARE(info.at(0).at(0).toString(), QString("navidrome"));
+        QCOMPARE(info.at(0).at(1).toString(), QString("0.64.2 (10114574)"));
+
+        fake.setResult("ping", {});                              // classic Subsonic says nothing about itself
+        c.ping();
+        QTRY_COMPARE(info.count(), 2);
+        QCOMPARE(info.at(1).at(0).toString(), QString());
+    }
+
     void anUnreachableOrSilentServerFailsInsteadOfHanging()
     {
         SubsonicClient c;
@@ -175,6 +193,7 @@ private slots:
         qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
         FakeSubsonic fake;
         fake.serveAlbums({{"a1", 2}, {"a2", 3}});
+        fake.setResult("ping", R"("type":"navidrome","serverVersion":"0.64.2")");
         Settings settings(dir.filePath("config.toml"));
         Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
         Secrets secrets(writeFake(dir.path()));
@@ -187,6 +206,7 @@ private slots:
         QTRY_COMPARE(library.songs()->rowCount(), 5);
         QVERIFY(source.status().startsWith("Connected"));
         QCOMPARE(source.state(), QString("connected"));
+        QTRY_COMPARE(settings.serverType(), QString("navidrome"));   // remembered for when the server is down
         QVERIFY(QFileInfo::exists(dir.filePath("subsonic.jsonl")));
         QVERIFY(settings.serverEnabled());
         settings.save();

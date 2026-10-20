@@ -103,7 +103,9 @@ void SubsonicClient::download(const QUrl &url, std::function<void(bool, const QB
 
 void SubsonicClient::ping()
 {
-    call(QStringLiteral("ping"), {}, [this](bool ok, const QJsonObject &, const QString &message) {
+    call(QStringLiteral("ping"), {}, [this](bool ok, const QJsonObject &resp, const QString &message) {
+        if (ok)
+            emit serverInfo(resp.value("type").toString().toLower(), resp.value("serverVersion").toString());
         emit pingDone(ok, message);
     });
 }

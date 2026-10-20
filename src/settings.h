@@ -22,6 +22,7 @@ class Settings : public QObject
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
     Q_PROPERTY(QString serverUrl READ serverUrl NOTIFY changed)
     Q_PROPERTY(QString serverUser READ serverUser NOTIFY changed)
+    Q_PROPERTY(QString serverType READ serverType NOTIFY changed)
     Q_PROPERTY(bool panelShowAccent READ panelShowAccent NOTIFY changed)
     Q_PROPERTY(bool panelCover READ panelCover NOTIFY changed)
     Q_PROPERTY(bool panelSeek READ panelSeek NOTIFY changed)
@@ -58,6 +59,7 @@ public:
     int volume() const { return m_values.value("volume").toInt(); }
     bool serverEnabled() const { return m_values.value("serverEnabled").toBool(); }
     QString serverUrl() const { return m_values.value("serverUrl").toString(); }
+    QString serverType() const { return m_values.value("serverType").toString(); }   // "navidrome", "airsonic"...
     QString serverUser() const { return m_values.value("serverUser").toString(); }
     bool railCollapsed() const { return m_values.value("railCollapsed").toBool(); }
     bool showSourceTags() const { return m_values.value("showSourceTags").toBool(); }

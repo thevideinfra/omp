@@ -16,6 +16,9 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
     , m_secrets(secrets)
     , m_client(client)
 {
+    connect(&m_client, &SubsonicClient::serverInfo, this, [this](const QString &type, const QString &) {
+        m_settings.set("serverType", type);
+    });
     connect(&m_client, &SubsonicClient::libraryProgress, this, [this](int done, int total) {
         setStatus(tr("Syncing %1/%2").arg(done).arg(total), true);
     });
@@ -166,6 +169,7 @@ void SubsonicSource::publishLists(const QVariantList &serverPlaylists)
 void SubsonicSource::fetchWith(const QString &password)
 {
     m_client.setServer(m_settings.serverUrl(), m_settings.serverUser(), password);
+    m_client.ping();   // which server software it is, for the Libraries card
     m_client.fetchLibrary();
 }
 

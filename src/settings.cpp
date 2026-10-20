@@ -59,6 +59,7 @@ const QVector<Key> &keys()
         {"serverEnabled", "server_enabled", Type::Bool, false, {}},
         {"serverUrl", "server_url", Type::String, QString(), {}},
         {"serverUser", "server_user", Type::String, QString(), {}},
+        {"serverType", "server_type", Type::String, QString(), {}},
         {"sortSongs", "sort_songs", Type::String, QString(), {}},
         {"sortAlbums", "sort_albums", Type::String, QString(), {}},
         {"sortArtists", "sort_artists", Type::String, QString(), {}},

@@ -30,6 +30,8 @@ public:
     // Follows what the player plays, to scrobble server songs.
     void attach(Player &player);
     // The playing song's path, position and duration (what attach() feeds; also for tests).
+    // Stars or unstars a server song at once and tells the server; undone if it refuses.
+    Q_INVOKABLE void toggleStar(const QString &path);
     void noteProgress(const QString &path, double position, double duration);
     Q_INVOKABLE void sync();
     // Checks a server before it is saved; the answer arrives as `testResult`.

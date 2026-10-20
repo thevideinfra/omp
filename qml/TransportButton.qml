@@ -5,7 +5,7 @@ import "Scale.js" as S
 Rectangle {
     id: root
     property string glyph
-    property string icon   // "shuffle", "repeat", "repeatOne", "next", "previous" or "eq": drawn, not typeset
+    property string icon   // "shuffle", "repeat", "repeatOne", "next", "previous", "eq" or "heart": drawn, not typeset
     property bool big: false
     property bool active: false   // a toggle that is on
     signal clicked()
@@ -47,6 +47,7 @@ Rectangle {
         Connections {
             target: root
             function onIconChanged() { art.requestPaint() }
+            function onActiveChanged() { art.requestPaint() }
         }
         onWidthChanged: requestPaint()
         Component.onCompleted: requestPaint()
@@ -67,7 +68,17 @@ Rectangle {
                 ctx.closePath()
                 ctx.fill()
             }
-            if (root.icon === "eq") {
+            if (root.icon === "heart") {
+                ctx.beginPath()   // filled when it is a favorite
+                ctx.moveTo(10, 17)
+                ctx.bezierCurveTo(1, 11, 2, 3, 6.5, 3)
+                ctx.bezierCurveTo(8.5, 3, 10, 4.5, 10, 6)
+                ctx.bezierCurveTo(10, 4.5, 11.5, 3, 13.5, 3)
+                ctx.bezierCurveTo(18, 3, 19, 11, 10, 17)
+                ctx.closePath()
+                if (root.active) ctx.fill()
+                else ctx.stroke()
+            } else if (root.icon === "eq") {
                 const knobs = [12, 6, 14]   // three sliders, each with a knob
                 for (let i = 0; i < 3; ++i) {
                     const x = 4 + i * 6

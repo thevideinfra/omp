@@ -20,6 +20,7 @@ class Library : public QObject
     Q_OBJECT
     Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
     Q_PROPERTY(int coverRevision READ coverRevision NOTIFY coversChanged)
+    Q_PROPERTY(int starredRevision READ starredRevision NOTIFY starredChanged)
     Q_PROPERTY(int trackCount READ trackCount NOTIFY indexChanged)
     Q_PROPERTY(RowsModel *albums READ albums CONSTANT)
     Q_PROPERTY(RowsModel *artists READ artists CONSTANT)
@@ -50,6 +51,10 @@ public:
     void loadRemoteCache();
     // The server songs marked as favorites, in title order.
     QStringList starredRemotePaths() const;
+    Q_INVOKABLE bool isStarred(const QString &path) const;
+    // Marks a server song as a favorite (or not) in place: the lists are not rebuilt.
+    void setStarred(const QString &path, bool starred);
+    int starredRevision() const { return m_starredRevision; }
     // Asks for a server cover to be downloaded to a file; returns false when it cannot
     // right now (no server settings yet), so the library asks again later.
     void setCoverFetcher(std::function<bool(const QString &coverId, const QString &destFile)> fetcher)
@@ -115,6 +120,7 @@ signals:
     void coversChanged();
     void offlineChanged();
     void songSortChanged();
+    void starredChanged();
     void albumSortChanged();
     void artistSortChanged();
 
@@ -155,6 +161,7 @@ private:
     QString m_extractDir;
     bool m_ffmpegMissing = false;
     int m_coverRevision = 0;
+    int m_starredRevision = 0;
     std::function<bool(const QString &, const QString &)> m_coverFetcher;
     QSet<QString> m_remoteCoversAsked;   // cover ids already requested this run
     QString remoteCoverFile(const QString &coverId) const;

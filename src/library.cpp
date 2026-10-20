@@ -484,6 +484,34 @@ QStringList Library::starredRemotePaths() const
     return out;
 }
 
+bool Library::isStarred(const QString &path) const
+{
+    return m_byPath.value(path).starred;
+}
+
+void Library::setStarred(const QString &path, bool starred)
+{
+    if (!path.startsWith(QLatin1String("subsonic:")))
+        return;
+    bool changed = false;
+    for (QVector<Track> *list : {&m_remote, &m_tracks}) {
+        for (Track &t : *list) {
+            if (t.path == path && t.starred != starred) {
+                t.starred = starred;
+                changed = true;
+            }
+        }
+    }
+    auto it = m_byPath.find(path);
+    if (it != m_byPath.end())
+        it->starred = starred;
+    if (!changed)
+        return;
+    ++m_starredRevision;
+    writeRemoteCache();
+    emit starredChanged();
+}
+
 void Library::loadRemoteCache()
 {
     QFile f(remoteCacheFile());

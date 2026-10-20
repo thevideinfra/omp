@@ -267,3 +267,9 @@ void SubsonicClient::scrobble(const QString &id, bool submission)
                  qWarning() << "scrobble failed for" << id << err;
          });
 }
+
+void SubsonicClient::setStarred(const QString &id, bool starred, std::function<void(bool, const QString &)> done)
+{
+    call(starred ? QStringLiteral("star") : QStringLiteral("unstar"), {{"id", id}},
+         [done](bool ok, const QJsonObject &, const QString &err) { done(ok, err); });
+}

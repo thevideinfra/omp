@@ -30,6 +30,7 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
     });
     connect(&m_client, &SubsonicClient::playlistsFailed, this, [this](const QString &message) {
         qWarning() << "cannot fetch the server playlists:" << message;   // the songs are still there
+        publishLists(m_serverPlaylists);   // at least Favorites, and the playlists of the last sync
     });
     connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
         setStatus(tr("Server offline: %1").arg(message));   // the cached songs stay
@@ -85,6 +86,22 @@ void SubsonicSource::attach(Player &player)
     };
     connect(&player, &Player::currentChanged, this, feed);
     connect(&player, &Player::positionChanged, this, feed);
+}
+
+void SubsonicSource::toggleStar(const QString &path)
+{
+    if (!path.startsWith(QLatin1String("subsonic:")) || !m_client.configured())
+        return;
+    const bool now = !m_library.isStarred(path);
+    m_library.setStarred(path, now);
+    publishLists(m_serverPlaylists);   // Favorites follows
+    m_client.setStarred(path.mid(9), now, [this, path, now](bool ok, const QString &err) {
+        if (ok)
+            return;
+        m_library.setStarred(path, !now);   // the server refused: put it back
+        publishLists(m_serverPlaylists);
+        setStatus(tr("Could not %1 the song: %2").arg(now ? tr("star") : tr("unstar"), err));
+    });
 }
 
 void SubsonicSource::noteProgress(const QString &path, double position, double duration)

@@ -375,6 +375,29 @@ private slots:
         QCOMPARE(lib.songs()->rowCount(), 4);
     }
 
+    void favoritesCanBeToggledWithoutRebuildingTheLists()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        Track a = mk("subsonic:1", "Apple", "Amy", "Beta", 1);
+        Track b = mk("subsonic:2", "Berry", "Amy", "Beta", 2);
+        lib.setRemoteTracks({a, b});
+        QSignalSpy spy(&lib, &Library::starredChanged);
+        QSignalSpy index(&lib, &Library::indexChanged);
+        QVERIFY(!lib.isStarred("subsonic:1"));
+        lib.setStarred("subsonic:2", true);
+        lib.setStarred("subsonic:1", true);
+        lib.setStarred("subsonic:1", true);                       // no change: no signal
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(index.count(), 0);                               // the lists stay as they are
+        QVERIFY(lib.isStarred("subsonic:1"));
+        QCOMPARE(lib.starredRemotePaths(), QStringList({"subsonic:1", "subsonic:2"}));   // by title
+        lib.setStarred("subsonic:2", false);
+        QCOMPARE(lib.starredRemotePaths(), QStringList({"subsonic:1"}));
+        QVERIFY(lib.tracksForPaths({"subsonic:1"}).first().toMap().value("starred").toBool());
+        lib.setStarred("/local/x.flac", true);                    // only server songs can be favorites
+        QCOMPARE(spy.count(), 3);
+    }
+
     void serverSongsSurviveARestartThroughTheirOwnCache()
     {
         QTemporaryDir state;

@@ -50,6 +50,8 @@ public:
     void fetchPlaylists();
     // "Now playing" (submission false) or "played" (true). Failures are only logged.
     void scrobble(const QString &id, bool submission);
+    // star or unstar a song; `done(ok, error)`.
+    void setStarred(const QString &id, bool starred, std::function<void(bool, const QString &)> done);
 
 signals:
     void pingDone(bool ok, const QString &message);

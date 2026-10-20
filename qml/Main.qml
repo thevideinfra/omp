@@ -70,6 +70,7 @@ ApplicationWindow {
         case Qt.Key_M: { const l = currentList(); if (l.pick) l.pick() } break
         case Qt.Key_Delete: { const l = currentList(); if (l.removeSelected) l.removeSelected() } break
         case Qt.Key_O: player.cycleRepeat(); break
+        case Qt.Key_F: subsonic.toggleStar(player.current.path ?? ""); break
         case Qt.Key_Backspace:
             if (win.searching) break
             if (win.isTab("Folders")) library.up()
@@ -415,6 +416,12 @@ ApplicationWindow {
                                 icon: player.repeat === "one" ? "repeatOne" : "repeat"
                                 active: player.repeat !== "off"
                                 onClicked: { player.cycleRepeat(); keyRoot.forceActiveFocus() }
+                            }
+                            TransportButton {   // a server song: star it
+                                icon: "heart"
+                                visible: (player.current.path ?? "").indexOf("subsonic:") === 0
+                                active: { library.starredRevision; return library.isStarred(player.current.path ?? "") }
+                                onClicked: { subsonic.toggleStar(player.current.path ?? ""); keyRoot.forceActiveFocus() }
                             }
                             TransportButton {
                                 icon: "eq"

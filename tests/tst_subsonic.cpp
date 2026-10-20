@@ -284,6 +284,44 @@ private slots:
         QCOMPARE(fake.count("scrobble"), 2);
     }
 
+    void togglingAFavoriteStarsThenUnstarsAndRollsBackOnFailure()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 2}});                            // a1-1 starts out starred, a1-2 not
+        fake.setResult("star", {});
+        fake.setResult("unstar", {});
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Playlists playlists(dir.filePath("pl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        SubsonicSource source(settings, library, playlists, secrets, client);
+        source.saveServer(fake.url(), "amy", "sesame", true);
+        QTRY_COMPARE(library.songs()->rowCount(), 2);
+        QTRY_VERIFY(playlists.list()->rowCount() >= 1);           // Favorites is there (a1-1)
+
+        source.toggleStar("subsonic:a1-2");                       // star it
+        QVERIFY(library.isStarred("subsonic:a1-2"));              // at once, before the server answers
+        QTRY_COMPARE(fake.count("star"), 1);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("id"), QString("a1-2"));
+        QCOMPARE(playlists.paths(playlists.list()->get(0).value("key").toString()).size(), 2);   // Favorites grew
+
+        source.toggleStar("subsonic:a1-1");                       // unstar the one that was starred
+        QTRY_COMPARE(fake.count("unstar"), 1);
+        QVERIFY(!library.isStarred("subsonic:a1-1"));
+
+        fake.setHandler("star", [](const QUrlQuery &) { return QByteArray("ERR:No can do"); });
+        source.toggleStar("subsonic:a1-1");                       // the server refuses: back to unstarred
+        QVERIFY(library.isStarred("subsonic:a1-1"));
+        QTRY_VERIFY(!library.isStarred("subsonic:a1-1"));
+        QVERIFY(source.status().contains("No can do"));
+
+        source.toggleStar("/local/x.flac");                       // a local song: nothing happens
+        QCOMPARE(fake.count("star"), 2);
+    }
+
     void mpvStreamsASongFromTheServerUrl()
     {
         QTemporaryDir dir;

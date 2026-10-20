@@ -36,6 +36,30 @@ private slots:
         QVERIFY(!looked.at(2).at(1).toBool());
     }
 
+    void aPasswordSavedUnderTheOldNameIsFoundAndMovedOver()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        // What the app stored before it was renamed: service "omamusic".
+        {
+            QFile old(dir.path() + "/omamusic-amy_https___m.example.com");
+            QVERIFY(old.open(QIODevice::WriteOnly));
+            old.write("oldpw");
+        }
+        Secrets s(writeFake(dir.path()));
+        QSignalSpy looked(&s, &Secrets::looked);
+        s.lookup("amy@https://m.example.com");
+        QTRY_COMPARE(looked.count(), 1);
+        QVERIFY(looked.at(0).at(1).toBool());
+        QCOMPARE(looked.at(0).at(0).toString(), QString("oldpw"));
+        QTRY_VERIFY(QFileInfo::exists(dir.path() + "/omp-amy_https___m.example.com"));     // stored under the new name
+        QTRY_VERIFY(!QFileInfo::exists(dir.path() + "/omamusic-amy_https___m.example.com"));   // and the old entry gone
+
+        s.lookup("amy@https://m.example.com");                       // now found directly
+        QTRY_COMPARE(looked.count(), 2);
+        QCOMPARE(looked.at(1).at(0).toString(), QString("oldpw"));
+    }
+
     void aMissingToolReportsItInsteadOfCrashing()
     {
         Secrets s("/nonexistent/secret-tool");

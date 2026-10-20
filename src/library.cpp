@@ -131,7 +131,7 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
                 if (status == QProcess::NormalExit && code == 0) {
                     finishScan();
                 } else {
-                    qWarning() << "omamusic-scan failed, keeping old index; exit code" << code;
+                    qWarning() << "omp-scan failed, keeping old index; exit code" << code;
                 }
                 m_pending.clear();
                 m_pendingOffline.clear();

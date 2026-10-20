@@ -6,7 +6,7 @@ import "Scale.js" as S
 Window {
     id: panel
     objectName: "panelWindow"
-    title: "omamusic-panel"
+    title: "omp-panel"
     flags: Qt.Tool | Qt.FramelessWindowHint
     width: 360
 
@@ -284,7 +284,7 @@ Window {
             color: mainArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
             border.width: 1
             border.color: mainArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
-            UiText { anchors.centerIn: parent; text: qsTr("Open omamusic") }
+            UiText { anchors.centerIn: parent; text: qsTr("Open OMP") }
             MouseArea {
                 id: mainArea
                 anchors.fill: parent

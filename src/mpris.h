@@ -8,13 +8,13 @@ class Library;
 class Player;
 
 // The MPRIS service (media keys, desktop widgets). Registers as
-// org.mpris.MediaPlayer2.omamusic on the session bus and follows the Player.
+// org.mpris.MediaPlayer2.omp on the session bus and follows the Player.
 class Mpris : public QObject
 {
     Q_OBJECT
 public:
     explicit Mpris(Player &player, Library &library,
-                   const QString &service = QStringLiteral("org.mpris.MediaPlayer2.omamusic"),
+                   const QString &service = QStringLiteral("org.mpris.MediaPlayer2.omp"),
                    QObject *parent = nullptr);
 
     bool registered() const { return m_registered; }

@@ -8,7 +8,7 @@ import "Scale.js" as S
 ApplicationWindow {
     id: win
     objectName: "mainWindow"
-    title: "omamusic"
+    title: "OMP"
     width: 1000
     height: 640
     minimumWidth: 520
@@ -145,7 +145,7 @@ ApplicationWindow {
                         height: S.sp(64)
                         UiText {
                             anchors.centerIn: parent
-                            text: rail.collapsed ? "om" : "omamusic"
+                            text: "OMP"
                             color: theme.accent
                             px: 16
                         }

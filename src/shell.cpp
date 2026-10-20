@@ -31,7 +31,7 @@ Shell::Shell(QQmlApplicationEngine &engine, Player &player, const Theme &theme, 
     connect(m_menu.addAction(tr("Quit")), &QAction::triggered, this, &Shell::quitApp);
 
     m_tray.setContextMenu(&m_menu);
-    m_tray.setToolTip(QStringLiteral("omamusic"));
+    m_tray.setToolTip(QStringLiteral("OMP"));
     connect(&m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason r) {
         if (r == QSystemTrayIcon::Trigger) {
             // A second click right after the first opens the full window instead of the panel.
@@ -131,7 +131,7 @@ void Shell::quitApp()
 
 void Shell::updateIcon()
 {
-    QFile f(QStringLiteral(":/icons/omamusic-symbolic.svg"));
+    QFile f(QStringLiteral(":/icons/omp-symbolic.svg"));
     if (!f.open(QIODevice::ReadOnly))
         return;
     m_tray.setIcon(TrayIcon::make(f.readAll(), m_theme.foreground()));

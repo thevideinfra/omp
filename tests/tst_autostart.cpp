@@ -10,18 +10,18 @@ private slots:
     {
         QTemporaryDir dir;
         const QString autostartDir = dir.filePath("config/autostart");   // does not exist yet
-        Autostart a(autostartDir, "/opt/my apps/omamusic");
+        Autostart a(autostartDir, "/opt/my apps/omp");
         QVERIFY(!a.enabled());
 
         QSignalSpy spy(&a, &Autostart::changed);
         a.setEnabled(true);
         QVERIFY(a.enabled());
         QCOMPARE(spy.count(), 1);
-        QFile f(autostartDir + "/omamusic.desktop");
+        QFile f(autostartDir + "/omp.desktop");
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray text = f.readAll();
         QVERIFY(text.contains("[Desktop Entry]"));
-        QVERIFY(text.contains("Exec=\"/opt/my apps/omamusic\" tray\n"));
+        QVERIFY(text.contains("Exec=\"/opt/my apps/omp\" tray\n"));
 
         a.setEnabled(true);          // no change, no signal
         QCOMPARE(spy.count(), 1);
@@ -31,7 +31,7 @@ private slots:
 
         a.setEnabled(false);
         QVERIFY(!a.enabled());
-        QVERIFY(!QFileInfo::exists(autostartDir + "/omamusic.desktop"));
+        QVERIFY(!QFileInfo::exists(autostartDir + "/omp.desktop"));
         QCOMPARE(spy.count(), 2);
     }
 };

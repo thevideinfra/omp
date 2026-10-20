@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(omamusic VERSION 0.1.0 LANGUAGES CXX)
+project(omp VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,7 @@ qt_add_library(omacore STATIC
     src/settings.cpp src/settings.h
     src/lookscope.cpp src/lookscope.h
     src/autostart.cpp src/autostart.h
+    src/migrate.cpp src/migrate.h
     src/equalizer.cpp src/equalizer.h
     src/playlists.cpp src/playlists.h
     src/trayicon.cpp src/trayicon.h
@@ -34,13 +35,13 @@ qt_add_library(omacore STATIC
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::DBus Qt6::Gui Qt6::Network Qt6::Svg)
 
-qt_add_executable(omamusic src/main.cpp src/shell.cpp src/shell.h)
-target_link_libraries(omamusic PRIVATE omacore Qt6::Widgets Qt6::Quick Qt6::QuickControls2)
+qt_add_executable(omp src/main.cpp src/shell.cpp src/shell.h)
+target_link_libraries(omp PRIVATE omacore Qt6::Widgets Qt6::Quick Qt6::QuickControls2)
 # Scale.js is a plain (non-pragma) script on purpose; it is only imported by path.
 set_source_files_properties(qml/Scale.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 
 
-qt_add_qml_module(omamusic
+qt_add_qml_module(omp
     URI Omamusic
     VERSION 1.0
     QML_FILES
@@ -73,21 +74,21 @@ qt_add_qml_module(omamusic
         qml/LookForm.qml
 )
 
-qt_add_resources(omamusic icons
+qt_add_resources(omp icons
     PREFIX /icons
     BASE resources
-    FILES resources/omamusic-symbolic.svg
+    FILES resources/omp-symbolic.svg
 )
 
-configure_file(bin/omamusic-scan ${CMAKE_BINARY_DIR}/omamusic-scan COPYONLY)
+configure_file(bin/omp-scan ${CMAKE_BINARY_DIR}/omp-scan COPYONLY)
 
 # cmake --install build --prefix ~/.local
 include(GNUInstallDirs)
-install(TARGETS omamusic RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(PROGRAMS bin/omamusic-scan DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
-install(FILES data/omamusic.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(FILES resources/omamusic-symbolic.svg
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omamusic.svg)
+install(TARGETS omp RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(PROGRAMS bin/omp-scan DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
+install(FILES data/omp.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES resources/omp-symbolic.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omp.svg)
 
 enable_testing()
 add_subdirectory(tests)

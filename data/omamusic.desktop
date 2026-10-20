@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=omamusic
-Comment=Music player for Omarchy
-Exec=omamusic
-Icon=omamusic
-Terminal=false
-Categories=AudioVideo;Audio;Player;
-StartupWMClass=omamusic

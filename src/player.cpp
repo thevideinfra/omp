@@ -62,7 +62,7 @@ void Player::start()
     QStringList args{"--idle=yes",
                      "--no-video",
                      "--no-terminal",
-                     "--load-scripts=no",   // omamusic has its own MPRIS service
+                     "--load-scripts=no",   // OMP has its own MPRIS service
                      "--audio-display=no",
                      "--gapless-audio=yes",
                      "--prefetch-playlist=yes",

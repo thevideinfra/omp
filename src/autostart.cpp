@@ -10,7 +10,7 @@
 
 Autostart::Autostart(const QString &dir, const QString &exec, QObject *parent)
     : QObject(parent)
-    , m_file(dir + QStringLiteral("/omamusic.desktop"))
+    , m_file(dir + QStringLiteral("/omp.desktop"))
     , m_exec(exec.isEmpty() ? QCoreApplication::applicationFilePath() : exec)
 {
 }
@@ -42,7 +42,7 @@ void Autostart::setEnabled(bool on)
             qWarning() << "cannot write" << m_file << f.errorString();
             return;
         }
-        f.write("[Desktop Entry]\nType=Application\nName=omamusic\nComment=Music player\n");
+        f.write("[Desktop Entry]\nType=Application\nName=OMP\nComment=Music player\n");
         f.write(QStringLiteral("Exec=\"%1\" tray\n").arg(exec).toUtf8());
         f.write("Terminal=false\nX-GNOME-Autostart-enabled=true\n");
         if (!f.commit()) {

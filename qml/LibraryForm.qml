@@ -4,7 +4,7 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import "Scale.js" as S
 
-// The folders omamusic reads music from. Changes rescan straight away.
+// The folders OMP reads music from. Changes rescan straight away.
 ColumnLayout {
     id: root
     spacing: S.sp(10)

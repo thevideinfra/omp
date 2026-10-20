@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OMP
+Comment=Omarchy Music Player
+Exec=omp
+Icon=omp
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+StartupWMClass=omp

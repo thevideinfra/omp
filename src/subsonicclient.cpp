@@ -46,7 +46,7 @@ QUrl SubsonicClient::endpoint(const QString &method, const Params &extra) const
     q.addQueryItem("t", token(m_password, m_salt));
     q.addQueryItem("s", m_salt);
     q.addQueryItem("v", QString::fromLatin1(kApiVersion));
-    q.addQueryItem("c", QStringLiteral("omamusic"));
+    q.addQueryItem("c", QStringLiteral("omp"));
     q.addQueryItem("f", QStringLiteral("json"));
     for (const auto &[key, value] : extra)
         q.addQueryItem(key, value);

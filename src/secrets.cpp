@@ -2,49 +2,73 @@
 
 #include <QTimer>
 
+namespace {
+const QString kService = QStringLiteral("omp");
+const QString kOldService = QStringLiteral("omamusic");   // before the rename
+}
+
 Secrets::Secrets(const QString &program, QObject *parent)
     : QObject(parent)
     , m_program(program)
 {
 }
 
-void Secrets::store(const QString &account, const QString &password) { run(Op::Store, account, password); }
-void Secrets::lookup(const QString &account) { run(Op::Lookup, account, {}); }
-void Secrets::clear(const QString &account) { run(Op::Clear, account, {}); }
+void Secrets::store(const QString &account, const QString &password)
+{
+    run(Op::Store, kService, account, password, [this](bool ok, const QString &) { emit stored(ok); });
+}
 
-void Secrets::run(Op op, const QString &account, const QString &password)
+void Secrets::lookup(const QString &account)
+{
+    run(Op::Lookup, kService, account, {}, [this, account](bool ok, const QString &out) {
+        if (ok) {
+            emit looked(out, true);
+            return;
+        }
+        // Not there under the new name: a password saved before the rename moves over.
+        run(Op::Lookup, kOldService, account, {}, [this, account](bool oldOk, const QString &oldOut) {
+            if (oldOk) {
+                run(Op::Store, kService, account, oldOut, [](bool, const QString &) {});
+                run(Op::Clear, kOldService, account, {}, [](bool, const QString &) {});
+            }
+            emit looked(oldOk ? oldOut : QString(), oldOk);
+        });
+    });
+}
+
+void Secrets::clear(const QString &account)
+{
+    run(Op::Clear, kService, account, {}, [this](bool ok, const QString &) { emit cleared(ok); });
+    run(Op::Clear, kOldService, account, {}, [](bool, const QString &) {});   // and a leftover old entry
+}
+
+void Secrets::run(Op op, const QString &service, const QString &account, const QString &password,
+                  std::function<void(bool, const QString &)> done)
 {
     auto *proc = new QProcess(this);
     QStringList args;
     switch (op) {
-    case Op::Store: args = {QStringLiteral("store"), QStringLiteral("--label=omamusic")}; break;
+    case Op::Store: args = {QStringLiteral("store"), QStringLiteral("--label=OMP")}; break;
     case Op::Lookup: args = {QStringLiteral("lookup")}; break;
     case Op::Clear: args = {QStringLiteral("clear")}; break;
     }
-    args << QStringLiteral("service") << QStringLiteral("omamusic") << QStringLiteral("account") << account;
+    args << QStringLiteral("service") << service << QStringLiteral("account") << account;
 
-    auto report = [this, op](bool ok, const QString &out) {
-        switch (op) {
-        case Op::Store: emit stored(ok); break;
-        case Op::Lookup: emit looked(out, ok); break;
-        case Op::Clear: emit cleared(ok); break;
-        }
-    };
     auto *timeout = new QTimer(proc);
     timeout->setSingleShot(true);
     timeout->setInterval(5000);
     connect(timeout, &QTimer::timeout, proc, &QProcess::kill);
-    connect(proc, &QProcess::errorOccurred, this, [this, proc, report](QProcess::ProcessError e) {
+    connect(proc, &QProcess::errorOccurred, this, [this, proc, done](QProcess::ProcessError e) {
         if (e == QProcess::FailedToStart) {
             emit failed(tr("secret-tool is not installed (libsecret); the password cannot be kept in the keyring"));
-            report(false, {});
+            done(false, {});
             proc->deleteLater();
         }
     });
-    connect(proc, &QProcess::finished, this, [proc, report, op](int code, QProcess::ExitStatus status) {
+    connect(proc, &QProcess::finished, this, [proc, done, op](int code, QProcess::ExitStatus status) {
         const bool ok = status == QProcess::NormalExit && code == 0;
         const QString out = QString::fromUtf8(proc->readAllStandardOutput());
-        report(ok && (op != Op::Lookup || !out.isEmpty()), out);
+        done(ok && (op != Op::Lookup || !out.isEmpty()), out);
         proc->deleteLater();
     });
     proc->start(m_program, args);

@@ -1,5 +1,5 @@
 #!/bin/bash
-# usage: test_sigterm.sh path/to/omamusic
+# usage: test_sigterm.sh path/to/omp
 # Starts the app offscreen with temp dirs, signals it, and checks that it exits
 # promptly and leaves no mpv behind. Exit 77 = skipped (no mpv).
 app=$1

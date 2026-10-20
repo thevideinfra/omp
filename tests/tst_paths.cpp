@@ -10,8 +10,8 @@ private slots:
     {
         qputenv("XDG_STATE_HOME", "/tmp/oma-state");
         qputenv("XDG_CONFIG_HOME", "/tmp/oma-config");
-        QCOMPARE(Paths::stateDir(), QString("/tmp/oma-state/omamusic"));
-        QCOMPARE(Paths::configDir(), QString("/tmp/oma-config/omamusic"));
+        QCOMPARE(Paths::stateDir(), QString("/tmp/oma-state/omp"));
+        QCOMPARE(Paths::configDir(), QString("/tmp/oma-config/omp"));
         QCOMPARE(Paths::omarchyThemeFile(),
                  QString("/tmp/oma-state/omarchy/current/theme/colors.toml"));
         QCOMPARE(Paths::omarchyUserShellFile(), QString("/tmp/oma-config/omarchy/shell.toml"));
@@ -22,7 +22,7 @@ private slots:
         QTemporaryDir base;
         qputenv("XDG_RUNTIME_DIR", base.path().toUtf8());
         const QString dir = Paths::runtimeDir();
-        QCOMPARE(dir, base.path() + "/omamusic");
+        QCOMPARE(dir, base.path() + "/omp");
         QVERIFY(QDir(dir).exists());
     }
 };

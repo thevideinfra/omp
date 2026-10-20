@@ -16,7 +16,7 @@ private slots:
         QTemporaryDir dir;
         Player player("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
         Library library({}, QString(), dir.filePath("index.jsonl"));
-        const QString service = QStringLiteral("org.mpris.MediaPlayer2.omamusic_test%1").arg(QCoreApplication::applicationPid());
+        const QString service = QStringLiteral("org.mpris.MediaPlayer2.omp_test%1").arg(QCoreApplication::applicationPid());
         Mpris mpris(player, library, service);
         QVERIFY(mpris.registered());
 
@@ -24,8 +24,8 @@ private slots:
         QDBusInterface root(service, path, "org.mpris.MediaPlayer2");
         QDBusInterface props(service, path, "org.freedesktop.DBus.Properties");
         QVERIFY(root.isValid());
-        QCOMPARE(root.property("Identity").toString(), QString("omamusic"));
-        QCOMPARE(root.property("DesktopEntry").toString(), QString("omamusic"));
+        QCOMPARE(root.property("Identity").toString(), QString("OMP"));
+        QCOMPARE(root.property("DesktopEntry").toString(), QString("omp"));
         QVERIFY(root.property("CanQuit").toBool());
 
         QDBusInterface pl(service, path, "org.mpris.MediaPlayer2.Player");

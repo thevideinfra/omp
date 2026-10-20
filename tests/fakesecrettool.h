@@ -14,11 +14,13 @@ inline QString writeFake(const QString &dir)
 store="$FAKE_SECRET_DIR"
 cmd="$1"; shift
 account=""
+service=""
 while [ $# -gt 0 ]; do
   if [ "$1" = "account" ]; then account="$2"; fi
+  if [ "$1" = "service" ]; then service="$2"; fi
   shift
 done
-file="$store/$(printf %s "$account" | tr '/:@' '___')"
+file="$store/$service-$(printf %s "$account" | tr '/:@' '___')"
 case "$cmd" in
   store) cat > "$file" ;;
   lookup) [ -f "$file" ] && cat "$file" || exit 1 ;;

@@ -34,7 +34,7 @@ private slots:
         const QUrlQuery q(u);
         QCOMPARE(q.queryItemValue("u"), QString("amy"));
         QCOMPARE(q.queryItemValue("v"), QString("1.16.1"));
-        QCOMPARE(q.queryItemValue("c"), QString("omamusic"));
+        QCOMPARE(q.queryItemValue("c"), QString("omp"));
         QCOMPARE(q.queryItemValue("f"), QString("json"));
         QCOMPARE(q.queryItemValue("id"), QString("al-1"));
         QCOMPARE(q.queryItemValue("t"), SubsonicClient::token("sesame", q.queryItemValue("s")));

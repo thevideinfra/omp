@@ -77,7 +77,7 @@ ColumnLayout {
     UiText {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
-        text: qsTr("Applies to everything omamusic plays. Boosts lower the overall level a little so loud tracks do not clip.")
+        text: qsTr("Applies to everything OMP plays. Boosts lower the overall level a little so loud tracks do not clip.")
         color: theme.dimForeground
         px: 12
     }

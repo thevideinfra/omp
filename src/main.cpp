@@ -18,6 +18,7 @@
 #include "lookscope.h"
 #include "paths.h"
 #include "autostart.h"
+#include "migrate.h"
 #include "mpris.h"
 #include "player.h"
 #include "playlists.h"
@@ -61,15 +62,17 @@ void installQuitSignals()
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("omamusic"));
-    app.setDesktopFileName(QStringLiteral("omamusic"));   // Wayland app_id
+    app.setApplicationName(QStringLiteral("omp"));
+    app.setDesktopFileName(QStringLiteral("omp"));   // Wayland app_id
     app.setQuitOnLastWindowClosed(false);
+    // Settings, playlists, caches and start-at-login from the days it was called omamusic.
+    Migrate::fromOmamusic(Paths::configHome(), Paths::dataHome(), Paths::stateHome(), QCoreApplication::applicationFilePath());
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     static const QStringList verbs{"show", "toggle", "panel", "quit", "tray"};
     const QString verb = app.arguments().value(1, QStringLiteral("show"));
     if (!verbs.contains(verb)) {
-        std::fputs("usage: omamusic [show|toggle|panel|quit|tray]\n", stderr);
+        std::fputs("usage: omp [show|toggle|panel|quit|tray]\n", stderr);
         return 2;
     }
 
@@ -77,7 +80,7 @@ int main(int argc, char *argv[])
     if (!instance.claimOrSend(verb) || verb == QLatin1String("quit"))
         return 0;
     if (!instance.listening())
-        std::fputs("omamusic: single-instance socket unavailable; later launches will not be forwarded\n", stderr);
+        std::fputs("omp: single-instance socket unavailable; later launches will not be forwarded\n", stderr);
 
     installQuitSignals();
 
@@ -108,7 +111,7 @@ int main(int argc, char *argv[])
                      [&] { settings.set("eqPreset", player.eqPreset()); });
     Library library(settings.folders(),
                     qEnvironmentVariable("OMAMUSIC_SCAN",
-                                         QCoreApplication::applicationDirPath() + "/omamusic-scan"),
+                                         QCoreApplication::applicationDirPath() + "/omp-scan"),
                     Paths::stateDir() + QStringLiteral("/index.jsonl"));
 
     QObject::connect(&settings, &Settings::changed, &library, [&] { library.setRoots(settings.folders()); });
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
     QQmlComponent panelComponent(&engine, "Omamusic", "Panel");
     QObject *panelObject = panelComponent.create(panelCtx);
     if (!panelObject) {
-        std::fprintf(stderr, "omamusic: panel failed to load:\n%s\n", qPrintable(panelComponent.errorString()));
+        std::fprintf(stderr, "omp: panel failed to load:\n%s\n", qPrintable(panelComponent.errorString()));
         return 1;
     }
     panelObject->setParent(&engine);

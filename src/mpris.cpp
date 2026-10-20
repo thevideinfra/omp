@@ -35,8 +35,8 @@ public:
     bool canQuit() const { return true; }
     bool canRaise() const { return true; }
     bool hasTrackList() const { return false; }
-    QString identity() const { return QStringLiteral("omamusic"); }
-    QString desktopEntry() const { return QStringLiteral("omamusic"); }
+    QString identity() const { return QStringLiteral("OMP"); }
+    QString desktopEntry() const { return QStringLiteral("omp"); }
     QStringList none() const { return {}; }
 public slots:
     void Raise() { emit m_mpris->raiseRequested(); }
@@ -133,7 +133,7 @@ QVariantMap Mpris::metadata()
         return m;
     }
     m.insert("mpris:trackid", QVariant::fromValue(QDBusObjectPath(
-        QStringLiteral("/org/omamusic/track/%1").arg(m_player.currentIndex()))));
+        QStringLiteral("/org/omp/track/%1").arg(m_player.currentIndex()))));
     m.insert("mpris:length", qlonglong(m_player.duration() * 1e6));
     m.insert("xesam:title", cur.value("title").toString());
     m.insert("xesam:artist", QStringList{cur.value("artist").toString()});

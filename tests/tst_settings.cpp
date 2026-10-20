@@ -58,15 +58,15 @@ private slots:
     {
         const QByteArray out = Settings::apply("folders = [\"/a\"]\n",
                                                {{"fontSize", "large"}, {"panelSeek", false}});
-        QCOMPARE(out, QByteArray("folders = [\"/a\"]\n\n# omamusic settings\nfont_size = \"large\"\npanel_seek = false\n"));
+        QCOMPARE(out, QByteArray("folders = [\"/a\"]\n\n# OMP settings\nfont_size = \"large\"\npanel_seek = false\n"));
     }
 
     void applyHandlesMissingTrailingNewlineAndEmptyInput()
     {
         QCOMPARE(Settings::apply("density = \"normal\"", {{"accent", "blue"}}),
-                 QByteArray("density = \"normal\"\n\n# omamusic settings\naccent = \"blue\"\n"));
+                 QByteArray("density = \"normal\"\n\n# OMP settings\naccent = \"blue\"\n"));
         QCOMPARE(Settings::apply("", {{"accent", "blue"}}),
-                 QByteArray("# omamusic settings\naccent = \"blue\"\n"));
+                 QByteArray("# OMP settings\naccent = \"blue\"\n"));
     }
 
     void applyIsIdempotentAndKeepsLongerKeyNames()
@@ -74,7 +74,7 @@ private slots:
         const QByteArray in = "panel_up_next_count = 4\n";
         const QVariantMap u{{"panelUpNext", false}, {"panelUpNextCount", 6}};
         const QByteArray once = Settings::apply(in, u);
-        QCOMPARE(once, QByteArray("panel_up_next_count = 6\n\n# omamusic settings\npanel_up_next = false\n"));
+        QCOMPARE(once, QByteArray("panel_up_next_count = 6\n\n# OMP settings\npanel_up_next = false\n"));
         QCOMPARE(Settings::apply(once, u), once);
     }
 
@@ -372,7 +372,7 @@ private slots:
         const QByteArray out = Settings::apply(in, {{"panelDensity", "compact"}, {"panelFontSize", "large"},
                                                     {"panelAccent", "blue"}, {"density", "comfortable"}});
         QCOMPARE(out, QByteArray("density = \"comfortable\"\nfont_size = \"normal\"\naccent = \"theme\"\n\n"
-                                 "# omamusic settings\npanel_density = \"compact\"\npanel_font_size = \"large\"\n"
+                                 "# OMP settings\npanel_density = \"compact\"\npanel_font_size = \"large\"\n"
                                  "panel_accent = \"blue\"\n"));
         // replacing an existing panel key in place must not touch the app key with a similar name
         const QByteArray again = Settings::apply(out, {{"panelDensity", "normal"}});

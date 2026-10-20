@@ -1,6 +1,6 @@
-# omamusic
+# OMP
 
-A Qt 6 music player for Omarchy. It browses local folders by album, artist, folder and queue, and plays through an `mpv` child process. A standalone window is tiled by Hyprland, and a tray icon opens a compact popup panel. It follows the Omarchy theme. Library is read-only.
+OMP (Omarchy Music Player) is a Qt 6 music player for Omarchy. It was called omamusic until 2026-10-19: on first start it moves your old settings, playlists, caches, saved server password and start-at-login entry to the new names. It browses local folders by album, artist, folder and queue, and plays through an `mpv` child process. A standalone window is tiled by Hyprland, and a tray icon opens a compact popup panel. It follows the Omarchy theme. Library is read-only.
 
 ## Install
 
@@ -9,7 +9,7 @@ cmake -S . -B build && cmake --build build
 cmake --install build --prefix ~/.local
 ```
 
-This puts `omamusic` and `omamusic-scan` in `~/.local/bin` and adds a launcher entry and icon. Run the install again after each rebuild.
+This puts `omp` and `omp-scan` in `~/.local/bin` and adds a launcher entry and icon. Run the install again after each rebuild.
 
 ## Dependencies
 
@@ -24,18 +24,18 @@ cmake -S . -B build -G Ninja && cmake --build build
 ## Run
 
 ```sh
-./build/omamusic           # show the main window (default verb)
-./build/omamusic toggle    # show or hide the main window
-./build/omamusic panel     # toggle the tray panel
-./build/omamusic tray      # start in the tray, no window (used by Start at login)
-./build/omamusic quit
+./build/omp           # show the main window (default verb)
+./build/omp toggle    # show or hide the main window
+./build/omp panel     # toggle the tray panel
+./build/omp tray      # start in the tray, no window (used by Start at login)
+./build/omp quit
 ```
 
 A second launch sends its verb to the running instance and exits.
 
 ## Config
 
-`~/.config/omamusic/config.toml`:
+`~/.config/omp/config.toml`:
 
 ```toml
 folders = ["~/Music", "/other"]
@@ -45,7 +45,7 @@ One-line or multi-line arrays both work. Defaults to `~/Music` when unset.
 
 ## Settings
 
-The Settings tab (last in the Tab cycle) edits the appearance and panel options. It has two sections: **App** (the main window) and **Tray panel**. Each has its own density, font size, font and accent. The Tray panel section also has the section toggles and the up-next count. The gear at the top right of the tray panel opens this tab. Changes apply live and are saved to `~/.config/omamusic/config.toml`. Only the keys below are written; `folders` is left untouched. Managed keys must be plain `key = "value"` lines with no trailing comments. The font family applies to the app's text, not the tray menu.
+The Settings tab (last in the Tab cycle) edits the appearance and panel options. It has two sections: **App** (the main window) and **Tray panel**. Each has its own density, font size, font and accent. The Tray panel section also has the section toggles and the up-next count. The gear at the top right of the tray panel opens this tab. Changes apply live and are saved to `~/.config/omp/config.toml`. Only the keys below are written; `folders` is left untouched. Managed keys must be plain `key = "value"` lines with no trailing comments. The font family applies to the app's text, not the tray menu.
 
 Tray panel changes show the next time the panel opens, because Hyprland does not let a floating window resize itself while it is open.
 
@@ -101,9 +101,9 @@ Panel: Esc hides the panel, Space play / pause.
 
 ## New files and start at login
 
-Changes under your music folders are noticed on their own: omamusic watches every directory (up to 4096) and rescans 3 seconds after the last change, probing only new or changed files. With more directories, or a folder that cannot be watched, it rescans every 5 minutes instead. `r` still forces a rescan.
+Changes under your music folders are noticed on their own: OMP watches every directory (up to 4096) and rescans 3 seconds after the last change, probing only new or changed files. With more directories, or a folder that cannot be watched, it rescans every 5 minutes instead. `r` still forces a rescan.
 
-The App section of Settings has **Start at login (in the tray)**, off by default. It writes `~/.config/autostart/omamusic.desktop` with `Exec="<path to omamusic>" tray`, which your session runs at login, and removes it when switched off. The `tray` verb starts the app in the tray with no window and does nothing to an instance that is already running. The entry points at the binary you ran it from, so switch it off and on again after moving the binary.
+The App section of Settings has **Start at login (in the tray)**, off by default. It writes `~/.config/autostart/omp.desktop` with `Exec="<path to omp>" tray`, which your session runs at login, and removes it when switched off. The `tray` verb starts the app in the tray with no window and does nothing to an instance that is already running. The entry points at the binary you ran it from, so switch it off and on again after moving the binary.
 
 ## Tray
 
@@ -118,7 +118,7 @@ The **Libraries** tab (the old Folders tab) shows your music folders and what is
 
 ## Playlists
 
-Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playlists/`. The **Playlists** tab lists them with their songs on the right; Enter or double-click plays one, and **New playlist**, **Rename** and **Delete** (click twice) manage them. Add songs from anywhere with right-click or `m` on a song, album or artist, which opens a picker with your playlists and a field for a new one. The Queue tab has **Save as playlist**. Delete removes the selected song from the open playlist. Songs that are no longer in the library are skipped when a playlist is shown but stay in the file.
+Playlists are `.m3u` files (one path per line) in `~/.local/share/omp/playlists/`. The **Playlists** tab lists them with their songs on the right; Enter or double-click plays one, and **New playlist**, **Rename** and **Delete** (click twice) manage them. Add songs from anywhere with right-click or `m` on a song, album or artist, which opens a picker with your playlists and a field for a new one. The Queue tab has **Save as playlist**. Delete removes the selected song from the open playlist. Songs that are no longer in the library are skipped when a playlist is shown but stay in the file.
 
 ## Shuffle, repeat and equalizer
 
@@ -130,18 +130,18 @@ The bar under the song has **shuffle and repeat (off, all, one) buttons; `s` tog
 
 ## Cover art
 
-A folder image (`cover.jpg`, `folder.jpg`, `front.jpg`, `.png` too) wins. Otherwise the art embedded in the first track of the album folder is extracted with `ffmpeg` on first view and cached in `~/.local/state/omamusic/covers/`. A folder with no embedded art is not retried until the app restarts.
+A folder image (`cover.jpg`, `folder.jpg`, `front.jpg`, `.png` too) wins. Otherwise the art embedded in the first track of the album folder is extracted with `ffmpeg` on first view and cached in `~/.local/state/omp/covers/`. A folder with no embedded art is not retried until the app restarts.
 
 ## Media keys (MPRIS)
 
-omamusic has its own MPRIS service (`org.mpris.MediaPlayer2.omamusic`, identity `omamusic`): play/pause, next/previous, seek, volume, shuffle, loop, title, artist, album and cover art show on the bus, and Raise/Quit work. mpv runs with `--load-scripts=no`, so the `mpv-mpris` script is not used. Untagged files show their file name as the title.
+OMP has its own MPRIS service (`org.mpris.MediaPlayer2.omp`, identity `OMP`): play/pause, next/previous, seek, volume, shuffle, loop, title, artist, album and cover art show on the bus, and Raise/Quit work. mpv runs with `--load-scripts=no`, so the `mpv-mpris` script is not used. Untagged files show their file name as the title.
 
 ## Subsonic server
 
-Settings > Library > Subsonic server connects omamusic to a Subsonic-API server (Navidrome, Airsonic, Subsonic). Enter the address, user and password, press Test connection, then Save. The password goes into the system keyring through `secret-tool` (it is never written to `config.toml`, which keeps only `server_enabled`, `server_url` and `server_user`).
+Settings > Library > Subsonic server connects OMP to a Subsonic-API server (Navidrome, Airsonic, Subsonic). Enter the address, user and password, press Test connection, then Save. The password goes into the system keyring through `secret-tool` (it is never written to `config.toml`, which keeps only `server_enabled`, `server_url` and `server_user`).
 
 - The server's songs join your own in Albums, Artists, Songs and search. A server album never merges with a local album of the same name. Libraries stays local.
-- The library syncs at start and with `r`. It is cached in `~/.local/state/omamusic/subsonic.jsonl`, so it opens at once and stays visible when the server is offline ("Server offline" shows in the bottom bar).
+- The library syncs at start and with `r`. It is cached in `~/.local/state/omp/subsonic.jsonl`, so it opens at once and stays visible when the server is offline ("Server offline" shows in the bottom bar).
 - Songs stream through mpv; covers are downloaded once and cached.
 - Server playlists show in Playlists after your own, read-only, marked "server". **Favorites** lists the songs you starred. A heart button in the bottom bar (or `f`) stars or unstars the playing server song.
 - Plays are reported to the server ("now playing" at the start, a scrobble after half the song or four minutes).
@@ -154,8 +154,8 @@ Put this in your Hyprland Lua config (tested on Hyprland 0.56.2; opens the panel
 
 ```lua
 hl.window_rule({
-  name = "omamusic-panel",
-  match = { class = "^omamusic$", title = "^omamusic-panel$" },
+  name = "omp-panel",
+  match = { class = "^omp$", title = "^omp-panel$" },
   float = true,
   move = { "(cursor_x-window_w/2)", 38 },
 })

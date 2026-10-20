@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCAN = Path(__file__).resolve().parent.parent / "bin" / "omamusic-scan"
+SCAN = Path(__file__).resolve().parent.parent / "bin" / "omp-scan"
 
 
 def make_flac(path, **tags):
@@ -60,13 +60,13 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(e["size"], (sub / "01.flac").stat().st_size)
 
     def test_missing_folder_is_skipped(self):
-        self.assertEqual(scan("/nonexistent/omamusic-test"), [])
+        self.assertEqual(scan("/nonexistent/omp-test"), [])
 
     def test_missing_and_empty_folders_are_reported_offline(self):
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(
-                scan_raw("/nonexistent/omamusic-test", d),
-                [{"offline": "/nonexistent/omamusic-test"}, {"offline": d}],
+                scan_raw("/nonexistent/omp-test", d),
+                [{"offline": "/nonexistent/omp-test"}, {"offline": d}],
             )
 
     def test_a_hung_folder_goes_offline_and_the_next_one_is_scanned(self):
@@ -94,12 +94,12 @@ class ScanTest(unittest.TestCase):
             buf = io.StringIO()
             started = time.time()
             with redirect_stdout(buf):
-                mod.main(["/hung", "/nonexistent/omamusic-test"])
+                mod.main(["/hung", "/nonexistent/omp-test"])
             self.assertLess(time.time() - started, 3)
         finally:
             del os.environ["OMAMUSIC_SCAN_STALL"]
         lines = [json.loads(l) for l in buf.getvalue().splitlines()]
-        self.assertEqual(lines, [{"offline": "/hung"}, {"offline": "/nonexistent/omamusic-test"}])
+        self.assertEqual(lines, [{"offline": "/hung"}, {"offline": "/nonexistent/omp-test"}])
 
     def test_cache_hit_reuses_entry(self):
         with tempfile.TemporaryDirectory() as d:

@@ -250,10 +250,10 @@ QByteArray Settings::apply(const QByteArray &existing, const QVariantMap &update
 
     if (!out.isEmpty() && !out.endsWith('\n'))
         out += '\n';
-    if (!out.contains("# omamusic settings")) {
+    if (!out.contains("# OMP settings") && !out.contains("# omamusic settings")) {   // the old marker counts
         if (!out.isEmpty())
             out += '\n';
-        out += "# omamusic settings\n";
+        out += "# OMP settings\n";
     }
     for (const QByteArray &line : std::as_const(missing))
         out += line + '\n';

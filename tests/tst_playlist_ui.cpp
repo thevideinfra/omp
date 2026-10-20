@@ -26,6 +26,17 @@ signals:
     void currentChanged();
 };
 
+// The Subsonic hub's playlist calls, recorded.
+class StubHub : public QObject
+{
+    Q_OBJECT
+public:
+    Q_INVOKABLE void renamePlaylist(const QString &server, const QString &id, const QString &name) { calls << "rename " + server + " " + id + " " + name; }
+    Q_INVOKABLE void deletePlaylist(const QString &server, const QString &id) { calls << "delete " + server + " " + id; }
+    Q_INVOKABLE void removeFromPlaylist(const QString &server, const QString &id, int index) { calls << "remove " + server + " " + id + " " + QString::number(index); }
+    QStringList calls;
+};
+
 static Track mk(const QString &path, const QString &title)
 {
     Track t;
@@ -49,6 +60,7 @@ class TstPlaylistUi : public QObject
     Library *library = nullptr;
     Playlists *playlists = nullptr;
     UiPlayer player;
+    StubHub hub;
     QQmlEngine *engine = nullptr;
     QQuickWindow *window = nullptr;
     QQuickItem *tab = nullptr;
@@ -75,6 +87,7 @@ private slots:
         ctx->setContextProperty("player", &player);
         ctx->setContextProperty("library", library);
         ctx->setContextProperty("playlists", playlists);
+        ctx->setContextProperty("subsonic", &hub);
         QQmlComponent comp(engine, QUrl::fromLocalFile(QStringLiteral(OMA_QML_DIR "/DrillList.qml")));
         QObject *o = comp.create(ctx);
         QVERIFY2(o, qPrintable(comp.errorString()));
@@ -164,6 +177,40 @@ private slots:
     {
         QVERIFY(playlists->create("Yet another"));
         QTRY_COMPARE(playlists->list()->rowCount(), 3);
+    }
+
+    void anEditableServerPlaylistRenamesDeletesAndDropsSongsOnTheServer()
+    {
+        Playlists::ServerList mine{"Road", {"/m/a.flac", "/m/b.flac"}, "p7", "s2", "Work", false};
+        Playlists::ServerList fav{"Favorites", {"/m/c.flac"}, "", "s2", "Work", true};
+        playlists->setServerLists("s2", {mine, fav});
+        QTRY_COMPARE(playlists->list()->rowCount(), 5);
+        int road = -1;
+        for (int i = 0; i < playlists->list()->rowCount(); ++i)
+            if (playlists->list()->get(i).value("title").toString() == "Road")
+                road = i;
+        QVERIFY(road >= 0);
+        QVERIFY(QMetaObject::invokeMethod(tab, "showRow", Q_ARG(QVariant, road)));
+        QVERIFY(!tab->property("openReadOnly").toBool());              // a server playlist of its own can be edited
+        QCOMPARE(tab->property("openServerId").toString(), QString("s2"));
+        QCOMPARE(tab->property("openPlaylistId").toString(), QString("p7"));
+
+        QVERIFY(QMetaObject::invokeMethod(tab, "doRename", Q_ARG(QVariant, QString("Highway"))));
+        QCOMPARE(hub.calls.last(), QString("rename s2 p7 Highway"));    // sent to the server, not to a local file
+        QVariant ok;
+        QVERIFY(QMetaObject::invokeMethod(tab, "focusRight", Q_RETURN_ARG(QVariant, ok)));
+        QVERIFY(QMetaObject::invokeMethod(tab, "move", Q_ARG(QVariant, 1)));
+        QVERIFY(QMetaObject::invokeMethod(tab, "removeSelected"));
+        QCOMPARE(hub.calls.last(), QString("remove s2 p7 1"));          // the second song, by its place in the playlist
+        QCOMPARE(playlists->paths(playlists->list()->get(road).value("key").toString()).size(), 2);   // nothing local changed
+
+        int fav2 = -1;
+        for (int i = 0; i < playlists->list()->rowCount(); ++i)
+            if (playlists->list()->get(i).value("title").toString() == "Favorites")
+                fav2 = i;
+        QVERIFY(QMetaObject::invokeMethod(tab, "showRow", Q_ARG(QVariant, fav2)));
+        QVERIFY(tab->property("openReadOnly").toBool());                // Favorites stays read-only
+        playlists->setServerLists("s2", {});
     }
 
     void aServerPlaylistIsReadOnly()

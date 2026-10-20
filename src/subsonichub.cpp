@@ -209,3 +209,33 @@ void SubsonicHub::removeServer(const QString &id)
         s->forget();
     m_servers.remove(id);   // the source is dropped with it
 }
+
+void SubsonicHub::createPlaylist(const QString &serverId, const QString &name, const QStringList &paths)
+{
+    if (SubsonicSource *s = m_sources.value(serverId))
+        s->createPlaylist(name, paths);
+}
+
+void SubsonicHub::renamePlaylist(const QString &serverId, const QString &playlistId, const QString &name)
+{
+    if (SubsonicSource *s = m_sources.value(serverId))
+        s->renamePlaylist(playlistId, name);
+}
+
+void SubsonicHub::deletePlaylist(const QString &serverId, const QString &playlistId)
+{
+    if (SubsonicSource *s = m_sources.value(serverId))
+        s->deletePlaylist(playlistId);
+}
+
+void SubsonicHub::addToPlaylist(const QString &serverId, const QString &playlistId, const QStringList &paths)
+{
+    if (SubsonicSource *s = m_sources.value(serverId))
+        s->addToPlaylist(playlistId, paths);
+}
+
+void SubsonicHub::removeFromPlaylist(const QString &serverId, const QString &playlistId, int index)
+{
+    if (SubsonicSource *s = m_sources.value(serverId))
+        s->removeFromPlaylist(playlistId, index);
+}

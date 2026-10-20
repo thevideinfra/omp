@@ -120,6 +120,30 @@ private slots:
         QCOMPARE(p.list()->get(1).value("serverId").toString(), QString("s2"));
     }
 
+    void editableServerPlaylistsAreListedForAddingSongsTo()
+    {
+        QTemporaryDir dir;
+        Playlists p(dir.path());
+        Playlists::ServerList mine{"Road", {"subsonic:s1/1"}, "p1", "s1", "Home", false};
+        Playlists::ServerList fav{"Favorites", {"subsonic:s1/2"}, "", "s1", "Home", true};
+        Playlists::ServerList other{"Mix", {}, "p9", "s2", "Work", false};
+        p.setServerLists("s1", {mine, fav});
+        p.setServerLists("s2", {other});
+        const QVariantList e = p.editableServerLists();
+        QCOMPARE(e.size(), 2);                                       // Favorites is not one of them
+        QCOMPARE(e.at(0).toMap().value("name").toString(), QString("Road"));
+        QCOMPARE(e.at(0).toMap().value("serverId").toString(), QString("s1"));
+        QCOMPARE(e.at(0).toMap().value("playlistId").toString(), QString("p1"));
+        QCOMPARE(e.at(0).toMap().value("source").toString(), QString("Home"));
+        QCOMPARE(e.at(1).toMap().value("serverId").toString(), QString("s2"));
+        // The row of an editable list says so.
+        bool sawEditable = false;
+        for (int i = 0; i < p.list()->rowCount(); ++i)
+            if (p.list()->get(i).value("title").toString() == "Road")
+                sawEditable = !p.list()->get(i).value("readOnly").toBool();
+        QVERIFY(sawEditable);
+    }
+
     void aSongKnowsWhichPlaylistsItIsIn()
     {
         QTemporaryDir dir;

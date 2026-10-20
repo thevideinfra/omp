@@ -41,6 +41,13 @@ public:
     void toggleStar(const QString &path);
     // The playing song, to scrobble it (a song of another server counts as nothing playing).
     void noteProgress(const QString &path, double position, double duration);
+    // Playlist editing on the server (only this server's own songs can go in); the playlists are
+    // fetched again after a change, and a refusal shows in the status.
+    void createPlaylist(const QString &name, const QStringList &paths);
+    void renamePlaylist(const QString &playlistId, const QString &name);
+    void deletePlaylist(const QString &playlistId);
+    void addToPlaylist(const QString &playlistId, const QStringList &paths);
+    void removeFromPlaylist(const QString &playlistId, int index);
     // Forgets what it knows: its songs, cache and playlists (not the keyring; the hub does that).
     void forget();
 
@@ -53,6 +60,8 @@ private:
     void onServersChanged();
     void fetchWith(const QString &password);
     void publishLists(const QVariantList &serverPlaylists);
+    QStringList ownSongIds(const QStringList &paths) const;
+    SubsonicClient::PlaylistDone afterEdit(const QString &what);
 
     QString m_id;
     Servers &m_servers;

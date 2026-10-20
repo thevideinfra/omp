@@ -41,6 +41,8 @@ public:
     // The lists of one server; each server's lists are kept apart.
     void setServerLists(const QString &serverId, const QList<ServerList> &lists);
     void setServerLists(const QList<ServerList> &lists) { setServerLists(QStringLiteral("s1"), lists); }
+    // The server playlists that songs can be added to: name, serverId, playlistId, source.
+    Q_INVOKABLE QVariantList editableServerLists() const;
 
     Q_INVOKABLE QStringList names() const;
     Q_INVOKABLE QStringList paths(const QString &name) const;

@@ -276,3 +276,32 @@ void SubsonicClient::setStarred(const QString &id, bool starred, std::function<v
     call(starred ? QStringLiteral("star") : QStringLiteral("unstar"), {{"id", id}},
          [done](bool ok, const QJsonObject &, const QString &err) { done(ok, err); });
 }
+
+void SubsonicClient::createPlaylist(const QString &name, const QStringList &songIds, PlaylistDone done)
+{
+    Params p{{"name", name}};
+    for (const QString &id : songIds)
+        p.append({"songId", id});
+    call(QStringLiteral("createPlaylist"), p,
+         [done](bool ok, const QJsonObject &, const QString &err) { done(ok, err); });
+}
+
+void SubsonicClient::updatePlaylist(const QString &id, const QString &newName, const QStringList &addSongIds,
+                                    const QList<int> &removeIndexes, PlaylistDone done)
+{
+    Params p{{"playlistId", id}};
+    if (!newName.isEmpty())
+        p.append({"name", newName});
+    for (const QString &song : addSongIds)
+        p.append({"songIdToAdd", song});
+    for (int index : removeIndexes)
+        p.append({"songIndexToRemove", QString::number(index)});
+    call(QStringLiteral("updatePlaylist"), p,
+         [done](bool ok, const QJsonObject &, const QString &err) { done(ok, err); });
+}
+
+void SubsonicClient::deletePlaylist(const QString &id, PlaylistDone done)
+{
+    call(QStringLiteral("deletePlaylist"), {{"id", id}},
+         [done](bool ok, const QJsonObject &, const QString &err) { done(ok, err); });
+}

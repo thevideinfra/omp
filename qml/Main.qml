@@ -726,6 +726,8 @@ ApplicationWindow {
     SongMenu {
         id: contextMenu
         onNewPlaylist: (tracks) => picker.openNew(tracks)
+        onNewServerPlaylist: (serverId, tracks) => picker.openNew(tracks, serverId)
+        onAddToServerPlaylist: (serverId, playlistId, tracks) => subsonic.addToPlaylist(serverId, playlistId, tracks.map(t => t.path))
         onAddToPlaylistNamed: (name, tracks) => playlists.addPaths(name, tracks.map(t => t.path))
         onGoToArtist: (path) => win.goTo("Artists", artistsTab, library.artistKeyFor(path))
         onGoToAlbum: (path) => win.goTo("Albums", albumsTab, library.albumKeyFor(path))

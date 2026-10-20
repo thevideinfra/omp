@@ -25,7 +25,9 @@ Item {
     signal pickRequested(var tracks)   // add these songs to a playlist (the m key)
     signal contextRequested(var tracks, real x, real y, bool canRemove)   // right-click
     signal newPlaylistRequested()
-    property bool openReadOnly: false   // playlists: the open one is a server playlist (no edits)
+    property bool openReadOnly: false   // playlists: the open one cannot be edited (Favorites)
+    property string openServerId: ""    // playlists: the server of the open playlist, empty for a local one
+    property string openPlaylistId: ""
     property bool renaming: false
     property bool confirmDelete: false
     property string selectName: ""   // playlist to select after the next change
@@ -138,6 +140,12 @@ Item {
     function doRename(text) {
         const name = text.trim()
         selectName = name   // set first: the change signal arrives during rename()
+        if (openServerId !== "") {   // a playlist on a server: the server renames it, then the list is fetched again
+            subsonic.renamePlaylist(openServerId, openPlaylistId, name)
+            renaming = false
+            clicked()
+            return
+        }
         if (!playlists.rename(openTitle, name)) {
             selectName = ""
             renaming = false
@@ -149,7 +157,8 @@ Item {
         if (kind !== "playlist" || openReadOnly || !rightFocus || rows.length === 0) return
         const r = rows[detail.currentIndex]
         if (r.header) return
-        playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
+        if (openServerId !== "") subsonic.removeFromPlaylist(openServerId, openPlaylistId, r.plIndex)
+        else playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
     }
     // A click on a sort header of the albums or artists list: ascending first, then descending.
     function sortBy(key) {
@@ -221,12 +230,14 @@ Item {
         renaming = false
         confirmDelete = false
         if (row < 0 || row >= top.count) {
-            rows = []; allTracks = []; openTitle = ""; artistTracks = []; albumGroups = []; openReadOnly = false
+            rows = []; allTracks = []; openTitle = ""; artistTracks = []; albumGroups = []; openReadOnly = false; openServerId = ""; openPlaylistId = ""
             albumModel.clear(); detailModel.clear()
             return
         }
         openTitle = model.get(row).title
         openReadOnly = kind === "playlist" && !!model.get(row).readOnly
+        openServerId = kind === "playlist" ? (model.get(row).serverId ?? "") : ""
+        openPlaylistId = kind === "playlist" ? (model.get(row).playlistId ?? "") : ""
         artistTracks = tracksOf(row)
         albumIndex = 0
         if (kind === "artist") {
@@ -329,7 +340,9 @@ Item {
             root.selectName = ""
             let row = -1
             for (let i = 0; i < top.count; ++i) {
-                if (root.model.get(i).key === name) { row = i; break }
+                const r = root.model.get(i)
+                // a local playlist is found by its key (its name); a server one by its name on the same server
+                if (root.openServerId === "" ? r.key === name : (r.title === name && r.serverId === root.openServerId)) { row = i; break }
             }
             if (row >= 0 && row !== top.currentIndex) top.currentIndex = row   // shows that row
             else root.showRow(top.currentIndex)
@@ -554,7 +567,10 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (root.confirmDelete) playlists.remove(root.openTitle)
+                            if (root.confirmDelete) {
+                                if (root.openServerId !== "") subsonic.deletePlaylist(root.openServerId, root.openPlaylistId)
+                                else playlists.remove(root.openTitle)
+                            }
                             else { root.confirmDelete = true; confirmTimer.restart() }
                         }
                     }

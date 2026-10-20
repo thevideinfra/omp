@@ -91,6 +91,16 @@ void Playlists::setServerLists(const QString &serverId, const QList<ServerList> 
     reload();
 }
 
+QVariantList Playlists::editableServerLists() const
+{
+    QVariantList out;
+    for (const QList<ServerList> &lists : m_server)
+        for (const ServerList &s : lists)
+            if (!s.readOnly)
+                out << QVariantMap{{"name", s.name}, {"serverId", s.serverId}, {"playlistId", s.id}, {"source", s.source}};
+    return out;
+}
+
 QStringList Playlists::paths(const QString &name) const
 {
     QStringList out;

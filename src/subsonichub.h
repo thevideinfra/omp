@@ -47,6 +47,12 @@ public:
     Q_INVOKABLE bool updateServer(const QString &id, const QString &url, const QString &user,
                                   const QString &password, bool enabled);
     Q_INVOKABLE void setServerEnabled(const QString &id, bool enabled);
+    // Playlists of a server (by the server's and the playlist's ids); only that server's songs can go in.
+    Q_INVOKABLE void createPlaylist(const QString &serverId, const QString &name, const QStringList &paths);
+    Q_INVOKABLE void renamePlaylist(const QString &serverId, const QString &playlistId, const QString &name);
+    Q_INVOKABLE void deletePlaylist(const QString &serverId, const QString &playlistId);
+    Q_INVOKABLE void addToPlaylist(const QString &serverId, const QString &playlistId, const QStringList &paths);
+    Q_INVOKABLE void removeFromPlaylist(const QString &serverId, const QString &playlistId, int index);
     // Forgets a server: its password, songs, cache and playlists.
     Q_INVOKABLE void removeServer(const QString &id);
 

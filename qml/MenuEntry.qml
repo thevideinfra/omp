@@ -6,14 +6,24 @@ import "Scale.js" as S
 MenuItem {
     id: entry
     property bool wanted: true   // shown in the menu at all
+    property bool divider: false // a thin line instead of a choice
     visible: wanted
-    implicitHeight: wanted ? S.sp(34) : 0
+    enabled: !divider
+    implicitHeight: wanted ? (divider ? S.sp(9) : S.sp(34)) : 0
     height: implicitHeight
     contentItem: UiText {
         leftPadding: S.sp(10)
         verticalAlignment: Text.AlignVCenter
         text: entry.text
         color: entry.enabled ? theme.foreground : theme.dimForeground
+        Rectangle {   // the line of a divider
+            visible: entry.divider
+            anchors.verticalCenter: parent.verticalCenter
+            x: S.sp(4)
+            width: parent.width - S.sp(8)
+            height: 1
+            color: Qt.alpha(theme.foreground, 0.15)
+        }
     }
     arrow: UiText {   // the little arrow of an entry that opens a submenu
         x: entry.width - width - S.sp(10)

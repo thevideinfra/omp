@@ -6,6 +6,7 @@
 #include <QtTest>
 
 #include "lookscope.h"
+#include "rowsmodel.h"
 #include "settings.h"
 #include "theme.h"
 
@@ -53,6 +54,8 @@ class StubPlaylists : public QObject
     Q_PROPERTY(int revision MEMBER revision NOTIFY changed)
 public:
     Q_INVOKABLE QStringList names() const { return list; }
+    Q_INVOKABLE QVariantList editableServerLists() const { return serverLists; }
+    QVariantList serverLists;
     QStringList list{"Chill", "Road"};
     int revision = 0;
 signals:
@@ -62,7 +65,10 @@ signals:
 class StubSubsonic : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(RowsModel *servers READ servers CONSTANT)
 public:
+    RowsModel *servers() { return &serverRows; }
+    RowsModel serverRows{{"id", "title", "active"}};
     Q_INVOKABLE void toggleStar(const QString &path) { toggled << path; }
     QStringList toggled;
 };
@@ -193,6 +199,42 @@ private slots:
         QTRY_COMPARE(sub->property("count").toInt(), 5);
         QCOMPARE(texts().value(4), QString("Zed"));
         playlists.list.removeLast();
+        ++playlists.revision;
+        emit playlists.changed();
+        QTRY_COMPARE(sub->property("count").toInt(), 4);
+    }
+
+    void theSubmenuOffersServerPlaylistsAndANewPlaylistOnEachServer()
+    {
+        menu->setProperty("tracks", QVariantList{song("subsonic:s1/7")});
+        QObject *sub = menu->findChild<QObject *>("playlistMenu");
+        const auto item = [&](int i) {
+            QQuickItem *o = nullptr;
+            QMetaObject::invokeMethod(sub, "itemAt", Q_RETURN_ARG(QQuickItem *, o), Q_ARG(int, i));
+            return static_cast<QObject *>(o);
+        };
+        subsonic.serverRows.setRows({{{"id", "s1"}, {"title", "Navidrome"}, {"active", true}},
+                                     {{"id", "s2"}, {"title", "Airsonic"}, {"active", false}}});
+        playlists.serverLists = {QVariantMap{{"name", "Road"}, {"serverId", "s1"}, {"playlistId", "p1"}, {"source", "Navidrome"}}};
+        ++playlists.revision;
+        emit playlists.changed();
+        // New playlist, new on Navidrome (Airsonic is off: left out), a divider, Chill, Road, Road on the server.
+        QTRY_COMPARE(sub->property("count").toInt(), 6);
+        QCOMPARE(item(1)->property("text").toString(), QString("New playlist on Navidrome…"));
+        QVERIFY(item(2)->property("divider").toBool());
+        QCOMPARE(item(5)->property("text").toString(), QString("Road  ·  Navidrome"));
+
+        QSignalSpy created(menu, SIGNAL(newServerPlaylist(QString, QVariant)));
+        QVERIFY(QMetaObject::invokeMethod(item(1), "triggered"));
+        QCOMPARE(created.at(0).at(0).toString(), QString("s1"));
+        QSignalSpy added(menu, SIGNAL(addToServerPlaylist(QString, QString, QVariant)));
+        QVERIFY(QMetaObject::invokeMethod(item(5), "triggered"));
+        QCOMPARE(added.at(0).at(0).toString(), QString("s1"));
+        QCOMPARE(added.at(0).at(1).toString(), QString("p1"));
+        QCOMPARE(added.at(0).at(2).value<QVariantList>().size(), 1);
+
+        subsonic.serverRows.setRows({});
+        playlists.serverLists.clear();
         ++playlists.revision;
         emit playlists.changed();
         QTRY_COMPARE(sub->property("count").toInt(), 4);

@@ -35,6 +35,57 @@ struct Env
     QString status(const QString &id) const { return hub.source(id)->status(); }
 };
 
+// A server that really keeps playlists, so that edits can be seen to take effect.
+struct PlaylistBackend
+{
+    struct List { QString name; QStringList songs; };
+    QMap<QString, List> lists;
+    int next = 1;
+    void attach(FakeSubsonic &fake)
+    {
+        fake.setHandler("getPlaylists", [this](const QUrlQuery &) {
+            QStringList items;
+            for (auto it = lists.cbegin(); it != lists.cend(); ++it)
+                items << QStringLiteral("{\"id\":\"%1\",\"name\":\"%2\"}").arg(it.key(), it.value().name);
+            return QByteArray("\"playlists\":{\"playlist\":[") + items.join(',').toUtf8() + "]}";
+        });
+        fake.setHandler("getPlaylist", [this](const QUrlQuery &q) {
+            const List l = lists.value(q.queryItemValue("id"));
+            QStringList entries;
+            for (const QString &s : l.songs)
+                entries << QStringLiteral("{\"id\":\"%1\",\"title\":\"T\"}").arg(s);
+            return QByteArray("\"playlist\":{\"id\":\"") + q.queryItemValue("id").toUtf8() + "\",\"entry\":["
+                   + entries.join(',').toUtf8() + "]}";
+        });
+        fake.setHandler("createPlaylist", [this](const QUrlQuery &q) {
+            const QString id = QStringLiteral("p%1").arg(next++);
+            lists[id] = {q.queryItemValue("name"), q.allQueryItemValues("songId")};
+            return QByteArray("\"playlist\":{\"id\":\"") + id.toUtf8() + "\"}";
+        });
+        fake.setHandler("updatePlaylist", [this](const QUrlQuery &q) {
+            const QString id = q.queryItemValue("playlistId");
+            if (!lists.contains(id))
+                return QByteArray("ERR:No such playlist");
+            List &l = lists[id];
+            if (q.hasQueryItem("name"))
+                l.name = q.queryItemValue("name");
+            QList<int> drop;
+            for (const QString &i : q.allQueryItemValues("songIndexToRemove"))
+                drop << i.toInt();
+            std::sort(drop.begin(), drop.end(), std::greater<int>());
+            for (int i : drop)
+                if (i >= 0 && i < l.songs.size())
+                    l.songs.removeAt(i);
+            l.songs += q.allQueryItemValues("songIdToAdd");
+            return QByteArray();
+        });
+        fake.setHandler("deletePlaylist", [this](const QUrlQuery &q) {
+            return lists.remove(q.queryItemValue("id")) ? QByteArray() : QByteArray("ERR:No such playlist");
+        });
+    }
+};
+
+
 class TstSubsonicHub : public QObject
 {
     Q_OBJECT
@@ -161,6 +212,73 @@ private slots:
         QCOMPARE(e.playlists.paths(e.playlists.list()->get(1).value("key").toString()),
                  QStringList({"subsonic:" + id + "/a1-1", "subsonic:" + id + "/a2-1"}));
         QVERIFY(e.playlists.list()->get(1).value("readOnly").toBool());
+    }
+
+    void serverPlaylistsCanBeCreatedRenamedChangedAndDeleted()
+    {
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 3}});
+        PlaylistBackend backend;
+        backend.attach(fake);
+        Env e;
+        const QString id = e.hub.addServer(fake.url(), "amy", "sesame", true);
+        QTRY_COMPARE(e.library.songs()->rowCount(), 3);
+        const auto serverRows = [&] {
+            QStringList titles;
+            for (int i = 0; i < e.playlists.list()->rowCount(); ++i)
+                if (e.playlists.list()->get(i).value("serverId").toString() == id)
+                    titles << e.playlists.list()->get(i).value("title").toString();
+            return titles;
+        };
+        const auto rowFor = [&](const QString &title) {
+            for (int i = 0; i < e.playlists.list()->rowCount(); ++i)
+                if (e.playlists.list()->get(i).value("title").toString() == title)
+                    return e.playlists.list()->get(i);
+            return QVariantMap();
+        };
+        const QString s1 = "subsonic:" + id + "/a1-1", s2 = "subsonic:" + id + "/a1-2", s3 = "subsonic:" + id + "/a1-3";
+
+        e.hub.createPlaylist(id, "Road", {s1, s2, "/local/not-on-the-server.flac"});     // only its own songs go in
+        QTRY_VERIFY(serverRows().contains("Road"));
+        QVERIFY(!rowFor("Road").value("readOnly").toBool());                              // a real playlist can be edited
+        QCOMPARE(backend.lists.value("p1").songs, QStringList({"a1-1", "a1-2"}));
+        const QString pid = rowFor("Road").value("playlistId").toString();
+        QCOMPARE(pid, QString("p1"));
+        QVERIFY(rowFor("Favorites").value("readOnly").toBool());                          // Favorites is not one to edit
+
+        e.hub.addToPlaylist(id, pid, {s3});
+        QTRY_COMPARE(e.playlists.paths(rowFor("Road").value("key").toString()).size(), 3);
+        e.hub.removeFromPlaylist(id, pid, 0);                                              // the first song
+        QTRY_COMPARE(e.playlists.paths(rowFor("Road").value("key").toString()).size(), 2);
+        QCOMPARE(backend.lists.value("p1").songs, QStringList({"a1-2", "a1-3"}));
+
+        e.hub.renamePlaylist(id, pid, "Highway");
+        QTRY_VERIFY(serverRows().contains("Highway"));
+        QVERIFY(!serverRows().contains("Road"));
+
+        e.hub.deletePlaylist(id, pid);
+        QTRY_VERIFY(!serverRows().contains("Highway"));
+        QVERIFY(backend.lists.isEmpty());
+    }
+
+    void aRefusedPlaylistEditIsReportedAndChangesNothing()
+    {
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 1}});
+        PlaylistBackend backend;
+        backend.lists["p1"] = {"Road", {"a1-1"}};
+        backend.attach(fake);
+        Env e;
+        const QString id = e.hub.addServer(fake.url(), "amy", "sesame", true);
+        QTRY_VERIFY(e.playlists.list()->rowCount() >= 1);
+        fake.setHandler("deletePlaylist", [](const QUrlQuery &) { return QByteArray("ERR:Not yours"); });
+        e.hub.deletePlaylist(id, "p1");
+        QTRY_VERIFY(e.status(id).contains("Not yours"));
+        QCOMPARE(e.state(id), QString("connected"));                                      // the server is fine, the edit failed
+        QVERIFY(backend.lists.contains("p1"));
+
+        e.hub.addToPlaylist(id, "p1", {"/local/x.flac"});                                  // nothing of this server's to add
+        QVERIFY(e.status(id).contains("songs"));
     }
 
     void playedSongsAreScrobbledAndOnlyWhileTheServerIsOn()

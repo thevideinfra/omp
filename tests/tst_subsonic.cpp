@@ -209,6 +209,48 @@ private slots:
         QCOMPARE(lists.at(1).toMap().value("paths").toStringList(), QStringList());
     }
 
+    void playlistsCanBeCreatedRenamedChangedAndDeleted()
+    {
+        FakeSubsonic fake;
+        fake.setResult("createPlaylist", R"("playlist":{"id":"new1","name":"Road"})");
+        fake.setResult("updatePlaylist", {});
+        fake.setResult("deletePlaylist", {});
+        SubsonicClient c;
+        c.setServer(fake.url(), "amy", "sesame");
+        bool ok = false;
+        QString err;
+        const auto run = [&](const std::function<void(SubsonicClient::PlaylistDone)> &start) {
+            bool called = false;
+            start([&](bool o, const QString &e) { called = true; ok = o; err = e; });
+            QTRY_VERIFY(called);
+        };
+
+        run([&](auto done) { c.createPlaylist("Road", {"7", "9"}, done); });
+        QVERIFY(ok);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("name"), QString("Road"));
+        QCOMPARE(QUrlQuery(fake.requests.last()).allQueryItemValues("songId"), QStringList({"7", "9"}));
+
+        run([&](auto done) { c.updatePlaylist("p1", "New name", {"4"}, {2, 0}, done); });
+        QVERIFY(ok);
+        const QUrlQuery q(fake.requests.last());
+        QCOMPARE(q.queryItemValue("playlistId"), QString("p1"));
+        QCOMPARE(q.queryItemValue("name"), QString("New name"));
+        QCOMPARE(q.allQueryItemValues("songIdToAdd"), QStringList({"4"}));
+        QCOMPARE(q.allQueryItemValues("songIndexToRemove"), QStringList({"2", "0"}));
+
+        run([&](auto done) { c.updatePlaylist("p1", QString(), {}, {1}, done); });   // only a removal: no name sent
+        QVERIFY(!QUrlQuery(fake.requests.last()).hasQueryItem("name"));
+
+        run([&](auto done) { c.deletePlaylist("p1", done); });
+        QVERIFY(ok);
+        QCOMPARE(QUrlQuery(fake.requests.last()).queryItemValue("id"), QString("p1"));
+
+        fake.setHandler("deletePlaylist", [](const QUrlQuery &) { return QByteArray("ERR:Not yours"); });
+        run([&](auto done) { c.deletePlaylist("p1", done); });
+        QVERIFY(!ok);                                               // a refusal comes back with the server's words
+        QVERIFY(err.contains("Not yours"));
+    }
+
     void mpvStreamsASongFromTheServerUrl()
     {
         QTemporaryDir dir;

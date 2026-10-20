@@ -15,6 +15,8 @@ Menu {
     property string folderPath: ""   // set for a music folder at the top of Libraries: it can be removed
     signal newPlaylist(var tracks)                         // "New playlist…" in the submenu
     signal addToPlaylistNamed(string name, var tracks)   // an existing playlist in the submenu
+    signal newServerPlaylist(string serverId, var tracks)                        // "New playlist on <server>…"
+    signal addToServerPlaylist(string serverId, string playlistId, var tracks)   // a playlist that lives on a server
     signal removeFromPlaylist()
     signal removeFolder(string path)
     signal goToArtist(string path)
@@ -68,17 +70,34 @@ Menu {
             border.width: 1
             border.color: Qt.alpha(theme.accent, 0.5)
         }
-        MenuEntry { objectName: "newPlaylist"; text: qsTr("New playlist…"); onTriggered: root.newPlaylist(root.tracks) }
-        MenuSeparator {
-            contentItem: Rectangle { implicitHeight: 1; color: Qt.alpha(theme.foreground, 0.15) }
+        // New playlist (here and on each server that is on), a divider, then the local playlists and the servers' own.
+        readonly property var entries: {
+            playlists.revision
+            const out = [{ kind: "new", text: qsTr("New playlist…"), name: "newPlaylist" }]
+            for (let i = 0; i < subsonic.servers.count; ++i) {
+                const s = subsonic.servers.get(i)
+                if (s.active)
+                    out.push({ kind: "newOn", text: qsTr("New playlist on %1…").arg(s.title), serverId: s.id, name: "newOn:" + s.id })
+            }
+            out.push({ kind: "divider", text: "", name: "divider" })
+            playlists.names().forEach(n => out.push({ kind: "local", text: n, name: "pl:" + n }))
+            playlists.editableServerLists().forEach(l => out.push({ kind: "server", text: l.name + "  ·  " + l.source,
+                serverId: l.serverId, playlistId: l.playlistId, name: "sp:" + l.serverId + "/" + l.playlistId }))
+            return out
         }
         Repeater {
-            model: { playlists.revision; return playlists.names() }
+            model: playlistMenu.entries
             MenuEntry {
-                required property string modelData
-                objectName: "pl:" + modelData
-                text: modelData
-                onTriggered: root.addToPlaylistNamed(modelData, root.tracks)
+                required property var modelData
+                objectName: modelData.name
+                text: modelData.text
+                divider: modelData.kind === "divider"
+                onTriggered: {
+                    if (modelData.kind === "new") root.newPlaylist(root.tracks)
+                    else if (modelData.kind === "newOn") root.newServerPlaylist(modelData.serverId, root.tracks)
+                    else if (modelData.kind === "local") root.addToPlaylistNamed(modelData.text, root.tracks)
+                    else if (modelData.kind === "server") root.addToServerPlaylist(modelData.serverId, modelData.playlistId, root.tracks)
+                }
             }
         }
     }

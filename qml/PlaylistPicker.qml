@@ -9,9 +9,10 @@ Popup {
     id: root
     property var tracks: []
     property bool newOnly: false
+    property string targetServer: ""   // set when the new playlist is to be made on a server
 
-    function openFor(list) { tracks = list; newOnly = false; nameField.text = ""; open() }
-    function openNew(list) { tracks = list; newOnly = true; nameField.text = ""; open() }
+    function openFor(list) { tracks = list; newOnly = false; targetServer = ""; nameField.text = ""; open() }
+    function openNew(list, serverId) { tracks = list; newOnly = true; targetServer = serverId ?? ""; nameField.text = ""; open() }
 
     readonly property var paths: tracks.map(t => t.path)
 
@@ -33,6 +34,11 @@ Popup {
     function create() {
         const name = nameField.text.trim()
         if (name === "") return
+        if (targetServer !== "") {   // on a server: it makes the playlist, then it shows up in the list
+            subsonic.createPlaylist(targetServer, name, paths)
+            close()
+            return
+        }
         if (playlists.createWith(name, paths) !== "") close()
     }
 
@@ -61,7 +67,9 @@ Popup {
             delegate: Rectangle {
                 required property string title
                 required property string subtitle
-                required property bool readOnly   // a server playlist cannot take songs
+                required property bool readOnly   // Favorites cannot take songs
+                required property string serverId
+                required property string playlistId
                 visible: !readOnly
                 width: ListView.view.width
                 height: readOnly ? 0 : S.sp(34)
@@ -81,7 +89,11 @@ Popup {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { playlists.addPaths(title, root.paths); root.close() }
+                    onClicked: {
+                        if (serverId !== "") subsonic.addToPlaylist(serverId, playlistId, root.paths)   // on a server
+                        else playlists.addPaths(title, root.paths)
+                        root.close()
+                    }
                 }
             }
         }

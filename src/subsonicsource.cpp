@@ -192,6 +192,7 @@ void SubsonicSource::publishLists(const QVariantList &serverPlaylists)
         s.id = v.toMap().value("id").toString();
         s.serverId = m_id;
         s.source = m_label;
+        s.readOnly = false;   // the server's own playlists can be edited; Favorites below cannot
         lists.append(s);
     }
     const QStringList starred = m_library.starredRemotePaths(m_id);
@@ -204,6 +205,64 @@ void SubsonicSource::publishLists(const QVariantList &serverPlaylists)
         lists.append(s);
     }
     m_playlists.setServerLists(m_id, lists);
+}
+
+QStringList SubsonicSource::ownSongIds(const QStringList &paths) const
+{
+    QStringList ids;
+    for (const QString &p : paths)
+        if (Track::serverOf(Track::normalized(p)) == m_id)
+            ids << Track::songIdOf(Track::normalized(p));
+    return ids;
+}
+
+// What to do when an edit has been answered: fetch the playlists again, or say why it failed.
+SubsonicClient::PlaylistDone SubsonicSource::afterEdit(const QString &what)
+{
+    return [this, what](bool ok, const QString &err) {
+        if (ok)
+            m_client.fetchPlaylists();
+        else
+            setStatus(tr("Could not %1: %2").arg(what, err), false, m_state);
+    };
+}
+
+void SubsonicSource::createPlaylist(const QString &name, const QStringList &paths)
+{
+    if (!m_client.configured())
+        return;
+    const QStringList ids = ownSongIds(paths);
+    m_client.createPlaylist(name, ids, afterEdit(tr("create the playlist")));
+}
+
+void SubsonicSource::renamePlaylist(const QString &playlistId, const QString &name)
+{
+    if (m_client.configured() && !name.trimmed().isEmpty())
+        m_client.updatePlaylist(playlistId, name.trimmed(), {}, {}, afterEdit(tr("rename the playlist")));
+}
+
+void SubsonicSource::deletePlaylist(const QString &playlistId)
+{
+    if (m_client.configured())
+        m_client.deletePlaylist(playlistId, afterEdit(tr("delete the playlist")));
+}
+
+void SubsonicSource::addToPlaylist(const QString &playlistId, const QStringList &paths)
+{
+    if (!m_client.configured())
+        return;
+    const QStringList ids = ownSongIds(paths);
+    if (ids.isEmpty()) {
+        setStatus(tr("Only songs from %1 can go in its playlists").arg(host()), false, m_state);
+        return;
+    }
+    m_client.updatePlaylist(playlistId, QString(), ids, {}, afterEdit(tr("add the songs")));
+}
+
+void SubsonicSource::removeFromPlaylist(const QString &playlistId, int index)
+{
+    if (m_client.configured() && index >= 0)
+        m_client.updatePlaylist(playlistId, QString(), {}, {index}, afterEdit(tr("remove the song")));
 }
 
 void SubsonicSource::fetchWith(const QString &password)

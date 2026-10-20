@@ -50,6 +50,13 @@ public:
     void fetchLibrary();
     // The server's playlists as { name, paths } (paths are "subsonic:<id>"); all or nothing.
     void fetchPlaylists();
+    // Playlist editing; `done(ok, error)`. Songs are given by their server ids, removals by position.
+    using PlaylistDone = std::function<void(bool, const QString &)>;
+    void createPlaylist(const QString &name, const QStringList &songIds, PlaylistDone done);
+    // An empty `newName` leaves the name alone.
+    void updatePlaylist(const QString &id, const QString &newName, const QStringList &addSongIds,
+                        const QList<int> &removeIndexes, PlaylistDone done);
+    void deletePlaylist(const QString &id, PlaylistDone done);
     // "Now playing" (submission false) or "played" (true). Failures are only logged.
     void scrobble(const QString &id, bool submission);
     // star or unstar a song; `done(ok, error)`.

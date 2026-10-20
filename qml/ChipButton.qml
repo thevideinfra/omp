@@ -6,7 +6,6 @@ Rectangle {
     id: root
     property string text
     property bool danger: false
-    property bool enabled: true
     signal clicked()
 
     implicitWidth: label.implicitWidth + S.sp(24)
@@ -29,6 +28,6 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: if (root.enabled) root.clicked()
+        onClicked: root.clicked()
     }
 }

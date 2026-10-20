@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QFile>
 #include <QHash>
 #include <functional>
 
@@ -53,7 +54,7 @@ public:
     void setRemoteTracks(QVector<Track> tracks) { setRemoteTracks(QStringLiteral("s1"), std::move(tracks)); }
     void loadRemoteCache(const QString &serverId = QStringLiteral("s1"));
     // The server songs marked as favorites, in title order.
-    QStringList starredRemotePaths() const;
+    QStringList starredRemotePaths(const QString &serverId = QString()) const;   // of one server, or of all
     Q_INVOKABLE bool isStarred(const QString &path) const;
     // What the song table shows beyond the row itself: albumArtist, track, disc, year, mtime, size, format.
     Q_INVOKABLE QVariantMap trackInfo(const QString &path) const;
@@ -73,6 +74,7 @@ public:
     // The download for a cover id finished (the file is in place).
     void coverFetched(const QString &coverId);
     void writeRemoteCache(const QString &serverId = QStringLiteral("s1")) const;
+    void removeRemoteCache(const QString &serverId) const { QFile::remove(remoteCacheFile(serverId)); }
     void start();
     // Replaces the music folders and rescans (after the running scan, if any).
     void setRoots(const QStringList &roots);

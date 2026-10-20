@@ -110,10 +110,10 @@ void SubsonicClient::ping()
     });
 }
 
-Track SubsonicClient::parseSong(const QJsonObject &o)
+Track SubsonicClient::parseSong(const QJsonObject &o, const QString &serverId)
 {
     Track t;
-    t.path = QStringLiteral("subsonic:") + o.value("id").toVariant().toString();
+    t.path = Track::remotePath(serverId, o.value("id").toVariant().toString());
     t.title = o.value("title").toString();
     t.artist = o.value("artist").toString();
     if (t.artist.isEmpty())
@@ -175,7 +175,7 @@ void SubsonicClient::fetchLibrary()
                            }
                            QVector<Track> songs;
                            for (const QJsonValue &s : resp.value("album").toObject().value("song").toArray())
-                               songs.append(parseSong(s.toObject()));
+                               songs.append(parseSong(s.toObject(), self->m_serverId));
                            fetch->byAlbum[index] = songs;
                            ++fetch->done;
                            emit self->libraryProgress(fetch->done, fetch->albumIds.size());
@@ -252,8 +252,8 @@ void SubsonicClient::fetchPlaylists()
                            }
                            QStringList paths;
                            for (const QJsonValue &s : r.value("playlist").toObject().value("entry").toArray())
-                               paths << parseSong(s.toObject()).path;
-                           (*result)[i] = QVariantMap{{"name", items->at(i).name}, {"paths", paths}};
+                               paths << parseSong(s.toObject(), self->m_serverId).path;
+                           (*result)[i] = QVariantMap{{"name", items->at(i).name}, {"id", items->at(i).id}, {"paths", paths}};
                            if (--*pending == 0)
                                emit self->playlistsFetched(*result);
                        });

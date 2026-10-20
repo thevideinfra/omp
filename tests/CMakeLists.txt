@@ -28,6 +28,8 @@ oma_test(tst_servers)
 oma_test(tst_scrobble)
 oma_test(tst_subsonic)
 target_sources(tst_subsonic PRIVATE fakesubsonic.h)   # moc for the fake server
+oma_test(tst_subsonichub)
+target_sources(tst_subsonichub PRIVATE fakesubsonic.h)
 target_link_libraries(tst_mpris PRIVATE Qt6::DBus)
 qt_add_executable(tst_panel_height tst_panel_height.cpp)
 target_link_libraries(tst_panel_height PRIVATE omacore Qt6::Test Qt6::Quick Qt6::Qml)

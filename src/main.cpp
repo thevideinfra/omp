@@ -24,8 +24,8 @@
 #include "playlists.h"
 #include "secrets.h"
 #include "settings.h"
-#include "subsonicclient.h"
-#include "subsonicsource.h"
+#include "servers.h"
+#include "subsonichub.h"
 #include "shell.h"
 #include "theme.h"
 
@@ -142,12 +142,14 @@ int main(int argc, char *argv[])
     Playlists playlists;   // declared before the engine: its context property must outlive the QML
     Autostart autostart;
     Secrets secrets;
-    SubsonicClient subsonicClient;
-    SubsonicSource subsonic(settings, library, playlists, secrets, subsonicClient);
+    Servers servers;
+    servers.migrateFrom(settings);   // the one server of the old settings becomes the first server
+    SubsonicHub subsonic(servers, library, playlists, secrets);
     player.setPathResolver([&](const QString &path) {
-        return path.startsWith(QLatin1String("subsonic:"))
-                   ? subsonicClient.streamUrl(Track::songIdOf(path)).toString(QUrl::FullyEncoded)
-                   : path;
+        if (!Track::isRemotePath(path))
+            return path;
+        const QString url = subsonic.streamUrl(path);
+        return url.isEmpty() ? path : url;
     });
     QQmlApplicationEngine engine;
     Shell shell(engine, player, theme);

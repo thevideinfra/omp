@@ -20,18 +20,23 @@ void Secrets::store(const QString &account, const QString &password)
 
 void Secrets::lookup(const QString &account)
 {
-    run(Op::Lookup, kService, account, {}, [this, account](bool ok, const QString &out) {
+    lookup(account, [this](const QString &password, bool found) { emit looked(password, found); });
+}
+
+void Secrets::lookup(const QString &account, std::function<void(const QString &, bool)> done)
+{
+    run(Op::Lookup, kService, account, {}, [this, account, done](bool ok, const QString &out) {
         if (ok) {
-            emit looked(out, true);
+            done(out, true);
             return;
         }
         // Not there under the new name: a password saved before the rename moves over.
-        run(Op::Lookup, kOldService, account, {}, [this, account](bool oldOk, const QString &oldOut) {
+        run(Op::Lookup, kOldService, account, {}, [this, account, done](bool oldOk, const QString &oldOut) {
             if (oldOk) {
                 run(Op::Store, kService, account, oldOut, [](bool, const QString &) {});
                 run(Op::Clear, kOldService, account, {}, [](bool, const QString &) {});
             }
-            emit looked(oldOk ? oldOut : QString(), oldOk);
+            done(oldOk ? oldOut : QString(), oldOk);
         });
     });
 }

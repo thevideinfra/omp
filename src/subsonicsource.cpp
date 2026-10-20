@@ -1,32 +1,33 @@
 #include "subsonicsource.h"
 
-#include "player.h"
-
-#include <QDebug>
 #include <QBuffer>
+#include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QRegularExpression>
 #include <QSaveFile>
 
-SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &playlists,
-                               Secrets &secrets, SubsonicClient &client, QObject *parent)
+SubsonicSource::SubsonicSource(const QString &serverId, Servers &servers, Library &library, Playlists &playlists,
+                               Secrets &secrets, QObject *parent)
     : QObject(parent)
-    , m_settings(settings)
+    , m_id(serverId)
+    , m_servers(servers)
     , m_library(library)
     , m_playlists(playlists)
     , m_secrets(secrets)
-    , m_client(client)
 {
+    m_client.setServerId(m_id);
     connect(&m_client, &SubsonicClient::serverInfo, this, [this](const QString &type, const QString &) {
-        m_settings.set("serverType", type);
+        m_servers.setType(m_id, type);
     });
     connect(&m_client, &SubsonicClient::libraryProgress, this, [this](int done, int total) {
         setStatus(tr("Syncing %1/%2").arg(done).arg(total), true);
     });
     connect(&m_client, &SubsonicClient::libraryFetched, this, [this](const QVector<Track> &tracks) {
-        m_library.setRemoteTracks(tracks);
-        m_library.writeRemoteCache();
+        m_library.setRemoteTracks(m_id, tracks);
+        m_library.writeRemoteCache(m_id);
         setStatus(tracks.isEmpty() ? tr("Connected, but the server has no songs (has it scanned its music folder?)")
                                    : tr("Connected: %1 songs").arg(tracks.size()),
                   false, QStringLiteral("connected"));
@@ -42,39 +43,29 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
     connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
         setStatus(tr("Server offline: %1").arg(message), false, QStringLiteral("offline"));   // the cached songs stay
     });
-    m_library.setCoverFetcher([this](const QString &serverId, const QString &coverId, const QString &dest) {
-        Q_UNUSED(serverId)   // one server for now
-        if (!m_client.configured())
-            return false;   // asked again once the server settings are in
-        m_client.download(m_client.coverUrl(coverId, 600), [this, coverId, dest](bool ok, const QByteArray &bytes) {
-            if (!ok || bytes.isEmpty() || !QDir().mkpath(QFileInfo(dest).absolutePath()))
-                return;
-            QByteArray copy = bytes;
-            QBuffer buffer(&copy);
-            buffer.open(QIODevice::ReadOnly);
-            if (!QImageReader(&buffer).canRead())   // a server error page or a damaged image is not a cover
-                return;
-            QSaveFile f(dest);
-            if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() && f.commit())
-                m_library.coverFetched(coverId);
-        });
-        return true;
-    });
     connect(&m_scrobbles, &ScrobbleTracker::nowPlaying, this, [this](const QString &id) {
-        if (m_settings.serverEnabled() && m_client.configured())
+        if (config().enabled && m_client.configured())
             m_client.scrobble(id, false);
     });
     connect(&m_scrobbles, &ScrobbleTracker::submit, this, [this](const QString &id) {
-        if (m_settings.serverEnabled() && m_client.configured())
+        if (config().enabled && m_client.configured())
             m_client.scrobble(id, true);
     });
-    connect(&m_settings, &Settings::changed, this, &SubsonicSource::onSettingsChanged);
-    m_signature = QStringLiteral("%1|%2|%3").arg(m_settings.serverEnabled()).arg(m_settings.serverUrl(), m_settings.serverUser());
+    connect(&m_servers, &Servers::changed, this, &SubsonicSource::onServersChanged);
+    const ServerConfig c = config();
+    m_signature = QStringLiteral("%1|%2|%3").arg(c.enabled).arg(c.url, c.user);
+}
+
+QString SubsonicSource::host() const
+{
+    QString u = config().url;
+    u.remove(QRegularExpression(QStringLiteral("^https?://")));
+    return u;
 }
 
 QString SubsonicSource::account() const
 {
-    return m_settings.serverUser() + QLatin1Char('@') + m_settings.serverUrl();
+    return config().user + QLatin1Char('@') + config().url;
 }
 
 void SubsonicSource::setStatus(const QString &status, bool syncing, const QString &state)
@@ -88,24 +79,54 @@ void SubsonicSource::setStatus(const QString &status, bool syncing, const QStrin
     emit statusChanged();
 }
 
+void SubsonicSource::setLabel(const QString &label)
+{
+    if (label == m_label)
+        return;
+    m_label = label;
+    publishLists(m_serverPlaylists);
+}
+
 void SubsonicSource::start()
 {
-    m_library.loadRemoteCache();
+    m_library.loadRemoteCache(m_id);
     sync();
 }
 
-void SubsonicSource::attach(Player &player)
+void SubsonicSource::setPassword(const QString &password, const QString &forAccount)
 {
-    const auto feed = [this, &player] {
-        noteProgress(player.current().value(QStringLiteral("path")).toString(), player.position(), player.duration());
-    };
-    connect(&player, &Player::currentChanged, this, feed);
-    connect(&player, &Player::positionChanged, this, feed);
+    m_password = password;
+    m_passwordFor = forAccount;
 }
 
-void SubsonicSource::toggleStar(const QString &path)
+void SubsonicSource::noteProgress(const QString &path, double position, double duration)
 {
-    if (!path.startsWith(QLatin1String("subsonic:")) || !m_client.configured())
+    m_scrobbles.update(Track::serverOf(path) == m_id ? path : QString(), position, duration);
+}
+
+bool SubsonicSource::fetchCover(const QString &coverId, const QString &dest)
+{
+    if (!m_client.configured())
+        return false;   // asked again once the server is set up
+    m_client.download(m_client.coverUrl(coverId, 600), [this, coverId, dest](bool ok, const QByteArray &bytes) {
+        if (!ok || bytes.isEmpty() || !QDir().mkpath(QFileInfo(dest).absolutePath()))
+            return;
+        QByteArray copy = bytes;
+        QBuffer buffer(&copy);
+        buffer.open(QIODevice::ReadOnly);
+        if (!QImageReader(&buffer).canRead())   // a server error page or a damaged image is not a cover
+            return;
+        QSaveFile f(dest);
+        if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() && f.commit())
+            m_library.coverFetched(coverId);
+    });
+    return true;
+}
+
+void SubsonicSource::toggleStar(const QString &rawPath)
+{
+    const QString path = Track::normalized(rawPath);
+    if (Track::serverOf(path) != m_id || !m_client.configured())
         return;
     const bool now = !m_library.isStarred(path);
     m_library.setStarred(path, now);
@@ -119,14 +140,12 @@ void SubsonicSource::toggleStar(const QString &path)
     });
 }
 
-void SubsonicSource::noteProgress(const QString &path, double position, double duration)
+void SubsonicSource::onServersChanged()
 {
-    m_scrobbles.update(path, position, duration);
-}
-
-void SubsonicSource::onSettingsChanged()
-{
-    const QString now = QStringLiteral("%1|%2|%3").arg(m_settings.serverEnabled()).arg(m_settings.serverUrl(), m_settings.serverUser());
+    const ServerConfig c = config();
+    if (c.id.isEmpty())
+        return;   // removed: the hub is about to drop this source
+    const QString now = QStringLiteral("%1|%2|%3").arg(c.enabled).arg(c.url, c.user);
     if (now == m_signature)
         return;
     m_signature = now;
@@ -137,7 +156,8 @@ void SubsonicSource::sync()
 {
     if (m_syncing)
         return;
-    if (!m_settings.serverEnabled() || m_settings.serverUrl().isEmpty() || m_settings.serverUser().isEmpty()) {
+    const ServerConfig c = config();
+    if (!c.enabled || c.url.isEmpty() || c.user.isEmpty()) {
         setStatus({});
         return;
     }
@@ -146,73 +166,59 @@ void SubsonicSource::sync()
         fetchWith(m_password);
         return;
     }
-    auto *conn = new QMetaObject::Connection;
-    *conn = connect(&m_secrets, &Secrets::looked, this, [this, conn](const QString &password, bool found) {
-        disconnect(*conn);
-        delete conn;
+    const QString asked = account();
+    m_secrets.lookup(asked, [this, asked](const QString &password, bool found) {
+        if (account() != asked)
+            return;   // the server was edited meanwhile: a newer sync is on its way
         if (!found) {
             setStatus(tr("Server password not found in the keyring: save the server again"), false, QStringLiteral("offline"));
             return;
         }
         m_password = password;
-        m_passwordFor = account();
+        m_passwordFor = asked;
         fetchWith(password);
     });
-    m_secrets.lookup(account());
 }
 
-// The server's playlists, then "Favorites" (the starred songs), after the local ones.
+// The server's playlists, then "Favorites" (its starred songs), after the local ones.
 void SubsonicSource::publishLists(const QVariantList &serverPlaylists)
 {
     m_serverPlaylists = serverPlaylists;
     QList<Playlists::ServerList> lists;
-    for (const QVariant &v : serverPlaylists)
-        lists.append({v.toMap().value("name").toString(), v.toMap().value("paths").toStringList()});
-    const QStringList starred = m_library.starredRemotePaths();
-    if (!starred.isEmpty())
-        lists.append({tr("Favorites"), starred});
-    m_playlists.setServerLists(lists);
+    for (const QVariant &v : serverPlaylists) {
+        Playlists::ServerList s;
+        s.name = v.toMap().value("name").toString();
+        s.paths = v.toMap().value("paths").toStringList();
+        s.id = v.toMap().value("id").toString();
+        s.serverId = m_id;
+        s.source = m_label;
+        lists.append(s);
+    }
+    const QStringList starred = m_library.starredRemotePaths(m_id);
+    if (!starred.isEmpty()) {
+        Playlists::ServerList s;
+        s.name = tr("Favorites");
+        s.paths = starred;
+        s.serverId = m_id;
+        s.source = m_label;
+        lists.append(s);
+    }
+    m_playlists.setServerLists(m_id, lists);
 }
 
 void SubsonicSource::fetchWith(const QString &password)
 {
-    m_client.setServer(m_settings.serverUrl(), m_settings.serverUser(), password);
+    m_client.setServer(config().url, config().user, password);
     m_client.ping();   // which server software it is, for the Libraries card
     m_client.fetchLibrary();
 }
 
-void SubsonicSource::testConnection(const QString &url, const QString &user, const QString &password)
+void SubsonicSource::forget()
 {
-    auto *probe = new SubsonicClient(this);
-    probe->setServer(url, user, password);
-    connect(probe, &SubsonicClient::pingDone, this, [this, probe](bool ok, const QString &message) {
-        emit testResult(ok, ok ? tr("Connected") : message);
-        probe->deleteLater();
-    });
-    probe->ping();
-}
-
-void SubsonicSource::saveServer(const QString &url, const QString &user, const QString &password, bool enabled)
-{
-    m_password = password;
-    m_passwordFor = user + QLatin1Char('@') + url;   // what account() will be once the settings land
-    m_secrets.store(m_passwordFor, password);
-    m_settings.set("serverUrl", url);
-    m_settings.set("serverUser", user);
-    m_settings.set("serverEnabled", enabled);
-    sync();   // a change in the settings starts one too; a running sync is not doubled
-}
-
-void SubsonicSource::remove()
-{
-    m_secrets.clear(account());
     m_password.clear();
     m_passwordFor.clear();
-    m_library.setRemoteTracks({});
-    m_library.writeRemoteCache();
-    m_playlists.setServerLists({});
-    m_settings.set("serverEnabled", false);
-    m_settings.set("serverUrl", QString());
-    m_settings.set("serverUser", QString());
+    m_library.setRemoteTracks(m_id, {});
+    m_library.removeRemoteCache(m_id);
+    m_playlists.setServerLists(m_id, {});
     setStatus({});
 }

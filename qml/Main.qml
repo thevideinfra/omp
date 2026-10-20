@@ -645,74 +645,76 @@ ApplicationWindow {
         title: qsTr("Add a music folder")
         onAccepted: { settingsStore.addFolder(selectedFolder.toString()); keyRoot.forceActiveFocus() }
     }
-    // The Subsonic server, listed with the music folders for status only: greyed out when it is not connected.
+    // The Subsonic servers, listed with the music folders for status only: greyed out when one is not connected.
     Component {
         id: serverCard
-        Item {
-            id: card
-            readonly property bool shown: library.folderPath === "" && settingsStore.serverUrl !== ""
-            readonly property string link: subsonic.state
-            readonly property bool live: link === "connected" || link === "syncing"
-            // The server software the last ping reported (remembered, so it shows when the server is down).
-            readonly property string software: {
-                const t = settingsStore.serverType
-                const known = { "navidrome": "Navidrome", "airsonic": "Airsonic", "airsonic-advanced": "Airsonic-Advanced",
-                                "gonic": "Gonic", "subsonic": "Subsonic" }
-                return t === "" ? qsTr("Subsonic server") : (known[t] ?? t.charAt(0).toUpperCase() + t.slice(1))
-            }
-            readonly property string host: settingsStore.serverUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")
+        Column {
+            readonly property bool shown: library.folderPath === ""
             width: folderList.width
-            height: shown ? S.sp(64) : 0
+            height: shown ? implicitHeight : 0
             visible: shown
-            opacity: live ? 1 : 0.5
-            Rectangle {
-                anchors.fill: parent
-                anchors.topMargin: S.sp(8)
-                color: Qt.alpha(theme.foreground, 0.045)
-                Rectangle { width: 3; height: parent.height; color: card.live ? theme.accent : Qt.alpha(theme.foreground, 0.3) }
-                Rectangle {   // the same icon slot as a folder row, so the two line up
-                    id: cardIcon
-                    x: S.sp(8)
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: folderList.artSize
-                    height: folderList.artSize
-                    radius: S.sp(4)
-                    color: Qt.alpha(theme.foreground, 0.06)
-                    TabIcon {
-                        anchors.centerIn: parent
-                        width: parent.width * 0.5
-                        height: width
-                        kind: "server"
-                        ink: card.live ? theme.accent : Qt.alpha(theme.foreground, 0.55)
-                    }
-                }
-                Column {
-                    anchors { left: cardIcon.right; leftMargin: S.sp(10); right: pill.left; rightMargin: S.sp(10); verticalCenter: parent.verticalCenter }
-                    UiText { width: parent.width; text: card.software + "  ·  " + card.host; elide: Text.ElideRight }
-                    UiText {
-                        width: parent.width
-                        text: card.link === "off" ? qsTr("Switched off in Settings") : subsonic.status
-                        color: theme.dimForeground
-                        px: 12
-                        elide: Text.ElideRight
-                    }
-                }
-                Rectangle {
-                    id: pill
-                    anchors { right: parent.right; rightMargin: S.sp(12); verticalCenter: parent.verticalCenter }
-                    width: pillText.implicitWidth + S.sp(16)
-                    height: pillText.implicitHeight + S.sp(6)
-                    radius: height / 2
-                    color: "transparent"
-                    border.width: 1
-                    border.color: card.live ? Qt.alpha(theme.accent, 0.6) : Qt.alpha(theme.foreground, 0.3)
-                    UiText {
-                        id: pillText
-                        anchors.centerIn: parent
-                        text: card.link === "connected" ? qsTr("connected") : card.link === "syncing" ? qsTr("syncing")
-                              : card.link === "offline" ? qsTr("offline") : qsTr("off")
-                        color: card.live ? theme.accent : theme.dimForeground
-                        px: 11
+            Repeater {
+                model: subsonic.servers
+                Item {
+                    id: card
+                    required property string title      // the server software
+                    required property string host
+                    required property string state
+                    required property string status
+                    readonly property bool live: state === "connected" || state === "syncing"
+                    width: folderList.width
+                    height: S.sp(64)
+                    opacity: live ? 1 : 0.5
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.topMargin: S.sp(8)
+                        color: Qt.alpha(theme.foreground, 0.045)
+                        Rectangle { width: 3; height: parent.height; color: card.live ? theme.accent : Qt.alpha(theme.foreground, 0.3) }
+                        Rectangle {   // the same icon slot as a folder row, so the two line up
+                            id: cardIcon
+                            x: S.sp(8)
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: folderList.artSize
+                            height: folderList.artSize
+                            radius: S.sp(4)
+                            color: Qt.alpha(theme.foreground, 0.06)
+                            TabIcon {
+                                anchors.centerIn: parent
+                                width: parent.width * 0.5
+                                height: width
+                                kind: "server"
+                                ink: card.live ? theme.accent : Qt.alpha(theme.foreground, 0.55)
+                            }
+                        }
+                        Column {
+                            anchors { left: cardIcon.right; leftMargin: S.sp(10); right: pill.left; rightMargin: S.sp(10); verticalCenter: parent.verticalCenter }
+                            UiText { width: parent.width; text: card.title + "  ·  " + card.host; elide: Text.ElideRight }
+                            UiText {
+                                width: parent.width
+                                text: card.state === "off" ? qsTr("Switched off in Settings") : card.status
+                                color: theme.dimForeground
+                                px: 12
+                                elide: Text.ElideRight
+                            }
+                        }
+                        Rectangle {
+                            id: pill
+                            anchors { right: parent.right; rightMargin: S.sp(12); verticalCenter: parent.verticalCenter }
+                            width: pillText.implicitWidth + S.sp(16)
+                            height: pillText.implicitHeight + S.sp(6)
+                            radius: height / 2
+                            color: "transparent"
+                            border.width: 1
+                            border.color: card.live ? Qt.alpha(theme.accent, 0.6) : Qt.alpha(theme.foreground, 0.3)
+                            UiText {
+                                id: pillText
+                                anchors.centerIn: parent
+                                text: card.state === "connected" ? qsTr("connected") : card.state === "syncing" ? qsTr("syncing")
+                                      : card.state === "offline" ? qsTr("offline") : qsTr("off")
+                                color: card.live ? theme.accent : theme.dimForeground
+                                px: 11
+                            }
+                        }
                     }
                 }
             }

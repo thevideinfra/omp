@@ -18,6 +18,9 @@ public:
     // `account` is "<user>@<server url>".
     void store(const QString &account, const QString &password);
     void lookup(const QString &account);
+    // The same, answered to `done(password, found)` instead of the `looked` signal, so that several
+    // lookups at once (one per server) do not mix up their answers.
+    void lookup(const QString &account, std::function<void(const QString &, bool)> done);
     void clear(const QString &account);
 
 signals:

@@ -32,6 +32,7 @@ qt_add_library(omacore STATIC
     src/secrets.cpp src/secrets.h
     src/scrobbletracker.cpp src/scrobbletracker.h
     src/subsonicsource.cpp src/subsonicsource.h
+    src/subsonichub.cpp src/subsonichub.h
 )
 target_include_directories(omacore PUBLIC src)
 target_link_libraries(omacore PUBLIC Qt6::Core Qt6::DBus Qt6::Gui Qt6::Network Qt6::Svg)

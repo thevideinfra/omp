@@ -137,17 +137,18 @@ A folder image (`cover.jpg`, `folder.jpg`, `front.jpg`, `.png` too) wins. Otherw
 
 OMP has its own MPRIS service (`org.mpris.MediaPlayer2.omp`, identity `OMP`): play/pause, next/previous, seek, volume, shuffle, loop, title, artist, album and cover art show on the bus, and Raise/Quit work. mpv runs with `--load-scripts=no`, so the `mpv-mpris` script is not used. Untagged files show their file name as the title.
 
-## Subsonic server
+## Subsonic servers
 
-Settings > Library > Subsonic server connects OMP to a Subsonic-API server (Navidrome, Airsonic, Subsonic). Enter the address, user and password, press Test connection, then Save. The password goes into the system keyring through `secret-tool` (it is never written to `config.toml`, which keeps only `server_enabled`, `server_url` and `server_user`).
+Settings > Library > Subsonic servers lists your servers (Navidrome, Airsonic, Subsonic) and adds more. For each, enter the address, user and password, press Test connection, then Add. Every server has its own On/Off switch, Edit (leave the password empty to keep it) and Remove. Each password goes into the system keyring through `secret-tool` (it is never written to a file; `servers.json` next to `config.toml` keeps the address, user, whether it is on, and which software it reported).
 
-- The server's songs join your own in Albums, Artists, Songs and search. A server album never merges with a local album of the same name. Libraries stays local.
-- The library syncs at start and with `r`. It is cached in `~/.local/state/omp/subsonic.jsonl`, so it opens at once and stays visible when the server is offline ("Server offline" shows in the bottom bar).
+- The songs of all servers join your own in Albums, Artists, Songs and search. Albums with the same name never merge across servers or with local albums. Libraries stays local, and lists each server as a status card.
+- Each library syncs at start and with `r`. Each is cached in `~/.local/state/omp/subsonic-<id>.jsonl`, so it opens at once and stays visible when its server is offline ("Server offline" shows in the bottom bar).
 - Songs stream through mpv; covers are downloaded once and cached.
-- Server playlists show in Playlists after your own, read-only, marked "server". **Favorites** lists the songs you starred. A heart button in the bottom bar (or `f`) stars or unstars the playing server song.
-- Plays are reported to the server ("now playing" at the start, a scrobble after half the song or four minutes).
-- Remove (in the same settings section) forgets the password, the cached songs and the settings.
-- Not included: offline downloads, several servers, editing server playlists.
+- Server playlists show in Playlists after your own, read-only, marked with their server. **Favorites** (per server) lists the songs you starred. A heart button in the bottom bar (or `f`) stars or unstars the playing server song, on the server that owns it.
+- Plays are reported to the server a song came from ("now playing" at the start, a scrobble after half the song or four minutes).
+- Remove forgets that server's password, cached songs and settings.
+- An older single-server setup is carried over as the first server (its settings, cache and keyring password).
+- Not included: offline downloads.
 
 ## Hyprland panel rule
 

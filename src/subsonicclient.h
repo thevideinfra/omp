@@ -42,7 +42,9 @@ public:
 
     void ping();
 
-    static Track parseSong(const QJsonObject &song);
+    // `serverId` goes into the song's path ("subsonic:<serverId>/<id>").
+    static Track parseSong(const QJsonObject &song, const QString &serverId = QStringLiteral("s1"));
+    void setServerId(const QString &id) { m_serverId = id; }
     void setPageSize(int n) { m_pageSize = n; }
     // The whole library as tracks; all or nothing: `libraryFetched` on success, else `libraryFailed`.
     void fetchLibrary();
@@ -71,4 +73,5 @@ private:
     QString m_salt;
     int m_timeoutMs = 15000;
     int m_pageSize = 500;
+    QString m_serverId = QStringLiteral("s1");
 };

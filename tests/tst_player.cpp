@@ -253,12 +253,14 @@ private slots:
         QCOMPARE(p.currentIndex(), 0);
         QCOMPARE(p.current().value("title").toString(), QString("B"));              // still B, now first
         QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 3000);
+        QTest::qWait(400);                                                          // let mpv settle after the removal
 
         p.next();                                                                   // mpv agrees about the order
         QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 3000);
 
         p.previous();
         QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing() && p.position() > 0.2, 5000);          // B has really started in mpv
         p.removeAt(0);                                                              // the playing one: playback moves on
         QCOMPARE(order(), QStringList({"C"}));
         QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("C"), 3000);

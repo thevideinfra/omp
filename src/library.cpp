@@ -495,13 +495,14 @@ QString Library::remoteCacheFile(const QString &serverId) const
     return QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/subsonic-") + serverId + QStringLiteral(".jsonl");
 }
 
-QStringList Library::starredRemotePaths() const
+QStringList Library::starredRemotePaths(const QString &serverId) const
 {
     QVector<Track> starred;
-    for (const QVector<Track> &list : std::as_const(m_remote))
-        for (const Track &t : list)
-            if (t.starred)
-                starred.append(t);
+    for (auto it = m_remote.cbegin(); it != m_remote.cend(); ++it)
+        if (serverId.isEmpty() || it.key() == serverId)
+            for (const Track &t : it.value())
+                if (t.starred)
+                    starred.append(t);
     std::sort(starred.begin(), starred.end(), [](const Track &a, const Track &b) { return ciLess(a.title, b.title); });
     QStringList out;
     for (const Track &t : starred)
@@ -600,6 +601,8 @@ void Library::writeRemoteCache(const QString &serverId) const
     }
     if (!f.commit())
         qWarning() << "cannot write the server cache (commit failed)" << file << f.errorString();
+    else if (serverId == QLatin1String("s1"))
+        QFile::remove(QFileInfo(file).absolutePath() + QStringLiteral("/subsonic.jsonl"));   // the old single cache is superseded
 }
 
 void Library::combine()

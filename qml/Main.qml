@@ -125,51 +125,69 @@ ApplicationWindow {
                         }
                     }
 
+                    // One row of the rail: a picture and a name, or only the picture when collapsed.
+                    component RailRow: Rectangle {
+                        id: tabRow
+                        required property int tabIndex
+                        required property string label
+                        readonly property bool current: win.tab === tabIndex && !win.searching
+                        height: S.sp(38)
+                        radius: S.sp(6)
+                        color: current ? Qt.alpha(theme.accent, 0.12)
+                               : tabArea.containsMouse ? Qt.alpha(theme.foreground, 0.06) : "transparent"
+                        border.width: current ? 1 : 0
+                        border.color: Qt.alpha(theme.accent, 0.45)
+                        TabIcon {
+                            id: tabIcon
+                            x: rail.collapsed ? (parent.width - width) / 2 : S.sp(10)
+                            anchors.verticalCenter: parent.verticalCenter
+                            kind: tabRow.label.toLowerCase()
+                            ink: win.tab === tabRow.tabIndex ? theme.accent : theme.foreground
+                        }
+                        UiText {
+                            visible: !rail.collapsed
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: S.sp(10) + tabIcon.width + S.sp(10)
+                            text: tabRow.label
+                            color: win.tab === tabRow.tabIndex ? theme.accent : theme.foreground
+                        }
+                        MouseArea {
+                            id: tabArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: { win.tab = tabRow.tabIndex; searchField.text = ""; keyRoot.forceActiveFocus() }
+                        }
+                        ToolTip.visible: rail.collapsed && tabArea.containsMouse
+                        ToolTip.text: tabRow.label
+                        ToolTip.delay: 400
+                    }
+
                     Column {
                         anchors.fill: parent
                         anchors.margins: S.sp(8)
                         anchors.topMargin: logoArea.y + logoArea.height + S.sp(8)
-                        anchors.bottomMargin: S.sp(52)
+                        anchors.bottomMargin: S.sp(100)
                         spacing: S.sp(4)
                         Repeater {
-                            model: win.tabNames
-                            delegate: Rectangle {
-                                id: tabRow
+                            model: win.tabNames.filter(n => n !== "Settings")
+                            delegate: RailRow {
                                 required property int index
                                 required property string modelData
-                                readonly property bool current: win.tab === index && !win.searching
                                 width: parent.width
-                                height: S.sp(38)
-                                radius: S.sp(6)
-                                color: current ? Qt.alpha(theme.accent, 0.12)
-                                       : tabArea.containsMouse ? Qt.alpha(theme.foreground, 0.06) : "transparent"
-                                border.width: current ? 1 : 0
-                                border.color: Qt.alpha(theme.accent, 0.45)
-                                TabIcon {
-                                    id: tabIcon
-                                    x: rail.collapsed ? (parent.width - width) / 2 : S.sp(10)
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    kind: tabRow.modelData.toLowerCase()
-                                    ink: win.tab === tabRow.index ? theme.accent : theme.foreground
-                                }
-                                UiText {
-                                    visible: !rail.collapsed
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    x: S.sp(10) + tabIcon.width + S.sp(10)
-                                    text: modelData
-                                    color: win.tab === index ? theme.accent : theme.foreground
-                                }
-                                MouseArea {
-                                    id: tabArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: { win.tab = index; searchField.text = ""; keyRoot.forceActiveFocus() }
-                                }
-                                ToolTip.visible: rail.collapsed && tabArea.containsMouse
-                                ToolTip.text: modelData
-                                ToolTip.delay: 400
+                                tabIndex: index
+                                label: modelData
                             }
                         }
+                    }
+
+                    // Settings sits at the bottom, above the collapse button.
+                    RailRow {
+                        anchors.bottom: collapseButton.top
+                        anchors.bottomMargin: S.sp(8)
+                        x: S.sp(8)
+                        width: parent.width - S.sp(16)
+                        tabIndex: win.tabNames.indexOf("Settings")
+                        label: "Settings"
                     }
 
                     // Collapse or expand the rail.
@@ -402,6 +420,13 @@ ApplicationWindow {
                         }
                     }
                 }
+            }
+
+            // The line between the columns and the player.
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 2
+                color: Qt.alpha(theme.accent, 0.35)
             }
 
             // bottom playback bar

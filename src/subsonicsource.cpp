@@ -22,7 +22,8 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
     connect(&m_client, &SubsonicClient::libraryFetched, this, [this](const QVector<Track> &tracks) {
         m_library.setRemoteTracks(tracks);
         m_library.writeRemoteCache();
-        setStatus(tr("Connected: %1 songs").arg(tracks.size()));
+        setStatus(tracks.isEmpty() ? tr("Connected, but the server has no songs (has it scanned its music folder?)")
+                                   : tr("Connected: %1 songs").arg(tracks.size()));
         m_client.fetchPlaylists();   // the playlists follow the songs
     });
     connect(&m_client, &SubsonicClient::playlistsFetched, this, [this](const QVariantList &lists) {

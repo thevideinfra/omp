@@ -381,6 +381,23 @@ private slots:
         QCOMPARE(fake.count("getCoverArt"), 1);
     }
 
+    void anEmptyServerLibraryIsSaidSoInsteadOfConnectedWithZeroSongs()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.serveAlbums({});
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Playlists playlists(dir.filePath("pl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        SubsonicSource source(settings, library, playlists, secrets, client);
+        source.saveServer(fake.url(), "amy", "sesame", true);
+        QTRY_VERIFY(source.status().contains("no songs"));
+        QCOMPARE(library.songs()->rowCount(), 0);
+    }
+
     void aDeadServerKeepsTheCachedSongs()
     {
         QTemporaryDir dir;

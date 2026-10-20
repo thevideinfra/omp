@@ -148,6 +148,31 @@ private slots:
         QVERIFY(!again.showSourceTags());
     }
 
+    void songColumnsDefaultNormalizeAndToggle()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QCOMPARE(s.songColumns(), QStringList({"title", "artist", "album", "year", "time"}));
+            s.setSongColumn("playlists", true);
+            s.setSongColumn("added", true);
+            // always in the table's fixed order, whatever order they were switched on in
+            QCOMPARE(s.songColumns(), QStringList({"title", "artist", "album", "year", "added", "playlists", "time"}));
+            s.setSongColumn("artist", false);
+            s.setSongColumn("title", false);              // the title column cannot be hidden
+            s.setSongColumn("nonsense", true);            // unknown columns are ignored
+            QVERIFY(s.songColumns().contains("title"));
+            QVERIFY(!s.songColumns().contains("artist"));
+            QVERIFY(!s.songColumns().contains("nonsense"));
+        }
+        Settings again(f);
+        QVERIFY(!again.songColumns().contains("artist"));
+        QVERIFY(again.songColumns().contains("playlists"));
+        QCOMPARE(Settings::parse("song_columns = \"artist,bogus,artist\"\n").value("songColumns").toString(),
+                 QString("title,artist"));                  // junk in the file is cleaned up
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

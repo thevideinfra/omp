@@ -16,6 +16,7 @@ class Settings : public QObject
     Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
     Q_PROPERTY(bool saveLayout READ saveLayout NOTIFY changed)
     Q_PROPERTY(bool saveSort READ saveSort NOTIFY changed)
+    Q_PROPERTY(QStringList songColumns READ songColumns NOTIFY changed)
     Q_PROPERTY(bool railCollapsed READ railCollapsed NOTIFY changed)
     Q_PROPERTY(bool showSourceTags READ showSourceTags NOTIFY changed)
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
@@ -89,6 +90,9 @@ public:
     // "list,middle" or "list"; empty when none are stored.
     Q_INVOKABLE QString layoutFor(const QString &tab) const;
     Q_INVOKABLE void setLayoutFor(const QString &tab, const QString &fractions);
+    // The columns of the song tables, in table order ("title" always among them).
+    QStringList songColumns() const;
+    Q_INVOKABLE void setSongColumn(const QString &column, bool shown);
     // Forgets the stored sizes and tells the open tabs to go back to equal columns.
     Q_INVOKABLE void resetLayout();
     Q_INVOKABLE QStringList fontFamilies() const;

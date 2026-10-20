@@ -53,6 +53,7 @@ const QVector<Key> &keys()
         {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
         {"saveLayout", "save_layout", Type::Bool, false, {}},
         {"saveSort", "save_sort", Type::Bool, false, {}},
+        {"songColumns", "song_columns", Type::String, QString("title,artist,album,year,time"), {}},
         {"railCollapsed", "rail_collapsed", Type::Bool, false, {}},
         {"showSourceTags", "show_source_tags", Type::Bool, true, {}},
         {"serverEnabled", "server_enabled", Type::Bool, false, {}},
@@ -77,6 +78,24 @@ const Key *findKey(const QString &prop)
     return nullptr;
 }
 
+// The song table's columns in their fixed order; "title" is always there.
+const QStringList &allColumns()
+{
+    static const QStringList all{"title", "artist", "album", "albumartist", "year", "track", "added", "size",
+                                 "format", "playlists", "time"};
+    return all;
+}
+
+QString normalizedColumns(const QString &list)
+{
+    const QStringList wanted = list.split(',', Qt::SkipEmptyParts);
+    QStringList out;
+    for (const QString &c : allColumns())
+        if (c == QLatin1String("title") || wanted.contains(c.trimmed()))
+            out << c;
+    return out.join(',');
+}
+
 // The acceptable value, or an invalid QVariant when v is not valid for the key.
 QVariant validated(const Key &k, const QVariant &v)
 {
@@ -89,6 +108,8 @@ QVariant validated(const Key &k, const QVariant &v)
         const QString s = v.toString().trimmed();
         if (s.contains('"') || s.contains('\\') || s.contains('\n'))
             return {};
+        if (k.prop == QLatin1String("songColumns"))
+            return normalizedColumns(s);
         if (k.prop == QLatin1String("serverUrl") && !s.isEmpty()
             && !s.startsWith(QLatin1String("http://")) && !s.startsWith(QLatin1String("https://")))
             return {};
@@ -337,6 +358,23 @@ void Settings::setLayoutFor(const QString &tab, const QString &fractions)
             return;
     }
     set(prop, fractions);
+}
+
+QStringList Settings::songColumns() const
+{
+    return m_values.value("songColumns").toString().split(',', Qt::SkipEmptyParts);
+}
+
+void Settings::setSongColumn(const QString &column, bool shown)
+{
+    if (!allColumns().contains(column))
+        return;
+    QStringList now = songColumns();
+    if (shown && !now.contains(column))
+        now << column;
+    else if (!shown)
+        now.removeAll(column);
+    set(QStringLiteral("songColumns"), now.join(','));   // normalized by validation
 }
 
 void Settings::resetLayout()

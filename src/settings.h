@@ -67,6 +67,9 @@ public:
     bool showSourceTags() const { return m_values.value("showSourceTags").toBool(); }
     // Artists tab: true = artists | albums | songs, false = artists | all of the artist's albums and songs.
     bool artistAlbumsColumn() const { return m_values.value("artistAlbumsColumn").toBool(); }
+    QString replayGain() const { return m_values.value("replayGain").toString(); }          // "off", "track" or "album"
+    int replayGainPreamp() const { return m_values.value("replayGainPreamp").toInt(); }      // dB, -15..15
+    bool gapless() const { return m_values.value("gapless").toBool(); }
     bool saveSort() const { return m_values.value("saveSort").toBool(); }
     QString sortSongs() const { return m_values.value("sortSongs").toString(); }
     QString sortAlbums() const { return m_values.value("sortAlbums").toString(); }

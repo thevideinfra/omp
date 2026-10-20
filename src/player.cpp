@@ -55,6 +55,14 @@ Player::~Player()
     }
 }
 
+namespace {
+// mpv calls "off" no.
+QString mpvReplayGain(const QString &mode)
+{
+    return mode == QLatin1String("off") ? QStringLiteral("no") : mode;
+}
+}
+
 void Player::start()
 {
     QFile::remove(m_socketPath);   // stale socket from a crashed run
@@ -64,9 +72,11 @@ void Player::start()
                      "--no-terminal",
                      "--load-scripts=no",   // OMP has its own MPRIS service
                      "--audio-display=no",
-                     "--gapless-audio=yes",
+                     QStringLiteral("--gapless-audio=") + (m_gapless ? "yes" : "no"),
                      "--prefetch-playlist=yes",
-                     "--replaygain=album",
+                     QStringLiteral("--replaygain=") + mpvReplayGain(m_replayGain),
+                     QStringLiteral("--replaygain-preamp=") + QString::number(m_preampDb),
+                     "--replaygain-clip=no",   // lower the gain rather than clip
                      "--volume=" + QString::number(m_startVolume),
                      QStringLiteral("--loop-playlist=") + (m_repeat == QLatin1String("all") ? "inf" : "no"),
                      QStringLiteral("--loop-file=") + (m_repeat == QLatin1String("one") ? "inf" : "no"),
@@ -366,6 +376,20 @@ void Player::cycleRepeat()
 {
     setRepeat(m_repeat == QLatin1String("off") ? QStringLiteral("all")
               : m_repeat == QLatin1String("all") ? QStringLiteral("one") : QStringLiteral("off"));
+}
+
+void Player::setPlaybackOptions(const QString &replayGain, int preampDb, bool gapless)
+{
+    if (replayGain == m_replayGain && preampDb == m_preampDb && gapless == m_gapless)
+        return;
+    m_replayGain = replayGain;
+    m_preampDb = preampDb;
+    m_gapless = gapless;
+    if (!m_client.isConnected())
+        return;   // mpv starts with them
+    m_client.setProperty("replaygain", mpvReplayGain(replayGain));
+    m_client.setProperty("replaygain-preamp", preampDb);
+    m_client.setProperty("gapless-audio", gapless ? "yes" : "no");
 }
 
 void Player::applyRepeat()

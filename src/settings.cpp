@@ -27,6 +27,7 @@ struct Key
     QVariant def;
     QStringList options;
     int max = kMaxUpNext;   // upper bound of an Int key
+    int min = 0;            // lower bound of an Int key
 };
 
 const QVector<Key> &keys()
@@ -54,6 +55,9 @@ const QVector<Key> &keys()
         {"saveLayout", "save_layout", Type::Bool, false, {}},
         {"saveSort", "save_sort", Type::Bool, false, {}},
         {"artistAlbumsColumn", "artist_albums_column", Type::Bool, true, {}},
+        {"replayGain", "replay_gain", Type::Enum, QString("album"), {"off", "track", "album"}},
+        {"replayGainPreamp", "replay_gain_preamp", Type::Int, 0, {}, 15, -15},
+        {"gapless", "gapless", Type::Bool, true, {}},
         {"hiddenTabs", "hidden_tabs", Type::String, QString(), {}},
         {"songColumns", "song_columns", Type::String, QString("title,artist,album,year,time"), {}},
         {"railCollapsed", "rail_collapsed", Type::Bool, false, {}},
@@ -154,7 +158,7 @@ QVariant validated(const Key &k, const QVariant &v)
     case Type::Int: {
         bool ok = false;
         const int n = v.toInt(&ok);
-        return ok ? QVariant(qBound(0, n, k.max)) : QVariant();
+        return ok ? QVariant(qBound(k.min, n, k.max)) : QVariant();
     }
     }
     return {};

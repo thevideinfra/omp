@@ -61,6 +61,9 @@ public:
     void setEqPreset(const QString &preset);
     QStringList eqPresets() const;
     Q_INVOKABLE QVariantList eqGains(const QString &preset) const;
+    // Loudness matching ("off", "track" or "album"), its pre-amp in dB, and gapless playback.
+    // Applied to a running mpv at once, and again whenever mpv restarts.
+    void setPlaybackOptions(const QString &replayGain, int preampDb, bool gapless);
     // Applied when mpv starts; set before start().
     void setStartPlayback(bool shuffle, const QString &repeat, const QString &eqPreset);
     // The volume mpv starts (and restarts) at; set before start().
@@ -134,5 +137,8 @@ private:
     bool m_shuffle = false;
     QString m_repeat = QStringLiteral("off");
     QString m_eqPreset = QStringLiteral("Flat");
+    QString m_replayGain = QStringLiteral("album");
+    int m_preampDb = 0;
+    bool m_gapless = true;
     QString m_error;
 };

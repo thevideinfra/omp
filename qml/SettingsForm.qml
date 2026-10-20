@@ -50,6 +50,30 @@ Item {
                 checked: autostart.enabled
                 onToggled: (v) => autostart.enabled = v
             }
+            UiText { visible: root.section === 0; text: qsTr("Playback"); color: theme.dimForeground; px: 12 }
+            UiText { visible: root.section === 0; text: qsTr("Loudness matching (ReplayGain, from the files' tags)"); px: 12 }
+            Segmented {
+                visible: root.section === 0
+                Layout.fillWidth: true
+                options: [qsTr("Off"), qsTr("Track"), qsTr("Album")]
+                selected: { const m = settingsStore.replayGain; return m === "off" ? qsTr("Off") : m === "track" ? qsTr("Track") : qsTr("Album") }
+                onPicked: (v) => settingsStore.set("replayGain", v === qsTr("Off") ? "off" : v === qsTr("Track") ? "track" : "album")
+            }
+            UiText { visible: root.section === 0; text: qsTr("Pre-amp (dB)"); px: 12 }
+            Stepper {
+                visible: root.section === 0
+                value: settingsStore.replayGainPreamp
+                from: -15
+                to: 15
+                onPicked: (v) => settingsStore.set("replayGainPreamp", v)
+            }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
+                label: qsTr("Gapless playback")
+                checked: settingsStore.gapless
+                onToggled: (v) => settingsStore.set("gapless", v)
+            }
             UiText { visible: root.section === 0; text: qsTr("Left panel: the tabs to show"); color: theme.dimForeground; px: 12 }
             Repeater {
                 model: ["Albums", "Artists", "Songs", "Playlists", "Libraries", "Queue"]

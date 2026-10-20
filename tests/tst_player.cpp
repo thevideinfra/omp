@@ -1,5 +1,6 @@
 #include <QtTest>
 
+#include "mpvclient.h"
 #include "player.h"
 #include "testutil.h"
 
@@ -151,6 +152,32 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("Y"), 3000);
         p.next();
         QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 3000);
+    }
+
+    void playbackOptionsReachMpvAtStartAndWhileRunning()
+    {
+        QTemporaryDir dir;
+        const QString sock = dir.filePath("mpv.sock");
+        Player p("mpv", {"--ao=null"}, sock);
+        p.setPlaybackOptions("track", 6, false);                  // before start: mpv starts with them
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+
+        MpvClient probe;                                           // a second client that watches mpv's own values
+        QVariantMap seen;
+        connect(&probe, &MpvClient::propertyChanged, this, [&](const QString &n, const QVariant &v) { seen[n] = v; });
+        probe.connectTo(sock);
+        QTRY_VERIFY_WITH_TIMEOUT(probe.isConnected(), 3000);
+        for (const char *name : {"replaygain", "replaygain-preamp", "gapless-audio"})
+            probe.observe(name);
+        QTRY_COMPARE_WITH_TIMEOUT(seen.value("replaygain").toString(), QString("track"), 3000);
+        QCOMPARE(seen.value("replaygain-preamp").toDouble(), 6.0);
+        QCOMPARE(seen.value("gapless-audio").toString(), QString("false"));   // mpv reports the yes/no choice as a bool
+
+        p.setPlaybackOptions("off", -3, true);                    // changed while playing
+        QTRY_COMPARE_WITH_TIMEOUT(seen.value("replaygain").toString(), QString("false"), 3000);   // mpv reports its "no" as false
+        QCOMPARE(seen.value("replaygain-preamp").toDouble(), -3.0);
+        QCOMPARE(seen.value("gapless-audio").toString(), QString("true"));
     }
 
     void removeAtDropsASongAndKeepsTheRestInStep()

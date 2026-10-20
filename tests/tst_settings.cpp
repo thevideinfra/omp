@@ -215,6 +215,31 @@ private slots:
         QVERIFY(!Settings(f).artistAlbumsColumn());
     }
 
+    void playbackOptionsDefaultToAlbumGainAndGapless()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QCOMPARE(s.replayGain(), QString("album"));      // what it always did
+            QCOMPARE(s.replayGainPreamp(), 0);
+            QVERIFY(s.gapless());
+            s.set("replayGain", "track");
+            s.set("replayGainPreamp", 6);
+            s.set("gapless", false);
+            s.set("replayGain", "loud");                      // not a mode: ignored
+        }
+        Settings again(f);
+        QCOMPARE(again.replayGain(), QString("track"));
+        QCOMPARE(again.replayGainPreamp(), 6);
+        QVERIFY(!again.gapless());
+        Settings neg(dir.filePath("n.toml"));
+        neg.set("replayGainPreamp", -9);
+        QCOMPARE(neg.replayGainPreamp(), -9);                // negative pre-amps are fine
+        neg.set("replayGainPreamp", 40);
+        QCOMPARE(neg.replayGainPreamp(), 15);                // out of range values are clamped
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

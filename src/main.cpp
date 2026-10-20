@@ -103,6 +103,11 @@ int main(int argc, char *argv[])
     QObject::connect(&player, &Player::volumeChanged, &settings,
                      [&] { settings.set("volume", player.volume()); });
     player.setStartPlayback(settings.shuffle(), settings.repeat(), settings.eqPreset());
+    const auto syncPlayback = [&] {
+        player.setPlaybackOptions(settings.replayGain(), settings.replayGainPreamp(), settings.gapless());
+    };
+    syncPlayback();
+    QObject::connect(&settings, &Settings::changed, &player, syncPlayback);
     QObject::connect(&player, &Player::shuffleChanged, &settings,
                      [&] { settings.set("shuffle", player.shuffle()); });
     QObject::connect(&player, &Player::repeatChanged, &settings,

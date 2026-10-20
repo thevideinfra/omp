@@ -324,6 +324,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sections: root.kind === "artist"
+                showSource: root.kind !== "artist"   // an artist can have songs from both
                 model: root.model
                 onCurrentIndexChanged: root.showRow(currentIndex)
                 onClicked: { root.rightFocus = false; root.midFocus = false; root.clicked() }
@@ -489,9 +490,13 @@ Item {
                 readonly property bool nowPlaying: !headerRow && (player.current.path ?? "") !== ""
                                                    && root.rowPath(index) === player.current.path
                     readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
+                    readonly property string songPath: root.rowPath(index)
+                    readonly property string source: songPath === "" ? ""
+                                                     : songPath.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
+                    readonly property bool favorite: { library.starredRevision; return songPath !== "" && library.isStarred(songPath) }
 
                     width: ListView.view.width
-                    height: headerRow ? Math.max(S.sp(52), headCol.implicitHeight + S.sp(8)) : S.sp(34)
+                    height: headerRow ? Math.max(S.sp(52), headCol.implicitHeight + S.sp(8)) : S.sp(42)
                     color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
                            : headerRow ? Qt.alpha(theme.foreground, 0.05)
                            : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
@@ -514,7 +519,7 @@ Item {
                         anchors {
                             left: art.right
                             leftMargin: item.indent ? S.sp(30) : S.sp(10)
-                            right: metaText.left
+                            right: badges.left
                             rightMargin: S.sp(10)
                             verticalCenter: parent.verticalCenter
                         }
@@ -532,6 +537,40 @@ Item {
                             color: theme.dimForeground
                             px: 12
                             elide: Text.ElideRight
+                        }
+                    }
+
+                    Row {
+                        id: badges
+                        anchors {
+                            right: metaText.left
+                            rightMargin: S.sp(10)
+                            verticalCenter: parent.verticalCenter
+                        }
+                        spacing: S.sp(8)
+                        UiText {
+                            visible: item.favorite
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "♥"
+                            color: theme.accent
+                            px: 13
+                        }
+                        Rectangle {
+                            visible: item.source !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: tag.implicitWidth + S.sp(12)
+                            height: tag.implicitHeight + S.sp(4)
+                            radius: height / 2
+                            color: "transparent"
+                            border.width: 1
+                            border.color: item.source === qsTr("server") ? Qt.alpha(theme.accent, 0.5) : Qt.alpha(theme.foreground, 0.2)
+                            UiText {
+                                id: tag
+                                anchors.centerIn: parent
+                                text: item.source
+                                px: 11
+                                color: item.source === qsTr("server") ? theme.accent : theme.dimForeground
+                            }
                         }
                     }
 

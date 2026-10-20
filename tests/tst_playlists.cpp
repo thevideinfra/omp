@@ -78,7 +78,9 @@ private slots:
         QVERIFY(!p.list()->get(0).value("readOnly").toBool());
         QCOMPARE(p.list()->get(1).value("title").toString(), QString("Road"));
         QVERIFY(p.list()->get(1).value("readOnly").toBool());
-        QCOMPARE(p.list()->get(1).value("subtitle").toString(), QString("2 songs · server"));
+        QCOMPARE(p.list()->get(1).value("subtitle").toString(), QString("2 songs"));
+        QCOMPARE(p.list()->get(1).value("meta").toString(), QString("server"));
+        QCOMPARE(p.list()->get(0).value("meta").toString(), QString("local"));
         const QString key = p.list()->get(1).value("key").toString();
         QCOMPARE(p.paths(key), QStringList({"subsonic:1", "subsonic:2"}));
         QCOMPARE(p.names(), QStringList({"Zed local"}));          // the picker offers local playlists only

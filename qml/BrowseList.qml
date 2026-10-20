@@ -5,6 +5,8 @@ ListView {
     id: root
     property int playingRow: -1
     property int artSize: S.sp(40)   // thumbnail edge
+    property bool songRows: false    // rows are songs: a heart marks the favorites
+    property bool showSource: true   // a "local" / "server" tag, when the row's songs are known
     property bool sections: false    // group rows under their "initial" (a letter header)
     signal activated(int row)
     signal enqueued(int row)
@@ -49,9 +51,12 @@ ListView {
         required property string meta
         required property string cover   // a track path; the art file is looked up lazily
         readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
+        readonly property string source: !root.showSource || cover === "" ? ""
+                                         : cover.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
+        readonly property bool favorite: { library.starredRevision; return root.songRows && cover !== "" && library.isStarred(cover) }
 
         width: ListView.view.width
-        height: Math.max(S.sp(52), root.artSize + S.sp(12), textColumn.implicitHeight + S.sp(8))
+        height: Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
         color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
                : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
@@ -73,7 +78,7 @@ ListView {
             anchors {
                 left: art.right
                 leftMargin: S.sp(10)
-                right: metaText.left
+                right: badges.left
                 rightMargin: S.sp(10)
                 verticalCenter: parent.verticalCenter
             }
@@ -89,6 +94,40 @@ ListView {
                 color: theme.dimForeground
                 px: 12
                 elide: Text.ElideRight
+            }
+        }
+
+        Row {
+            id: badges
+            anchors {
+                right: metaText.left
+                rightMargin: S.sp(10)
+                verticalCenter: parent.verticalCenter
+            }
+            spacing: S.sp(8)
+            UiText {
+                visible: favorite
+                anchors.verticalCenter: parent.verticalCenter
+                text: "♥"
+                color: theme.accent
+                px: 13
+            }
+            Rectangle {
+                visible: source !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                width: tag.implicitWidth + S.sp(12)
+                height: tag.implicitHeight + S.sp(4)
+                radius: height / 2
+                color: "transparent"
+                border.width: 1
+                border.color: source === qsTr("server") ? Qt.alpha(theme.accent, 0.5) : Qt.alpha(theme.foreground, 0.2)
+                UiText {
+                    id: tag
+                    anchors.centerIn: parent
+                    text: source
+                    px: 11
+                    color: source === qsTr("server") ? theme.accent : theme.dimForeground
+                }
             }
         }
 

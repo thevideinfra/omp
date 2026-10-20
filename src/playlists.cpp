@@ -133,15 +133,15 @@ void Playlists::reload()
         rows.append({{"key", n},
                      {"title", n},
                      {"subtitle", QStringLiteral("%1 songs").arg(count)},
-                     {"meta", QString()},
+                     {"meta", QStringLiteral("local")},
                      {"cover", QString()},
                      {"readOnly", false}});
     }
     for (const ServerList &s : std::as_const(m_server)) {
         rows.append({{"key", kServerKey + s.name},
                      {"title", s.name},
-                     {"subtitle", QStringLiteral("%1 songs · server").arg(s.paths.size())},
-                     {"meta", QString()},
+                     {"subtitle", QStringLiteral("%1 songs").arg(s.paths.size())},
+                     {"meta", QStringLiteral("server")},
                      {"cover", QString()},
                      {"readOnly", true}});
     }

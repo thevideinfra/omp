@@ -313,6 +313,46 @@ private slots:
         QCOMPARE(titles().at(1), QString("Alpha"));
     }
 
+    void moreSongSortKeysAndPerSongInfo()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        Track a = mk("/m/a.flac", "Alpha", "Zed", "X", 2); a.albumArtist = "Zed"; a.size = 300; a.disc = 1;
+        Track b = mk("/m/b.mp3", "Bravo", "Amy", "X", 1); b.albumArtist = "Amy"; b.size = 100; b.disc = 1;
+        Track c = mk("/m/c.ogg", "Charlie", "Amy", "Y", 5); c.albumArtist = "Amy"; c.size = 200; c.disc = 2; c.year = 2001;
+        lib.setTracks({a, b, c});
+        const auto titles = [&] {
+            QStringList out;
+            for (int i = 0; i < lib.songs()->rowCount(); ++i)
+                out << lib.songs()->get(i).value("title").toString();
+            return out;
+        };
+        lib.setSongSort("albumartist");   // Amy: Bravo, Charlie (by title); Zed: Alpha
+        QCOMPARE(titles(), QStringList({"Bravo", "Charlie", "Alpha"}));
+        lib.setSongSort("track");          // disc, then track number: b (1/1), a (1/2), c (2/5)
+        QCOMPARE(titles(), QStringList({"Bravo", "Alpha", "Charlie"}));
+        lib.setSongSort("size");
+        QCOMPARE(titles(), QStringList({"Bravo", "Charlie", "Alpha"}));
+        lib.setSongSort("format");         // flac, mp3, ogg
+        QCOMPARE(titles(), QStringList({"Alpha", "Bravo", "Charlie"}));
+
+        const QVariantMap info = lib.trackInfo("/m/c.ogg");
+        QCOMPARE(info.value("albumArtist").toString(), QString("Amy"));
+        QCOMPARE(info.value("track").toInt(), 5);
+        QCOMPARE(info.value("year").toInt(), 2001);
+        QCOMPARE(info.value("size").toLongLong(), qint64(200));
+        QCOMPARE(info.value("format").toString(), QString("OGG"));
+        QVERIFY(lib.trackInfo("/nope").isEmpty());
+
+        // The keys that open a song's artist and album in their tabs are the row keys.
+        QStringList albumKeys, artistKeys;
+        for (int i = 0; i < lib.albums()->rowCount(); ++i) albumKeys << lib.albums()->get(i).value("key").toString();
+        for (int i = 0; i < lib.artists()->rowCount(); ++i) artistKeys << lib.artists()->get(i).value("key").toString();
+        QVERIFY(albumKeys.contains(lib.albumKeyFor("/m/c.ogg")));
+        QVERIFY(artistKeys.contains(lib.artistKeyFor("/m/c.ogg")));
+        QCOMPARE(lib.artistKeyFor("/m/c.ogg"), QString("Amy"));
+        QCOMPARE(lib.artistKeyFor("/nope"), QString());
+    }
+
     void albumsAndArtistsCanBeSorted()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

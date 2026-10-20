@@ -97,6 +97,25 @@ private slots:
         QCOMPARE(p.list()->rowCount(), 2);
     }
 
+    void aSongKnowsWhichPlaylistsItIsIn()
+    {
+        QTemporaryDir dir;
+        Playlists p(dir.path());
+        QVERIFY(p.create("Road"));
+        QVERIFY(p.create("Chill"));
+        QVERIFY(p.addPaths("Road", {"/m/a.flac", "/m/b.flac"}));
+        QVERIFY(p.addPaths("Chill", {"/m/a.flac"}));
+        p.setServerLists({{"Navidrome mix", {"subsonic:1", "/m/a.flac"}}});
+        QCOMPARE(p.namesFor("/m/a.flac"), QStringList({"Chill", "Road", "Navidrome mix"}));
+        QCOMPARE(p.namesFor("/m/b.flac"), QStringList({"Road"}));
+        QCOMPARE(p.namesFor("subsonic:1"), QStringList({"Navidrome mix"}));
+        QCOMPARE(p.namesFor("/m/none.flac"), QStringList());
+        const int before = p.revision();
+        QVERIFY(p.removeAt("Road", 0));
+        QVERIFY(p.revision() > before);                       // lists bound to it update
+        QCOMPARE(p.namesFor("/m/a.flac"), QStringList({"Chill", "Navidrome mix"}));
+    }
+
     void createWithPicksAUniqueName()
     {
         QTemporaryDir dir;

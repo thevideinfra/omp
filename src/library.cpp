@@ -340,7 +340,7 @@ void Library::restoreSortState(const QString &tab, const QString &state)
 
 void Library::setSongSort(const QString &key)
 {
-    static const QStringList keys{"title", "artist", "album", "year", "length", "added", "favorite"};
+    static const QStringList keys{"title", "artist", "album", "albumartist", "year", "track", "length", "size", "format", "added", "favorite"};
     if (!keys.contains(key) || key == m_songSort)
         return;
     m_songSort = key;
@@ -379,6 +379,17 @@ void Library::rebuildSongs()
             return ciLess(a.artist, b.artist);
         if (key == QLatin1String("album") && QString::compare(a.album, b.album, Qt::CaseInsensitive) != 0)
             return ciLess(a.album, b.album);
+        if (key == QLatin1String("albumartist") && QString::compare(a.albumArtist, b.albumArtist, Qt::CaseInsensitive) != 0)
+            return ciLess(a.albumArtist, b.albumArtist);
+        if (key == QLatin1String("track") && (a.disc != b.disc || a.track != b.track))
+            return a.disc != b.disc ? a.disc < b.disc : a.track < b.track;
+        if (key == QLatin1String("size") && a.size != b.size)
+            return a.size < b.size;
+        if (key == QLatin1String("format")) {
+            const QString fa = QFileInfo(a.path).suffix(), fb = QFileInfo(b.path).suffix();
+            if (QString::compare(fa, fb, Qt::CaseInsensitive) != 0)
+                return ciLess(fa, fb);
+        }
         if (key == QLatin1String("year") && a.year != b.year) {
             if (a.year == 0 || b.year == 0)
                 return b.year == 0 && a.year != 0;   // unknown years go last
@@ -489,6 +500,29 @@ QStringList Library::starredRemotePaths() const
     for (const Track &t : starred)
         out << t.path;
     return out;
+}
+
+QVariantMap Library::trackInfo(const QString &path) const
+{
+    const auto it = m_byPath.constFind(path);
+    if (it == m_byPath.cend())
+        return {};
+    const Track &t = it.value();
+    return {{"albumArtist", t.albumArtist}, {"track", t.track}, {"disc", t.disc}, {"year", t.year},
+            {"mtime", t.mtime}, {"size", t.size},
+            {"format", t.isRemote() ? QString() : QFileInfo(t.path).suffix().toUpper()}};
+}
+
+QString Library::artistKeyFor(const QString &path) const
+{
+    const auto it = m_byPath.constFind(path);
+    return it == m_byPath.cend() ? QString() : m_artistDisplay.value(fold(it->albumArtist));
+}
+
+QString Library::albumKeyFor(const QString &path) const
+{
+    const auto it = m_byPath.constFind(path);
+    return it == m_byPath.cend() ? QString() : albumKey(*it);
 }
 
 bool Library::isStarred(const QString &path) const

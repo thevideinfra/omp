@@ -29,7 +29,7 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *results READ results CONSTANT)
     Q_PROPERTY(QString folderPath READ folderPath NOTIFY folderPathChanged)
     // Folders the last scan could not reach (unmounted or hung shares); their songs are the last known ones.
-    // How the Songs list is ordered: "title", "artist", "album", "year", "length", "added" (newest first) or "favorite" (starred first).
+    // How the Songs list is ordered: "title", "artist", "album", "albumartist", "year", "track", "length", "size", "format", "added" (newest first) or "favorite" (starred first).
     Q_PROPERTY(QString songSort READ songSort WRITE setSongSort NOTIFY songSortChanged)
     Q_PROPERTY(bool songDescending READ songDescending WRITE setSongDescending NOTIFY songSortChanged)
     // Albums: "title", "artist" (the default), "length" or "added"; artists: "title", "length" or "added".
@@ -52,6 +52,11 @@ public:
     // The server songs marked as favorites, in title order.
     QStringList starredRemotePaths() const;
     Q_INVOKABLE bool isStarred(const QString &path) const;
+    // What the song table shows beyond the row itself: albumArtist, track, disc, year, mtime, size, format.
+    Q_INVOKABLE QVariantMap trackInfo(const QString &path) const;
+    // The keys of the rows that stand for this song's artist and album in the Artists and Albums lists.
+    Q_INVOKABLE QString artistKeyFor(const QString &path) const;
+    Q_INVOKABLE QString albumKeyFor(const QString &path) const;
     Q_INVOKABLE int yearFor(const QString &path) const { return m_byPath.value(path).year; }
     // Marks a server song as a favorite (or not) in place: the lists are not rebuilt.
     void setStarred(const QString &path, bool starred);

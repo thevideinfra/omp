@@ -127,6 +127,16 @@ bool Playlists::write(const QString &name, const QList<Entry> &list)
 
 void Playlists::reload()
 {
+    m_membership.clear();
+    for (const QString &n : names())
+        for (const QString &p : paths(n))
+            if (!m_membership[p].contains(n))
+                m_membership[p] << n;
+    for (const ServerList &s : std::as_const(m_server))
+        for (const QString &p : s.paths)
+            if (!m_membership[p].contains(s.name))
+                m_membership[p] << s.name;
+    ++m_revision;
     QVector<QVariantMap> rows;
     for (const QString &n : names()) {
         const int count = paths(n).size();

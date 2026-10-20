@@ -21,6 +21,10 @@ public:
     static QString cleanName(const QString &name);
 
     RowsModel *list() { return &m_list; }
+    Q_PROPERTY(int revision READ revision NOTIFY changed)
+    int revision() const { return m_revision; }
+    // The names of the playlists (local first, then the server's) that hold this song.
+    Q_INVOKABLE QStringList namesFor(const QString &path) const { return m_membership.value(path); }
 
     // A playlist that lives on the server: read-only, listed after the local ones.
     struct ServerList
@@ -58,6 +62,8 @@ private:
     void reload();
 
     QList<ServerList> m_server;
+    QHash<QString, QStringList> m_membership;   // song path -> playlist names
+    int m_revision = 0;
     QString m_dir;
     RowsModel m_list;
 };

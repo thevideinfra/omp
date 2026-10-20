@@ -173,25 +173,12 @@ ApplicationWindow {
                         x: S.sp(8)
                         y: S.sp(8)
                         width: parent.width - S.sp(16)
-                        height: S.sp(64)
-                        Row {
+                        height: S.sp(72)
+                        LogoMark {   // the OMP logo, in the theme's accent colour
                             anchors.centerIn: parent
-                            spacing: S.sp(8)
-                            TabIcon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: S.sp(30)
-                                height: S.sp(30)
-                                kind: "logo"
-                                ink: theme.accent
-                                ink2: theme.foreground
-                            }
-                            UiText {
-                                visible: !rail.collapsed
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "OMP"
-                                color: theme.accent
-                                px: 18
-                            }
+                            width: parent.width
+                            height: parent.height
+                            ink: theme.accent
                         }
                     }
 

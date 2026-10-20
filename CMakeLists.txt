@@ -67,6 +67,8 @@ qt_add_qml_module(omp
         qml/SortHeader.qml
         qml/TransportButton.qml
         qml/Fmt.js
+        qml/Logo.js
+        qml/LogoMark.qml
         qml/Columns.js
         qml/Scale.js
         qml/UiText.qml

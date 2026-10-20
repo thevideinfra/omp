@@ -83,7 +83,7 @@ Main window:
 | n / p | next / previous |
 | h / l | seek -10 s / +10 s |
 | / | focus search |
-| Tab | next tab (Albums, Artists, Songs, Playlists, Folders, Queue, Settings) |
+| Tab | next tab (Albums, Artists, Songs, Playlists, Libraries, Queue, Settings) |
 | Right / Left | Albums, Artists, Playlists: move into / out of the song pane |
 | j / k, Down / Up | move selection |
 | Enter | play selection |
@@ -94,7 +94,7 @@ Main window:
 | f | star / unstar the playing server song |
 | Delete | remove the selected song from the open playlist |
 | r | rescan the library |
-| Backspace | up one folder (Folders tab); out of the song pane |
+| Backspace | up one folder (Libraries tab); out of the song pane |
 | Esc | clear search; out of the song pane |
 
 Panel: Esc hides the panel, Space play / pause.
@@ -114,7 +114,7 @@ The App section of Settings has **Start at login (in the tray)**, off by default
 
 ## Songs and music folders
 
-The **Songs** tab lists every track by title; Enter or double-click plays one song, `a` adds it to the queue. The **Library** tab in Settings lists the music folders (default `~/Music`): add one by typing its path or with Browse…, remove with Remove (the last one stays). Changes rescan at once and are saved as `folders = [...]` in `config.toml`. A mounted network share is just another folder here; handling of unmounted shares and slow mounts comes with the shares milestone.
+The **Libraries** tab (the old Folders tab) shows your music folders and what is inside them: **+ Add folder…** adds one, right-click a folder at the top to remove it (the last one stays) or to play or queue everything in it, and **← Back** with the folder's path goes up a level. The **Songs** tab lists every track by title; Enter or double-click plays one song, `a` adds it to the queue. The **Library** tab in Settings lists the music folders (default `~/Music`): add one by typing its path or with Browse…, remove with Remove (the last one stays). Changes rescan at once and are saved as `folders = [...]` in `config.toml`. A mounted network share is just another folder here; handling of unmounted shares and slow mounts comes with the shares milestone.
 
 ## Playlists
 
@@ -124,7 +124,7 @@ Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playl
 
 The Artists tab has three columns: the artists under A, B, C... headings (when sorted by name), the selected artist's albums with large thumbnails, and the open album's songs under a large cover. An artist opens on its first album. Right/Left move between the columns. The columns in Albums, Artists and Playlists start out equal (halves, thirds for artists) and can be resized by dragging their dividers (Settings > App > Layout has "Remember column sizes", off by default, which stores the sizes you drag for each tab, and "Reset column sizes", which goes back to equal columns); the large album cover grows and shrinks with its column. Artists in the list show a thumbnail of their first album.
 
-Songs sort by title, artist, album, year, length, added (newest first) or favorite (starred first), albums by title, artist, length or added, and artists by name or added; every sort is a click on a header (ascending first, descending on the second click), in the table headers for Songs and in a header strip above the Albums and Artists lists; "Remember sort order" in Settings > App > Layout (off by default) keeps the three choices between runs. The left rail shows a picture and a name for each tab and collapses to just the pictures with the button at its bottom (remembered); it has an area at the top reserved for a logo. "Show local / server tags on songs" in Settings > App turns the small tags off. Songs, Queue, Search and Folders are tables under a header row. The default columns are Title, Artist, Album, Year and Time; right-click a header (or use Settings > App) to also show Album artist, Track number, Added, Size, Format, Favorite (a heart) and Playlists (the playlists a song is in). In Songs, click a header to sort by it (first click ascending, the next descending; the arrow shows which); the columns in Albums, Artists and Playlists have titles, and the artist list has a large letter heading for each initial.
+Songs sort by title, artist, album, year, length, added (newest first) or favorite (starred first), albums by title, artist, length or added, and artists by name or added; every sort is a click on a header (ascending first, descending on the second click), in the table headers for Songs and in a header strip above the Albums and Artists lists; "Remember sort order" in Settings > App > Layout (off by default) keeps the three choices between runs. The left rail shows a picture and a name for each tab and collapses to just the pictures with the button at its bottom (remembered); it has an area at the top reserved for a logo. "Show local / server tags on songs" in Settings > App turns the small tags off. Songs, Queue and Search are tables under a header row. The default columns are Title, Artist, Album, Year and Time; right-click a header (or use Settings > App) to also show Album artist, Track number, Added, Size, Format, Favorite (a heart) and Playlists (the playlists a song is in). In Songs, click a header to sort by it (first click ascending, the next descending; the arrow shows which); the columns in Albums, Artists and Playlists have titles, and the artist list has a large letter heading for each initial.
 
 The bar under the song has **shuffle and repeat (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The equalizer button (sliders icon) beside the transport buttons opens a popup that picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.
 
@@ -140,7 +140,7 @@ omamusic has its own MPRIS service (`org.mpris.MediaPlayer2.omamusic`, identity 
 
 Settings > Library > Subsonic server connects omamusic to a Subsonic-API server (Navidrome, Airsonic, Subsonic). Enter the address, user and password, press Test connection, then Save. The password goes into the system keyring through `secret-tool` (it is never written to `config.toml`, which keeps only `server_enabled`, `server_url` and `server_user`).
 
-- The server's songs join your own in Albums, Artists, Songs and search. A server album never merges with a local album of the same name. Folders stays local.
+- The server's songs join your own in Albums, Artists, Songs and search. A server album never merges with a local album of the same name. Libraries stays local.
 - The library syncs at start and with `r`. It is cached in `~/.local/state/omamusic/subsonic.jsonl`, so it opens at once and stays visible when the server is offline ("Server offline" shows in the bottom bar).
 - Songs stream through mpv; covers are downloaded once and cached.
 - Server playlists show in Playlists after your own, read-only, marked "server". **Favorites** lists the songs you starred. A heart button in the bottom bar (or `f`) stars or unstars the playing server song.

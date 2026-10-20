@@ -759,6 +759,20 @@ void Library::rebuildArtists()
     m_artists.setRows(rows);
 }
 
+QVariantList Library::tracksUnder(const QString &dir) const
+{
+    const QString prefix = dir.endsWith('/') ? dir : dir + '/';
+    QVector<Track> found;
+    for (const Track &t : m_local)
+        if (t.path.startsWith(prefix))
+            found.append(t);
+    std::sort(found.begin(), found.end(), [](const Track &a, const Track &b) { return a.path < b.path; });
+    QVariantList out;
+    for (const Track &t : std::as_const(found))
+        out << t.toMap();
+    return out;
+}
+
 QVariantList Library::tracksForPaths(const QStringList &paths) const
 {
     QVariantList out;

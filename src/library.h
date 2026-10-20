@@ -105,6 +105,8 @@ public:
     // The known tracks for these paths, in order, each with "playlistIndex" set
     // to its position in `paths`; unknown paths are skipped.
     Q_INVOKABLE QVariantList tracksForPaths(const QStringList &paths) const;
+    // The local songs under a folder (subfolders included), in path order.
+    Q_INVOKABLE QVariantList tracksUnder(const QString &dir) const;
     Q_INVOKABLE QVariantList albumTracks(const QString &key) const;
     Q_INVOKABLE QVariantList artistTracks(const QString &key) const;
     Q_INVOKABLE void browse(const QString &dir);

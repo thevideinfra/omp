@@ -48,6 +48,7 @@ Canvas {
             circle(14.5, 14.5, 2.2, true)
             line(16.7, 14.5, 16.7, 6)
             break
+        case "libraries":
         case "folders":
             ctx.beginPath()
             ctx.moveTo(2.5, 5); ctx.lineTo(8, 5); ctx.lineTo(9.8, 7.2); ctx.lineTo(17.5, 7.2)

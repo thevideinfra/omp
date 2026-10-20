@@ -153,6 +153,20 @@ private slots:
         QCOMPARE(removed.count(), 1);
     }
 
+    void aMusicFolderRowCanBeRemovedFromTheLibrary()
+    {
+        menu->setProperty("tracks", QVariantList{});
+        menu->setProperty("folderPath", QString());
+        QVERIFY(!entry("removeFolder")->property("wanted").toBool());
+        menu->setProperty("folderPath", QString("/music/more"));
+        QVERIFY(entry("removeFolder")->property("wanted").toBool());
+        QVERIFY(!entry("play")->property("enabled").toBool());          // an empty folder has nothing to play
+        QSignalSpy removed(menu, SIGNAL(removeFolder(QString)));
+        QVERIFY(QMetaObject::invokeMethod(entry("removeFolder"), "triggered"));
+        QCOMPARE(removed.at(0).at(0).toString(), QString("/music/more"));
+        menu->setProperty("folderPath", QString());
+    }
+
     void escapeClosesItAndItOpensWhereAsked()
     {
         menu->setProperty("tracks", QVariantList{song("/m/a.flac")});

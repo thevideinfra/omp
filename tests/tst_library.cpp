@@ -353,6 +353,20 @@ private slots:
         QCOMPARE(lib.artistKeyFor("/nope"), QString());
     }
 
+    void tracksUnderAFolderIncludeItsSubfoldersInPathOrder()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks({mk("/m/zed/b.flac", "B", "Zed", "X", 1), mk("/m/zed/sub/c.flac", "C", "Zed", "X", 2),
+                       mk("/m/amy/a.flac", "A", "Amy", "Y", 1), mk("/m/zedx/d.flac", "D", "Q", "Z", 1)});
+        lib.setRemoteTracks({mk("subsonic:1", "R", "Amy", "Y", 1)});
+        const QVariantList under = lib.tracksUnder("/m/zed");
+        QCOMPARE(under.size(), 2);                                        // not /m/zedx, not the server's songs
+        QCOMPARE(under.at(0).toMap().value("title").toString(), QString("B"));
+        QCOMPARE(under.at(1).toMap().value("title").toString(), QString("C"));
+        QCOMPARE(lib.tracksUnder("/m").size(), 4);
+        QVERIFY(lib.tracksUnder("/nope").isEmpty());
+    }
+
     void albumsAndArtistsCanBeSorted()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

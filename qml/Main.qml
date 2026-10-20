@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import "Fmt.js" as Fmt
 import "Scale.js" as S
@@ -15,7 +16,7 @@ ApplicationWindow {
     visible: false
     color: theme.background
 
-    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "Folders", "Queue", "Settings"]
+    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "Libraries", "Queue", "Settings"]
     function isTab(name) { return tabNames[tab] === name }
     readonly property bool drillTab: isTab("Albums") || isTab("Artists") || isTab("Playlists")   // list on the left, songs on the right
     property int tab: 0
@@ -45,9 +46,10 @@ ApplicationWindow {
         keyRoot.forceActiveFocus()
     }
 
-    function showContext(tracks, x, y, canRemove) {
+    function showContext(tracks, x, y, canRemove, folderPath) {
         contextMenu.tracks = tracks
         contextMenu.canRemove = canRemove
+        contextMenu.folderPath = folderPath ?? ""
         contextMenu.openAt(x, y)
     }
 
@@ -97,7 +99,7 @@ ApplicationWindow {
         case Qt.Key_F: subsonic.toggleStar(player.current.path ?? ""); break
         case Qt.Key_Backspace:
             if (win.searching) break
-            if (win.isTab("Folders")) library.up()
+            if (win.isTab("Libraries")) library.up()
             else if (win.drillTab) currentList().back()
             break
         case Qt.Key_Escape:
@@ -274,16 +276,26 @@ ApplicationWindow {
                             Keys.onReturnPressed: keyRoot.forceActiveFocus()
                         }
 
-                        Rectangle {
-                            visible: win.isTab("Folders") && !win.searching
-                            Layout.preferredWidth: S.sp(60)
+                        // Libraries: at the top, add a music folder; inside one, go back and see where you are.
+                        ChipButton {
+                            visible: win.isTab("Libraries") && !win.searching && library.folderPath === ""
                             Layout.preferredHeight: searchField.height
-                            radius: S.sp(6)
-                            color: upArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : Qt.alpha(theme.foreground, 0.05)
-                            border.width: 1
-                            border.color: upArea.containsMouse ? Qt.alpha(theme.accent, 0.45) : Qt.alpha(theme.foreground, 0.12)
-                            UiText { anchors.centerIn: parent; text: qsTr("Up") }
-                            MouseArea { id: upArea; anchors.fill: parent; hoverEnabled: true; onClicked: { library.up(); keyRoot.forceActiveFocus() } }
+                            text: qsTr("+ Add folder…")
+                            onClicked: addFolderDialog.open()
+                        }
+                        ChipButton {
+                            visible: win.isTab("Libraries") && !win.searching && library.folderPath !== ""
+                            Layout.preferredHeight: searchField.height
+                            text: qsTr("← Back")
+                            onClicked: { library.up(); keyRoot.forceActiveFocus() }
+                        }
+                        UiText {
+                            visible: win.isTab("Libraries") && !win.searching && library.folderPath !== ""
+                            Layout.maximumWidth: S.sp(360)
+                            text: library.folderPath
+                            color: theme.dimForeground
+                            elide: Text.ElideMiddle
+                            px: 12
                         }
 
                         Rectangle {
@@ -398,7 +410,9 @@ ApplicationWindow {
                             }
                             onContextRequested: (row, x, y) => {
                                 const r = library.folder.get(row)
-                                if (!r.isDir)
+                                if (r.isDir)   // a folder: its songs; a music folder at the top can also be removed
+                                    win.showContext(library.tracksUnder(r.path), x, y, false, library.folderPath === "" ? r.path : "")
+                                else
                                     win.showContext([r], x, y, false)
                             }
                         }
@@ -565,6 +579,11 @@ ApplicationWindow {
         }
     }
 
+    FolderDialog {
+        id: addFolderDialog
+        title: qsTr("Add a music folder")
+        onAccepted: { settingsStore.addFolder(selectedFolder.toString()); keyRoot.forceActiveFocus() }
+    }
     PlaylistPicker { id: picker }
     ColumnMenu { id: columnMenu; onClosed: keyRoot.forceActiveFocus() }
     SongMenu {
@@ -572,6 +591,7 @@ ApplicationWindow {
         onAddToPlaylist: (tracks) => picker.openFor(tracks)
         onGoToArtist: (path) => win.goTo("Artists", artistsTab, library.artistKeyFor(path))
         onGoToAlbum: (path) => win.goTo("Albums", albumsTab, library.albumKeyFor(path))
+        onRemoveFolder: (path) => settingsStore.removeFolder(path)
         onRemoveFromPlaylist: { const l = win.currentList(); if (l.removeSelected) l.removeSelected() }
         onClosed: keyRoot.forceActiveFocus()
     }

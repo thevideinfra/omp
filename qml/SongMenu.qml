@@ -8,8 +8,10 @@ Menu {
     id: root
     property var tracks: []
     property bool canRemove: false   // the songs sit in a local playlist
+    property string folderPath: ""   // set for a music folder at the top of Libraries: it can be removed
     signal addToPlaylist(var tracks)
     signal removeFromPlaylist()
+    signal removeFolder(string path)
     signal goToArtist(string path)
     signal goToAlbum(string path)
 
@@ -65,6 +67,13 @@ Menu {
         wanted: root.remoteSingle
         text: root.starred ? qsTr("Remove from favorites") : qsTr("Add to favorites")
         onTriggered: root.toggleFavorite()
+    }
+    Entry {
+        objectName: "removeFolder"
+        wanted: root.folderPath !== ""
+        enabled: settingsStore.folders.length > 1          // the last folder stays
+        text: qsTr("Remove from library")
+        onTriggered: root.removeFolder(root.folderPath)
     }
     Entry { objectName: "remove"; wanted: root.canRemove; text: qsTr("Remove from playlist"); onTriggered: root.removeFromPlaylist() }
 }

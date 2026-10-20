@@ -164,43 +164,17 @@ ListView {
         }
     }
 
-    // The list view keeps the old letter headings when the whole model is replaced (a re-sort),
-    // so they are switched off and on again after every reset.
-    property bool sectionsLive: true
-    Connections {
-        target: root.model ? root.model : null
-        ignoreUnknownSignals: true
-        function onModelReset() {
-            if (!root.sections) return
-            root.sectionsLive = false
-            Qt.callLater(() => { root.sectionsLive = true })
-        }
-    }
-    section.property: sections && sectionsLive ? "initial" : ""
-    section.criteria: ViewSection.FullString
-    // A letter heading: a darker band, a large accent letter and a line above it.
-    section.delegate: Rectangle {
-        required property string section
-        width: ListView.view.width
-        height: section === "" ? 0 : S.sp(38)
-        visible: section !== ""
-        color: theme.sunken
-        Rectangle {
-            width: parent.width
-            height: 2
-            color: Qt.alpha(theme.accent, 0.6)
-        }
-        UiText {
-            x: S.sp(14)
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.verticalCenterOffset: S.sp(1)
-            text: parent.section
-            color: theme.accent
-            px: 18
-        }
+    // A letter heading above the first row of each initial (the artists list, sorted by name). It is drawn by
+    // the row itself: Qt's own list sections kept stale headings after a re-sort and when scrolling.
+    function headingFor(i) {
+        const r = root.model && root.model.get ? root.model.get(i) : null
+        if (!r || !r.initial) return ""
+        const p = i > 0 ? root.model.get(i - 1) : null
+        return p && p.initial === r.initial ? "" : r.initial
     }
 
-    delegate: Rectangle {
+    delegate: Item {
+        id: wrapper
         required property int index
         required property string title
         required property string subtitle
@@ -217,52 +191,8 @@ ListView {
         readonly property string artistText: dash >= 0 ? subtitle.substring(0, dash) : subtitle
         readonly property string albumText: dash >= 0 ? subtitle.substring(dash + 3) : ""
 
-        opacity: root.dragFrom === index ? 0.45 : 1
-        width: ListView.view.width
-        height: root.table ? Math.max(S.sp(52), root.artSize + S.sp(12))
-                           : Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
-        // In a list that shows what is playing, only that row takes the accent tint; a clicked row is a
-        // quiet selection, so the highlight always says what is playing.
         readonly property bool playingNow: root.playingRow >= 0 && index === root.playingRow
-        color: playingNow ? Qt.alpha(theme.accent, 0.16)
-               : ListView.isCurrentItem ? (root.playingRow >= 0 ? Qt.alpha(theme.foreground, 0.1) : Qt.alpha(theme.accent, 0.12))
-               : rowArea.containsMouse ? Qt.alpha(theme.foreground, 0.09)   // hover, like the left panel
-               : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
-        border.width: ListView.isCurrentItem && root.playingRow >= 0 && !playingNow ? 1 : 0   // a selected row that is not the playing one
-        border.color: Qt.alpha(theme.accent, 0.4)
-
-        // A row that stands for music (a song, an album) always has an art slot, so the text lines
-        // up; without a cover it shows a quiet placeholder.
         readonly property bool hasSlot: cover !== "" || root.slotIcon !== ""
-        Rectangle {
-            x: S.sp(8)
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.artSize
-            height: root.artSize
-            visible: hasSlot && (cover === "" || art.status !== Image.Ready)
-            radius: S.sp(4)
-            color: Qt.alpha(theme.foreground, 0.06)
-            TabIcon {
-                anchors.centerIn: parent
-                width: parent.width * 0.5
-                height: width
-                kind: cover === "" ? root.slotIcon : "albums"
-                ink: Qt.alpha(theme.foreground, cover === "" ? 0.55 : 0.3)
-            }
-        }
-        Image {
-            id: art
-            x: S.sp(8)
-            anchors.verticalCenter: parent.verticalCenter
-            width: hasSlot ? root.artSize : 0
-            height: root.artSize
-            source: artSource
-            sourceSize.width: root.artSize * 2
-            sourceSize.height: root.artSize * 2
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-        }
-
         function cellText(id) {
             switch (id) {
             case "title": return (index === root.playingRow ? "▶  " : "") + title
@@ -281,147 +211,224 @@ ListView {
             return ""
         }
 
-        // The table cells. A folder row has only a name and its path (spread over the other columns).
-        Repeater {
-            model: root.table ? root.columnModel : []
-            UiText {
-                required property var modelData
-                required property int index
-                readonly property bool folder: cover === ""
-                visible: !folder || modelData.id === "title" || index === 1
-                x: modelData.x
-                width: folder && index === 1 ? root.width - modelData.x - S.sp(12) - root.badgeW
-                                             : modelData.w - S.sp(12)
-                anchors.verticalCenter: parent.verticalCenter
-                horizontalAlignment: modelData.right ? Text.AlignRight : Text.AlignLeft
-                text: folder ? (index === 1 ? subtitle : (modelData.id === "title" ? title : "")) : cellText(modelData.id)
-                color: modelData.id === "favorite" ? theme.accent
-                       : modelData.id === "title" && !folder ? (index === root.playingRow ? theme.accent : theme.foreground)
-                       : folder && modelData.id === "title" ? theme.foreground : theme.dimForeground
-                elide: Text.ElideRight
-            }
-        }
-        Repeater {   // the same dividers down every row
-            model: root.table ? root.columnModel : []
+        readonly property string heading: root.sections ? root.headingFor(index) : ""
+        readonly property real headingH: heading !== "" ? S.sp(38) : 0
+
+        width: ListView.view.width
+        height: headingH + rowBg.height
+
+        // The letter heading: a darker band, a large accent letter and a line above it.
+        Rectangle {
+            visible: wrapper.heading !== ""
+            width: parent.width
+            height: wrapper.headingH
+            color: theme.sunken
             Rectangle {
-                required property var modelData
-                required property int index
-                visible: index > 0 && cover !== ""
-                x: modelData.x - S.sp(6)
-                width: 1
-                height: parent.height
-                color: Qt.alpha(theme.foreground, 0.1)
+                width: parent.width
+                height: 2
+                color: Qt.alpha(theme.accent, 0.6)
+            }
+            UiText {
+                x: S.sp(14)
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: S.sp(1)
+                text: wrapper.heading
+                color: theme.accent
+                px: 18
             }
         }
 
-        Column {
-            id: textColumn
-            visible: !root.table
-            anchors {
-                left: art.right
-                leftMargin: S.sp(10)
-                right: badges.left
-                rightMargin: S.sp(10)
-                verticalCenter: parent.verticalCenter
+        Rectangle {
+            id: rowBg
+            y: wrapper.headingH
+            width: parent.width
+            opacity: root.dragFrom === index ? 0.45 : 1
+            height: root.table ? Math.max(S.sp(52), root.artSize + S.sp(12))
+                               : Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
+            // In a list that shows what is playing, only that row takes the accent tint; a clicked row is a
+            // quiet selection, so the highlight always says what is playing.
+            color: playingNow ? Qt.alpha(theme.accent, 0.16)
+                   : wrapper.ListView.isCurrentItem ? (root.playingRow >= 0 ? Qt.alpha(theme.foreground, 0.1) : Qt.alpha(theme.accent, 0.12))
+                   : rowArea.containsMouse ? Qt.alpha(theme.foreground, 0.09)   // hover, like the left panel
+                   : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
+            border.width: wrapper.ListView.isCurrentItem && root.playingRow >= 0 && !playingNow ? 1 : 0   // a selected row that is not the playing one
+            border.color: Qt.alpha(theme.accent, 0.4)
+
+            // A row that stands for music (a song, an album) always has an art slot, so the text lines
+            // up; without a cover it shows a quiet placeholder.
+            Rectangle {
+                x: S.sp(8)
+                anchors.verticalCenter: parent.verticalCenter
+                width: root.artSize
+                height: root.artSize
+                visible: hasSlot && (cover === "" || art.status !== Image.Ready)
+                radius: S.sp(4)
+                color: Qt.alpha(theme.foreground, 0.06)
+                TabIcon {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.5
+                    height: width
+                    kind: cover === "" ? root.slotIcon : "albums"
+                    ink: Qt.alpha(theme.foreground, cover === "" ? 0.55 : 0.3)
+                }
             }
-            UiText {
-                width: parent.width
-                text: title
-                color: index === root.playingRow ? theme.accent : theme.foreground
-                elide: Text.ElideRight
+            Image {
+                id: art
+                x: S.sp(8)
+                anchors.verticalCenter: parent.verticalCenter
+                width: hasSlot ? root.artSize : 0
+                height: root.artSize
+                source: artSource
+                sourceSize.width: root.artSize * 2
+                sourceSize.height: root.artSize * 2
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
             }
+
+
+            // The table cells. A folder row has only a name and its path (spread over the other columns).
+            Repeater {
+                model: root.table ? root.columnModel : []
+                UiText {
+                    required property var modelData
+                    required property int index
+                    readonly property bool folder: cover === ""
+                    visible: !folder || modelData.id === "title" || index === 1
+                    x: modelData.x
+                    width: folder && index === 1 ? root.width - modelData.x - S.sp(12) - root.badgeW
+                                                 : modelData.w - S.sp(12)
+                    anchors.verticalCenter: parent.verticalCenter
+                    horizontalAlignment: modelData.right ? Text.AlignRight : Text.AlignLeft
+                    text: folder ? (index === 1 ? subtitle : (modelData.id === "title" ? title : "")) : cellText(modelData.id)
+                    color: modelData.id === "favorite" ? theme.accent
+                           : modelData.id === "title" && !folder ? (index === root.playingRow ? theme.accent : theme.foreground)
+                           : folder && modelData.id === "title" ? theme.foreground : theme.dimForeground
+                    elide: Text.ElideRight
+                }
+            }
+            Repeater {   // the same dividers down every row
+                model: root.table ? root.columnModel : []
+                Rectangle {
+                    required property var modelData
+                    required property int index
+                    visible: index > 0 && cover !== ""
+                    x: modelData.x - S.sp(6)
+                    width: 1
+                    height: parent.height
+                    color: Qt.alpha(theme.foreground, 0.1)
+                }
+            }
+
+            Column {
+                id: textColumn
+                visible: !root.table
+                anchors {
+                    left: art.right
+                    leftMargin: S.sp(10)
+                    right: badges.left
+                    rightMargin: S.sp(10)
+                    verticalCenter: parent.verticalCenter
+                }
+                UiText {
+                    width: parent.width
+                    text: title
+                    color: index === root.playingRow ? theme.accent : theme.foreground
+                    elide: Text.ElideRight
+                }
+                UiText {
+                    width: parent.width
+                    text: subtitle
+                    color: theme.dimForeground
+                    px: 12
+                    elide: Text.ElideRight
+                }
+            }
+
+            Row {
+                id: badges
+                anchors {
+                    right: root.table ? parent.right : metaText.left
+                    rightMargin: root.table ? S.sp(12) : S.sp(10)
+                    verticalCenter: parent.verticalCenter
+                }
+                spacing: S.sp(8)
+                UiText {
+                    visible: favorite && !(root.table && root.columns.indexOf("favorite") >= 0)   // the column already says it
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "♥"
+                    color: theme.accent
+                    px: 13
+                }
+                Rectangle {
+                    visible: source !== ""
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: tag.implicitWidth + S.sp(12)
+                    height: tag.implicitHeight + S.sp(4)
+                    radius: height / 2
+                    color: "transparent"
+                    border.width: 1
+                    border.color: source === qsTr("server") ? Qt.alpha(theme.accent, 0.5) : Qt.alpha(theme.foreground, 0.2)
+                    UiText {
+                        id: tag
+                        anchors.centerIn: parent
+                        text: source
+                        px: 11
+                        color: source === qsTr("server") ? theme.accent : theme.dimForeground
+                    }
+                }
+            }
+
             UiText {
-                width: parent.width
-                text: subtitle
+                id: metaText
+                anchors {
+                    right: parent.right
+                    rightMargin: S.sp(12)
+                    verticalCenter: parent.verticalCenter
+                }
+                visible: !root.table
+                horizontalAlignment: Text.AlignRight
+                text: meta
                 color: theme.dimForeground
                 px: 12
-                elide: Text.ElideRight
             }
-        }
 
-        Row {
-            id: badges
-            anchors {
-                right: root.table ? parent.right : metaText.left
-                rightMargin: root.table ? S.sp(12) : S.sp(10)
-                verticalCenter: parent.verticalCenter
-            }
-            spacing: S.sp(8)
-            UiText {
-                visible: favorite && !(root.table && root.columns.indexOf("favorite") >= 0)   // the column already says it
-                anchors.verticalCenter: parent.verticalCenter
-                text: "♥"
-                color: theme.accent
-                px: 13
-            }
-            Rectangle {
-                visible: source !== ""
-                anchors.verticalCenter: parent.verticalCenter
-                width: tag.implicitWidth + S.sp(12)
-                height: tag.implicitHeight + S.sp(4)
-                radius: height / 2
-                color: "transparent"
-                border.width: 1
-                border.color: source === qsTr("server") ? Qt.alpha(theme.accent, 0.5) : Qt.alpha(theme.foreground, 0.2)
-                UiText {
-                    id: tag
-                    anchors.centerIn: parent
-                    text: source
-                    px: 11
-                    color: source === qsTr("server") ? theme.accent : theme.dimForeground
+            MouseArea {
+                id: rowArea
+                property point pressAt
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onPressed: (mouse) => { pressAt = mapToItem(root.contentItem, mouse.x, mouse.y) }
+                onPositionChanged: (mouse) => {
+                    if (!root.reorderable || !(mouse.buttons & Qt.LeftButton)) return
+                    const p = mapToItem(root.contentItem, mouse.x, mouse.y)
+                    if (root.dragFrom < 0 && Math.abs(p.y - pressAt.y) > S.sp(8)) {
+                        root.dragFrom = index
+                        root.currentIndex = index
+                    }
+                    if (root.dragFrom === index) {
+                        const at = root.indexAt(p.x, p.y)
+                        if (at >= 0) root.dropAt = at
+                    }
                 }
-            }
-        }
-
-        UiText {
-            id: metaText
-            anchors {
-                right: parent.right
-                rightMargin: S.sp(12)
-                verticalCenter: parent.verticalCenter
-            }
-            visible: !root.table
-            horizontalAlignment: Text.AlignRight
-            text: meta
-            color: theme.dimForeground
-            px: 12
-        }
-
-        MouseArea {
-            id: rowArea
-            property point pressAt
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onPressed: (mouse) => { pressAt = mapToItem(root.contentItem, mouse.x, mouse.y) }
-            onPositionChanged: (mouse) => {
-                if (!root.reorderable || !(mouse.buttons & Qt.LeftButton)) return
-                const p = mapToItem(root.contentItem, mouse.x, mouse.y)
-                if (root.dragFrom < 0 && Math.abs(p.y - pressAt.y) > S.sp(8)) {
-                    root.dragFrom = index
+                onReleased: {
+                    if (root.dragFrom !== index) return
+                    const from = index, to = root.dropAt
+                    root.dragFrom = -1
+                    root.dropAt = -1
+                    if (to >= 0 && to !== from) root.moveRequested(from, to)
+                }
+                onClicked: (mouse) => {
                     root.currentIndex = index
+                    if (mouse.button === Qt.RightButton) {
+                        const p = mapToItem(null, mouse.x, mouse.y)
+                        root.contextRequested(index, p.x, p.y)
+                    }
+                    root.clicked()
                 }
-                if (root.dragFrom === index) {
-                    const at = root.indexAt(p.x, p.y)
-                    if (at >= 0) root.dropAt = at
-                }
+                onDoubleClicked: { root.activated(index); root.clicked() }
             }
-            onReleased: {
-                if (root.dragFrom !== index) return
-                const from = index, to = root.dropAt
-                root.dragFrom = -1
-                root.dropAt = -1
-                if (to >= 0 && to !== from) root.moveRequested(from, to)
-            }
-            onClicked: (mouse) => {
-                root.currentIndex = index
-                if (mouse.button === Qt.RightButton) {
-                    const p = mapToItem(null, mouse.x, mouse.y)
-                    root.contextRequested(index, p.x, p.y)
-                }
-                root.clicked()
-            }
-            onDoubleClicked: { root.activated(index); root.clicked() }
+
         }
     }
 }

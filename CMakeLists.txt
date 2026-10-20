@@ -27,6 +27,7 @@ qt_add_library(omacore STATIC
     src/playlists.cpp src/playlists.h
     src/trayicon.cpp src/trayicon.h
     src/mpris.cpp src/mpris.h
+    src/servers.cpp src/servers.h
     src/subsonicclient.cpp src/subsonicclient.h
     src/secrets.cpp src/secrets.h
     src/scrobbletracker.cpp src/scrobbletracker.h

@@ -24,6 +24,7 @@ oma_test(tst_mpris)
 oma_test(tst_migrate)
 oma_test(tst_doubleclick)
 oma_test(tst_secrets)
+oma_test(tst_servers)
 oma_test(tst_scrobble)
 oma_test(tst_subsonic)
 target_sources(tst_subsonic PRIVATE fakesubsonic.h)   # moc for the fake server

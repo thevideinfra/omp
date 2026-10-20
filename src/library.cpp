@@ -720,9 +720,13 @@ void Library::rebuildAlbums()
         std::reverse(albums.begin(), albums.end());
     QVector<QVariantMap> rows;
     for (const Album &a : std::as_const(albums)) {
+        int year = 0;   // the earliest year any song of the album carries
+        for (const Track &t : a.tracks)
+            if (t.year > 0 && (year == 0 || t.year < year))
+                year = t.year;
         rows.append({{"key", a.key},
                      {"title", a.name},
-                     {"subtitle", a.artist},
+                     {"subtitle", year > 0 ? QStringLiteral("%1  ·  %2").arg(a.artist).arg(year) : a.artist},
                      {"meta", QStringLiteral("%1 tracks").arg(a.tracks.size())},
                      {"cover", a.tracks.first().path}});   // resolved lazily by coverFor()
     }

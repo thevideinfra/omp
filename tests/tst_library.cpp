@@ -367,6 +367,19 @@ private slots:
         QVERIFY(lib.tracksUnder("/nope").isEmpty());
     }
 
+    void anAlbumRowShowsItsYearNextToTheArtist()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        Track a = mk("/m/a/1.flac", "One", "Amy", "Beta", 1); a.year = 2004;
+        Track b = mk("/m/a/2.flac", "Two", "Amy", "Beta", 2); b.year = 2003;      // the earliest year of the album
+        Track c = mk("/m/b/1.flac", "Solo", "Zed", "Gamma", 1);                  // no year known
+        lib.setTracks({a, b, c});
+        QStringList subs;
+        for (int i = 0; i < lib.albums()->rowCount(); ++i)
+            subs << lib.albums()->get(i).value("subtitle").toString();
+        QCOMPARE(subs, QStringList({"Amy  ·  2003", "Zed"}));
+    }
+
     void albumsAndArtistsCanBeSorted()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

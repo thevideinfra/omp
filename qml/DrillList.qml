@@ -35,6 +35,13 @@ Item {
     property var rows: []
     property var allTracks: []
 
+    // "Artist  ·  year" for an album: the earliest year any of its songs carries.
+    function albumSubtitle(group) {
+        let year = 0
+        group.tracks.forEach(t => { if ((t.year ?? 0) > 0 && (year === 0 || t.year < year)) year = t.year })
+        return year > 0 ? group.artist + "  ·  " + year : group.artist
+    }
+
     // The title of a column, with how many entries it lists.
     component PaneHeader: Rectangle {
         id: paneHeader
@@ -232,7 +239,7 @@ Item {
             })
             albumGroups = groups
             albumModel.clear()
-            groups.forEach(g => albumModel.append({ key: g.title, title: g.title, subtitle: g.artist,
+            groups.forEach(g => albumModel.append({ key: g.title, title: g.title, subtitle: albumSubtitle(g),
                 meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path }))
             mid.currentIndex = 0
         }
@@ -248,7 +255,7 @@ Item {
         const out = []
         if (allAlbums) {
             albumGroups.forEach(g => {
-                out.push({ header: true, indent: false, title: g.title, subtitle: g.artist,
+                out.push({ header: true, indent: false, title: g.title, subtitle: albumSubtitle(g),
                     meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path, tracks: g.tracks, start: 0 })
                 g.tracks.forEach((t, i) => out.push({ header: false, indent: true, title: t.title,
                     subtitle: t.artist, meta: t.meta, cover: "", tracks: g.tracks, start: i }))

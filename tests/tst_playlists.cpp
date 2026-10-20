@@ -97,6 +97,29 @@ private slots:
         QCOMPARE(p.list()->rowCount(), 2);
     }
 
+    void eachServerHasItsOwnPlaylistsEvenWithTheSameName()
+    {
+        QTemporaryDir dir;
+        Playlists p(dir.path());
+        QVERIFY(p.create("Mine"));
+        p.setServerLists("s1", {{"Road", {"subsonic:s1/1"}, "p1", "s1", "Home"}});
+        p.setServerLists("s2", {{"Road", {"subsonic:s2/9", "subsonic:s2/8"}, "p7", "s2", "Work"}, {"Chill", {}, "p8", "s2", "Work"}});
+        QCOMPARE(p.list()->rowCount(), 4);                          // Mine, then each server's lists
+        QCOMPARE(p.list()->get(1).value("meta").toString(), QString("Home"));
+        QCOMPARE(p.list()->get(2).value("meta").toString(), QString("Work"));
+        const QString k1 = p.list()->get(1).value("key").toString(), k2 = p.list()->get(2).value("key").toString();
+        QVERIFY(k1 != k2);                                         // the same name, two playlists
+        QCOMPARE(p.paths(k1), QStringList({"subsonic:s1/1"}));
+        QCOMPARE(p.paths(k2), QStringList({"subsonic:s2/9", "subsonic:s2/8"}));
+        QCOMPARE(p.list()->get(2).value("serverId").toString(), QString("s2"));
+        QCOMPARE(p.list()->get(2).value("playlistId").toString(), QString("p7"));
+        QCOMPARE(p.namesFor("subsonic:s2/9"), QStringList({"Road"}));
+
+        p.setServerLists("s1", {});                                // dropping a server keeps the other's lists
+        QCOMPARE(p.list()->rowCount(), 3);
+        QCOMPARE(p.list()->get(1).value("serverId").toString(), QString("s2"));
+    }
+
     void aSongKnowsWhichPlaylistsItIsIn()
     {
         QTemporaryDir dir;

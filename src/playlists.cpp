@@ -7,11 +7,12 @@
 #include <QSaveFile>
 
 #include "paths.h"
+#include "track.h"
 
 Playlists::Playlists(const QString &dir, QObject *parent)
     : QObject(parent)
     , m_dir(dir)
-    , m_list({"key", "title", "subtitle", "meta", "cover", "readOnly"})
+    , m_list({"key", "title", "subtitle", "meta", "cover", "readOnly", "serverId", "playlistId"})
 {
     reload();
 }
@@ -73,9 +74,20 @@ namespace {
 const QString kServerKey = QStringLiteral("\x1f""server\x1f");
 }
 
-void Playlists::setServerLists(const QList<ServerList> &lists)
+static QString serverKey(const Playlists::ServerList &s)
 {
-    m_server = lists;
+    return kServerKey + s.serverId + QLatin1Char('\x1f') + s.name;
+}
+
+void Playlists::setServerLists(const QString &serverId, const QList<ServerList> &lists)
+{
+    QList<ServerList> own = lists;
+    for (ServerList &s : own)
+        s.serverId = serverId;
+    if (own.isEmpty())
+        m_server.remove(serverId);
+    else
+        m_server.insert(serverId, own);
     reload();
 }
 
@@ -83,9 +95,10 @@ QStringList Playlists::paths(const QString &name) const
 {
     QStringList out;
     if (name.startsWith(kServerKey)) {
-        for (const ServerList &s : m_server)
-            if (kServerKey + s.name == name)
-                return s.paths;
+        for (const QList<ServerList> &lists : std::as_const(m_server))
+            for (const ServerList &s : lists)
+                if (serverKey(s) == name)
+                    return s.paths;
         return out;
     }
     for (const Entry &e : entries(name))
@@ -130,12 +143,13 @@ void Playlists::reload()
     m_membership.clear();
     for (const QString &n : names())
         for (const QString &p : paths(n))
-            if (!m_membership[p].contains(n))
-                m_membership[p] << n;
-    for (const ServerList &s : std::as_const(m_server))
-        for (const QString &p : s.paths)
-            if (!m_membership[p].contains(s.name))
-                m_membership[p] << s.name;
+            if (!m_membership[Track::normalized(p)].contains(n))
+                m_membership[Track::normalized(p)] << n;
+    for (const QList<ServerList> &lists : std::as_const(m_server))
+        for (const ServerList &s : lists)
+            for (const QString &p : s.paths)
+                if (!m_membership[Track::normalized(p)].contains(s.name))
+                    m_membership[Track::normalized(p)] << s.name;
     ++m_revision;
     QVector<QVariantMap> rows;
     for (const QString &n : names()) {
@@ -145,15 +159,21 @@ void Playlists::reload()
                      {"subtitle", QStringLiteral("%1 songs").arg(count)},
                      {"meta", QStringLiteral("local")},
                      {"cover", QString()},
-                     {"readOnly", false}});
+                     {"readOnly", false},
+                     {"serverId", QString()},
+                     {"playlistId", QString()}});
     }
-    for (const ServerList &s : std::as_const(m_server)) {
-        rows.append({{"key", kServerKey + s.name},
-                     {"title", s.name},
-                     {"subtitle", QStringLiteral("%1 songs").arg(s.paths.size())},
-                     {"meta", QStringLiteral("server")},
-                     {"cover", QString()},
-                     {"readOnly", true}});
+    for (const QList<ServerList> &lists : std::as_const(m_server)) {
+        for (const ServerList &s : lists) {
+            rows.append({{"key", serverKey(s)},
+                         {"title", s.name},
+                         {"subtitle", QStringLiteral("%1 songs").arg(s.paths.size())},
+                         {"meta", s.source},
+                         {"cover", QString()},
+                         {"readOnly", s.readOnly},
+                         {"serverId", s.serverId},
+                         {"playlistId", s.id}});
+        }
     }
     m_list.setRows(rows);
     emit changed();

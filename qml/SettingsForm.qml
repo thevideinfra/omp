@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import "Scale.js" as S
-import "Columns.js" as Columns
 
 Item {
     id: root
@@ -51,26 +50,19 @@ Item {
                 checked: autostart.enabled
                 onToggled: (v) => autostart.enabled = v
             }
-            UiText { visible: root.section === 0; text: qsTr("Layout"); color: theme.dimForeground; px: 12 }
-            ToggleRow {
-                visible: root.section === 0
-                Layout.fillWidth: true
-                label: qsTr("Remember column sizes")
-                checked: settingsStore.saveLayout
-                onToggled: (v) => settingsStore.set("saveLayout", v)
-            }
-            UiText { visible: root.section === 0; text: qsTr("Song list columns (also: right-click a column header)"); color: theme.dimForeground; px: 12 }
+            UiText { visible: root.section === 0; text: qsTr("Left panel: the tabs to show"); color: theme.dimForeground; px: 12 }
             Repeater {
-                model: Columns.order.filter(id => id !== "title")
+                model: ["Albums", "Artists", "Songs", "Playlists", "Libraries", "Queue"]
                 ToggleRow {
                     required property string modelData
                     visible: root.section === 0
                     Layout.fillWidth: true
-                    label: Columns.catalog[modelData].label
-                    checked: settingsStore.songColumns.indexOf(modelData) >= 0
-                    onToggled: (v) => settingsStore.setSongColumn(modelData, v)
+                    label: modelData
+                    checked: settingsStore.hiddenTabs.indexOf(modelData) < 0
+                    onToggled: (v) => settingsStore.setTabShown(modelData, v)
                 }
             }
+            UiText { visible: root.section === 0; text: qsTr("Lists"); color: theme.dimForeground; px: 12 }
             ToggleRow {
                 visible: root.section === 0
                 Layout.fillWidth: true
@@ -84,6 +76,14 @@ Item {
                 label: qsTr("Remember sort order")
                 checked: settingsStore.saveSort
                 onToggled: (v) => settingsStore.set("saveSort", v)
+            }
+            UiText { visible: root.section === 0; text: qsTr("Layout"); color: theme.dimForeground; px: 12 }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
+                label: qsTr("Remember column sizes")
+                checked: settingsStore.saveLayout
+                onToggled: (v) => settingsStore.set("saveLayout", v)
             }
             Rectangle {
                 visible: root.section === 0

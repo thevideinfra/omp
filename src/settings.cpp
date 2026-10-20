@@ -53,6 +53,7 @@ const QVector<Key> &keys()
         {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
         {"saveLayout", "save_layout", Type::Bool, false, {}},
         {"saveSort", "save_sort", Type::Bool, false, {}},
+        {"hiddenTabs", "hidden_tabs", Type::String, QString(), {}},
         {"songColumns", "song_columns", Type::String, QString("title,artist,album,year,time"), {}},
         {"railCollapsed", "rail_collapsed", Type::Bool, false, {}},
         {"showSourceTags", "show_source_tags", Type::Bool, true, {}},
@@ -97,6 +98,25 @@ QString normalizedColumns(const QString &list)
     return out.join(',');
 }
 
+// The tabs of the left panel that can be hidden (Settings cannot), in rail order.
+const QStringList &hideableTabs()
+{
+    static const QStringList all{"Albums", "Artists", "Songs", "Playlists", "Libraries", "Queue"};
+    return all;
+}
+
+QString normalizedTabs(const QString &list)
+{
+    const QStringList wanted = list.split(',', Qt::SkipEmptyParts);
+    QStringList out;
+    for (const QString &t : hideableTabs())
+        if (wanted.contains(t))
+            out << t;
+    if (out.size() >= hideableTabs().size())
+        out.removeLast();   // one tab always stays
+    return out.join(',');
+}
+
 // The acceptable value, or an invalid QVariant when v is not valid for the key.
 QVariant validated(const Key &k, const QVariant &v)
 {
@@ -111,6 +131,8 @@ QVariant validated(const Key &k, const QVariant &v)
             return {};
         if (k.prop == QLatin1String("songColumns"))
             return normalizedColumns(s);
+        if (k.prop == QLatin1String("hiddenTabs"))
+            return normalizedTabs(s);
         if (k.prop == QLatin1String("serverUrl") && !s.isEmpty()
             && !s.startsWith(QLatin1String("http://")) && !s.startsWith(QLatin1String("https://")))
             return {};
@@ -359,6 +381,28 @@ void Settings::setLayoutFor(const QString &tab, const QString &fractions)
             return;
     }
     set(prop, fractions);
+}
+
+QStringList Settings::hiddenTabs() const
+{
+    return m_values.value("hiddenTabs").toString().split(',', Qt::SkipEmptyParts);
+}
+
+bool Settings::tabShown(const QString &name) const
+{
+    return !hiddenTabs().contains(name);
+}
+
+void Settings::setTabShown(const QString &name, bool shown)
+{
+    if (!hideableTabs().contains(name))
+        return;
+    QStringList now = hiddenTabs();
+    if (shown)
+        now.removeAll(name);
+    else if (!now.contains(name))
+        now << name;
+    set(QStringLiteral("hiddenTabs"), now.join(','));   // normalized by validation (never all six)
 }
 
 QStringList Settings::songColumns() const

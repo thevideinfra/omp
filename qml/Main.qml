@@ -20,6 +20,13 @@ ApplicationWindow {
     function isTab(name) { return tabNames[tab] === name }
     readonly property bool drillTab: isTab("Albums") || isTab("Artists") || isTab("Playlists")   // list on the left, songs on the right
     property int tab: 0
+    // The tabs the left panel shows (Settings always); Tab cycles through these.
+    readonly property var shownTabs: tabNames.map((n, i) => i).filter(i => tabNames[i] === "Settings" || settingsStore.hiddenTabs.indexOf(tabNames[i]) < 0)
+    function ensureShownTab() {
+        if (shownTabs.indexOf(tab) < 0) tab = shownTabs[0]
+    }
+    Connections { target: settingsStore; function onChanged() { win.ensureShownTab() } }
+    Component.onCompleted: ensureShownTab()
     readonly property bool searching: searchField.text.length > 0
 
     // Close-to-tray, unless there is no tray to bring the window back from.
@@ -50,6 +57,8 @@ ApplicationWindow {
         contextMenu.tracks = tracks
         contextMenu.canRemove = canRemove
         contextMenu.folderPath = folderPath ?? ""
+        contextMenu.canGoArtist = settingsStore.hiddenTabs.indexOf("Artists") < 0   // a hidden tab is not a place to go to
+        contextMenu.canGoAlbum = settingsStore.hiddenTabs.indexOf("Albums") < 0
         contextMenu.openAt(x, y)
     }
 
@@ -77,7 +86,12 @@ ApplicationWindow {
         case Qt.Key_H: player.seekBy(-10); break
         case Qt.Key_L: player.seekBy(10); break
         case Qt.Key_Slash: searchField.forceActiveFocus(); break
-        case Qt.Key_Tab: win.tab = (win.tab + 1) % win.tabNames.length; searchField.text = ""; break
+        case Qt.Key_Tab: {
+            const at = win.shownTabs.indexOf(win.tab)
+            win.tab = win.shownTabs[(at + 1) % win.shownTabs.length]
+            searchField.text = ""
+            break
+        }
         case Qt.Key_J:
         case Qt.Key_Down: currentList().move(1); break
         case Qt.Key_K:
@@ -195,12 +209,11 @@ ApplicationWindow {
                         anchors.bottomMargin: S.sp(100)
                         spacing: S.sp(4)
                         Repeater {
-                            model: win.tabNames.filter(n => n !== "Settings")
+                            model: win.tabNames.filter(n => n !== "Settings" && settingsStore.hiddenTabs.indexOf(n) < 0)
                             delegate: RailRow {
-                                required property int index
                                 required property string modelData
                                 width: parent.width
-                                tabIndex: index
+                                tabIndex: win.tabNames.indexOf(modelData)
                                 label: modelData
                             }
                         }

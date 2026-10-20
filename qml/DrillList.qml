@@ -597,6 +597,7 @@ Item {
                     width: ListView.view.width
                     height: headerRow ? Math.max(S.sp(52), headCol.implicitHeight + S.sp(8)) : S.sp(42)
                     color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
+                           : detailArea.containsMouse ? Qt.alpha(theme.foreground, 0.09)   // hover, like the left panel
                            : headerRow ? Qt.alpha(theme.foreground, 0.05)
                            : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
@@ -684,7 +685,9 @@ Item {
                     }
 
                     MouseArea {
+                        id: detailArea
                         anchors.fill: parent
+                        hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onClicked: (mouse) => {
                             detail.currentIndex = item.index

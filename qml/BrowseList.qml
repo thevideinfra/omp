@@ -180,6 +180,7 @@ ListView {
         height: root.table ? Math.max(S.sp(52), root.artSize + S.sp(12))
                            : Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
         color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
+               : rowArea.containsMouse ? Qt.alpha(theme.foreground, 0.09)   // hover, like the left panel
                : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
         // A row that stands for music (a song, an album) always has an art slot, so the text lines
@@ -339,7 +340,9 @@ ListView {
         }
 
         MouseArea {
+            id: rowArea
             anchors.fill: parent
+            hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: (mouse) => {
                 root.currentIndex = index

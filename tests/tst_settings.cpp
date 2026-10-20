@@ -173,6 +173,36 @@ private slots:
                  QString("title,artist"));                  // junk in the file is cleaned up
     }
 
+    void tabsCanBeHiddenFromTheLeftPanelButNotAll()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QVERIFY(s.hiddenTabs().isEmpty());
+            QVERIFY(s.tabShown("Albums"));
+            s.setTabShown("Albums", false);
+            s.setTabShown("Queue", false);
+            s.setTabShown("Nonsense", false);              // unknown names are ignored
+            s.setTabShown("Settings", false);              // Settings is always there
+            QCOMPARE(s.hiddenTabs(), QStringList({"Albums", "Queue"}));   // in rail order
+            QVERIFY(!s.tabShown("Albums"));
+            QVERIFY(s.tabShown("Settings"));
+            s.setTabShown("Albums", true);
+            QCOMPARE(s.hiddenTabs(), QStringList({"Queue"}));
+
+            for (const char *n : {"Albums", "Artists", "Songs", "Playlists", "Libraries"})
+                s.setTabShown(n, false);
+            // One tab always stays: the last one cannot be hidden.
+            QCOMPARE(s.hiddenTabs().size(), 5);
+            QVERIFY(s.tabShown("Libraries") || s.tabShown("Queue") || s.tabShown("Songs")
+                    || s.tabShown("Albums") || s.tabShown("Artists") || s.tabShown("Playlists"));
+        }
+        Settings again(f);
+        QVERIFY(again.hiddenTabs().size() == 5);
+        QCOMPARE(Settings::parse("hidden_tabs = \"Songs,bogus,Songs\"\n").value("hiddenTabs").toString(), QString("Songs"));
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

@@ -17,6 +17,7 @@ class Settings : public QObject
     Q_PROPERTY(bool saveLayout READ saveLayout NOTIFY changed)
     Q_PROPERTY(bool saveSort READ saveSort NOTIFY changed)
     Q_PROPERTY(QStringList songColumns READ songColumns NOTIFY changed)
+    Q_PROPERTY(QStringList hiddenTabs READ hiddenTabs NOTIFY changed)
     Q_PROPERTY(bool railCollapsed READ railCollapsed NOTIFY changed)
     Q_PROPERTY(bool showSourceTags READ showSourceTags NOTIFY changed)
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
@@ -92,6 +93,10 @@ public:
     // "list,middle" or "list"; empty when none are stored.
     Q_INVOKABLE QString layoutFor(const QString &tab) const;
     Q_INVOKABLE void setLayoutFor(const QString &tab, const QString &fractions);
+    // Tabs hidden from the left panel (Settings itself always shows; one other tab always stays).
+    QStringList hiddenTabs() const;
+    Q_INVOKABLE bool tabShown(const QString &name) const;
+    Q_INVOKABLE void setTabShown(const QString &name, bool shown);
     // The columns of the song tables, in table order ("title" always among them).
     QStringList songColumns() const;
     Q_INVOKABLE void setSongColumn(const QString &column, bool shown);

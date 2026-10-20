@@ -8,6 +8,8 @@ Menu {
     id: root
     property var tracks: []
     property bool canRemove: false   // the songs sit in a local playlist
+    property bool canGoArtist: true  // false when the Artists tab is hidden
+    property bool canGoAlbum: true
     property string folderPath: ""   // set for a music folder at the top of Libraries: it can be removed
     signal addToPlaylist(var tracks)
     signal removeFromPlaylist()
@@ -60,8 +62,8 @@ Menu {
     Entry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
     Entry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
     Entry { objectName: "playlist"; text: qsTr("Add to playlist…"); enabled: root.tracks.length > 0; onTriggered: root.addToPlaylist(root.tracks) }
-    Entry { objectName: "artist"; wanted: root.single; text: qsTr("Go to artist"); onTriggered: root.goToArtist(root.tracks[0].path) }
-    Entry { objectName: "album"; wanted: root.single; text: qsTr("Go to album"); onTriggered: root.goToAlbum(root.tracks[0].path) }
+    Entry { objectName: "artist"; wanted: root.single && root.canGoArtist; text: qsTr("Go to artist"); onTriggered: root.goToArtist(root.tracks[0].path) }
+    Entry { objectName: "album"; wanted: root.single && root.canGoAlbum; text: qsTr("Go to album"); onTriggered: root.goToAlbum(root.tracks[0].path) }
     Entry {
         objectName: "favorite"
         wanted: root.remoteSingle

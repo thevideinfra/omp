@@ -1,14 +1,16 @@
 #include "subsonicsource.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QSaveFile>
 
-SubsonicSource::SubsonicSource(Settings &settings, Library &library, Secrets &secrets,
-                               SubsonicClient &client, QObject *parent)
+SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &playlists,
+                               Secrets &secrets, SubsonicClient &client, QObject *parent)
     : QObject(parent)
     , m_settings(settings)
     , m_library(library)
+    , m_playlists(playlists)
     , m_secrets(secrets)
     , m_client(client)
 {
@@ -19,6 +21,13 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Secrets &se
         m_library.setRemoteTracks(tracks);
         m_library.writeRemoteCache();
         setStatus(tr("Connected: %1 songs").arg(tracks.size()));
+        m_client.fetchPlaylists();   // the playlists follow the songs
+    });
+    connect(&m_client, &SubsonicClient::playlistsFetched, this, [this](const QVariantList &lists) {
+        publishLists(lists);
+    });
+    connect(&m_client, &SubsonicClient::playlistsFailed, this, [this](const QString &message) {
+        qWarning() << "cannot fetch the server playlists:" << message;   // the songs are still there
     });
     connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
         setStatus(tr("Server offline: %1").arg(message));   // the cached songs stay
@@ -96,6 +105,19 @@ void SubsonicSource::sync()
     m_secrets.lookup(account());
 }
 
+// The server's playlists, then "Favorites" (the starred songs), after the local ones.
+void SubsonicSource::publishLists(const QVariantList &serverPlaylists)
+{
+    m_serverPlaylists = serverPlaylists;
+    QList<Playlists::ServerList> lists;
+    for (const QVariant &v : serverPlaylists)
+        lists.append({v.toMap().value("name").toString(), v.toMap().value("paths").toStringList()});
+    const QStringList starred = m_library.starredRemotePaths();
+    if (!starred.isEmpty())
+        lists.append({tr("Favorites"), starred});
+    m_playlists.setServerLists(lists);
+}
+
 void SubsonicSource::fetchWith(const QString &password)
 {
     m_client.setServer(m_settings.serverUrl(), m_settings.serverUser(), password);
@@ -131,6 +153,7 @@ void SubsonicSource::remove()
     m_passwordFor.clear();
     m_library.setRemoteTracks({});
     m_library.writeRemoteCache();
+    m_playlists.setServerLists({});
     m_settings.set("serverEnabled", false);
     m_settings.set("serverUrl", QString());
     m_settings.set("serverUser", QString());

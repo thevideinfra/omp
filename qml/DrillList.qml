@@ -21,6 +21,7 @@ Item {
     signal clicked()
     signal pickRequested(var tracks)   // add these songs to a playlist
     signal newPlaylistRequested()
+    property bool openReadOnly: false   // playlists: the open one is a server playlist (no edits)
     property bool renaming: false
     property bool confirmDelete: false
     property string selectName: ""   // playlist to select after the next change
@@ -80,7 +81,7 @@ Item {
     }
     // Delete removes the selected song from the open playlist.
     function removeSelected() {
-        if (kind !== "playlist" || !rightFocus || rows.length === 0) return
+        if (kind !== "playlist" || openReadOnly || !rightFocus || rows.length === 0) return
         const r = rows[detail.currentIndex]
         if (r.header) return
         playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
@@ -131,11 +132,12 @@ Item {
         renaming = false
         confirmDelete = false
         if (row < 0 || row >= top.count) {
-            rows = []; allTracks = []; openTitle = ""; artistTracks = []; albumGroups = []
+            rows = []; allTracks = []; openTitle = ""; artistTracks = []; albumGroups = []; openReadOnly = false
             albumModel.clear(); detailModel.clear()
             return
         }
         openTitle = model.get(row).title
+        openReadOnly = kind === "playlist" && !!model.get(row).readOnly
         artistTracks = tracksOf(row)
         albumIndex = 0
         if (kind === "artist") {
@@ -379,7 +381,7 @@ Item {
                 }
 
                 Rectangle {
-                    visible: root.kind === "playlist" && top.count > 0
+                    visible: root.kind === "playlist" && top.count > 0 && !root.openReadOnly
                     Layout.preferredWidth: renameText.implicitWidth + S.sp(20)
                     Layout.preferredHeight: S.sp(30)
                     radius: S.sp(6)
@@ -400,7 +402,7 @@ Item {
                 }
 
                 Rectangle {
-                    visible: root.kind === "playlist" && top.count > 0
+                    visible: root.kind === "playlist" && top.count > 0 && !root.openReadOnly
                     Layout.preferredWidth: deleteText.implicitWidth + S.sp(20)
                     Layout.preferredHeight: S.sp(30)
                     radius: S.sp(6)

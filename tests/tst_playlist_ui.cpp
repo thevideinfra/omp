@@ -165,6 +165,23 @@ private slots:
         QVERIFY(playlists->create("Yet another"));
         QTRY_COMPARE(playlists->list()->rowCount(), 3);
     }
+
+    void aServerPlaylistIsReadOnly()
+    {
+        playlists->setServerLists({{"Road", {"/m/a.flac", "/m/b.flac"}}});   // songs the library knows
+        QTRY_COMPARE(playlists->list()->rowCount(), 4);
+        QVERIFY(!tab->property("openReadOnly").toBool());                // a local playlist is open
+        QVERIFY(QMetaObject::invokeMethod(tab, "showRow", Q_ARG(QVariant, 3)));
+        QCOMPARE(tab->property("openTitle").toString(), QString("Road"));
+        QVERIFY(tab->property("openReadOnly").toBool());
+        QCOMPARE(rows().size(), 2);                                       // its songs are listed and playable
+
+        QVariant ok;
+        QVERIFY(QMetaObject::invokeMethod(tab, "focusRight", Q_RETURN_ARG(QVariant, ok)));
+        QVERIFY(QMetaObject::invokeMethod(tab, "removeSelected"));        // Delete does nothing here
+        QCOMPARE(playlists->paths(playlists->list()->get(3).value("key").toString()).size(), 2);
+        playlists->setServerLists({});
+    }
 };
 
 QTEST_MAIN(TstPlaylistUi)

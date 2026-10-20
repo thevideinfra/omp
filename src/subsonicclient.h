@@ -46,12 +46,16 @@ public:
     void setPageSize(int n) { m_pageSize = n; }
     // The whole library as tracks; all or nothing: `libraryFetched` on success, else `libraryFailed`.
     void fetchLibrary();
+    // The server's playlists as { name, paths } (paths are "subsonic:<id>"); all or nothing.
+    void fetchPlaylists();
 
 signals:
     void pingDone(bool ok, const QString &message);
     void libraryProgress(int done, int total);
     void libraryFetched(const QVector<Track> &tracks);
     void libraryFailed(const QString &message);
+    void playlistsFetched(const QVariantList &lists);
+    void playlistsFailed(const QString &message);
 
 private:
     QNetworkAccessManager m_nam;

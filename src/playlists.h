@@ -22,6 +22,14 @@ public:
 
     RowsModel *list() { return &m_list; }
 
+    // A playlist that lives on the server: read-only, listed after the local ones.
+    struct ServerList
+    {
+        QString name;
+        QStringList paths;
+    };
+    void setServerLists(const QList<ServerList> &lists);
+
     Q_INVOKABLE QStringList names() const;
     Q_INVOKABLE QStringList paths(const QString &name) const;
     // Each return value tells whether it did anything.
@@ -49,6 +57,7 @@ private:
     bool write(const QString &name, const QStringList &paths);
     void reload();
 
+    QList<ServerList> m_server;
     QString m_dir;
     RowsModel m_list;
 };

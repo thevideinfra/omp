@@ -48,6 +48,8 @@ public:
     // The songs of a Subsonic server, listed beside the local ones; they never appear in the folder tree.
     void setRemoteTracks(QVector<Track> tracks);
     void loadRemoteCache();
+    // The server songs marked as favorites, in title order.
+    QStringList starredRemotePaths() const;
     // Asks for a server cover to be downloaded to a file; returns false when it cannot
     // right now (no server settings yet), so the library asks again later.
     void setCoverFetcher(std::function<bool(const QString &coverId, const QString &destFile)> fetcher)

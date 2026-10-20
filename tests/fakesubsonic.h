@@ -48,7 +48,7 @@ public:
             const QString id = q.queryItemValue("id");
             QStringList songs;
             for (int i = 1; i <= songsPerAlbum.value(id); ++i)
-                songs << QStringLiteral("{\"id\":\"%1-%2\",\"title\":\"T%2\",\"artist\":\"Amy\",\"album\":\"%1\",\"track\":%2,\"coverArt\":\"%1\"}").arg(id).arg(i);
+                songs << QStringLiteral("{\"id\":\"%1-%2\",\"title\":\"T%2\",\"artist\":\"Amy\",\"album\":\"%1\",\"track\":%2,\"coverArt\":\"%1\"%3}").arg(id).arg(i).arg(i == 1 ? QStringLiteral(",\"starred\":\"2022-01-01T00:00:00Z\"") : QString());
             return QByteArray("\"album\":{\"id\":\"") + id.toUtf8() + "\",\"song\":[" + songs.join(',').toUtf8() + "]}";
         });
     }

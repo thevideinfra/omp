@@ -3,6 +3,7 @@
 #include <QObject>
 
 #include "library.h"
+#include "playlists.h"
 #include "secrets.h"
 #include "settings.h"
 #include "subsonicclient.h"
@@ -16,8 +17,8 @@ class SubsonicSource : public QObject
     Q_PROPERTY(bool syncing READ syncing NOTIFY statusChanged)
 
 public:
-    SubsonicSource(Settings &settings, Library &library, Secrets &secrets, SubsonicClient &client,
-                   QObject *parent = nullptr);
+    SubsonicSource(Settings &settings, Library &library, Playlists &playlists, Secrets &secrets,
+                   SubsonicClient &client, QObject *parent = nullptr);
 
     QString status() const { return m_status; }
     bool syncing() const { return m_syncing; }
@@ -40,11 +41,14 @@ private:
     void setStatus(const QString &status, bool syncing = false);
     void onSettingsChanged();
     void fetchWith(const QString &password);
+    void publishLists(const QVariantList &serverPlaylists);
 
     Settings &m_settings;
     Library &m_library;
+    Playlists &m_playlists;
     Secrets &m_secrets;
     SubsonicClient &m_client;
+    QVariantList m_serverPlaylists;   // what the last sync fetched
     QString m_status;
     bool m_syncing = false;
     QString m_signature;   // enabled|url|user: a change means the password and library are stale

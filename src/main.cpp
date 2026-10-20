@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     Autostart autostart;
     Secrets secrets;
     SubsonicClient subsonicClient;
-    SubsonicSource subsonic(settings, library, secrets, subsonicClient);
+    SubsonicSource subsonic(settings, library, playlists, secrets, subsonicClient);
     player.setPathResolver([&](const QString &path) {
         return path.startsWith(QLatin1String("subsonic:"))
                    ? subsonicClient.streamUrl(path.mid(9)).toString(QUrl::FullyEncoded)

@@ -61,8 +61,10 @@ Popup {
             delegate: Rectangle {
                 required property string title
                 required property string subtitle
+                required property bool readOnly   // a server playlist cannot take songs
+                visible: !readOnly
                 width: ListView.view.width
-                height: S.sp(34)
+                height: readOnly ? 0 : S.sp(34)
                 radius: S.sp(6)
                 color: rowArea.containsMouse ? Qt.alpha(theme.accent, 0.12) : "transparent"
                 UiText { x: S.sp(10); anchors.verticalCenter: parent.verticalCenter; text: title }

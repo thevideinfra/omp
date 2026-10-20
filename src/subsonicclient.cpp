@@ -213,3 +213,46 @@ void SubsonicClient::fetchLibrary()
     };
     (*page)(0);
 }
+
+void SubsonicClient::fetchPlaylists()
+{
+    QPointer<SubsonicClient> self(this);
+    call(QStringLiteral("getPlaylists"), {}, [self](bool ok, const QJsonObject &resp, const QString &err) {
+        if (!self)
+            return;
+        if (!ok) {
+            emit self->playlistsFailed(err);
+            return;
+        }
+        struct Item { QString id, name; };
+        auto items = std::make_shared<QList<Item>>();
+        for (const QJsonValue &p : resp.value("playlists").toObject().value("playlist").toArray())
+            items->append({p.toObject().value("id").toVariant().toString(), p.toObject().value("name").toString()});
+        if (items->isEmpty()) {
+            emit self->playlistsFetched({});
+            return;
+        }
+        auto result = std::make_shared<QVariantList>();
+        auto pending = std::make_shared<int>(items->size());
+        auto failed = std::make_shared<bool>(false);
+        result->resize(items->size());
+        for (int i = 0; i < items->size(); ++i) {
+            self->call(QStringLiteral("getPlaylist"), {{"id", items->at(i).id}},
+                       [self, items, result, pending, failed, i](bool ok2, const QJsonObject &r, const QString &e) {
+                           if (!self || *failed)
+                               return;
+                           if (!ok2) {
+                               *failed = true;
+                               emit self->playlistsFailed(e);
+                               return;
+                           }
+                           QStringList paths;
+                           for (const QJsonValue &s : r.value("playlist").toObject().value("entry").toArray())
+                               paths << parseSong(s.toObject()).path;
+                           (*result)[i] = QVariantMap{{"name", items->at(i).name}, {"paths", paths}};
+                           if (--*pending == 0)
+                               emit self->playlistsFetched(*result);
+                       });
+        }
+    });
+}

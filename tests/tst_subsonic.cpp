@@ -178,7 +178,8 @@ private slots:
         Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
         Secrets secrets(writeFake(dir.path()));
         SubsonicClient client;
-        SubsonicSource source(settings, library, secrets, client);
+        Playlists playlists(dir.filePath("pl"));
+        SubsonicSource source(settings, library, playlists, secrets, client);
 
         source.saveServer(fake.url(), "amy", "sesame", true);
         QTRY_COMPARE(library.songs()->rowCount(), 5);
@@ -195,10 +196,58 @@ private slots:
         // A new run reads the cache first and the password from the keyring.
         Library again({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
         SubsonicClient client2;
-        SubsonicSource source2(settings, again, secrets, client2);
+        Playlists playlists2(dir.filePath("pl2"));
+        SubsonicSource source2(settings, again, playlists2, secrets, client2);
         source2.start();
         QCOMPARE(again.songs()->rowCount(), 5);                  // at once, from the cache
         QTRY_VERIFY(source2.status().startsWith("Connected"));
+    }
+
+    void fetchesThePlaylistsWithTheirSongs()
+    {
+        FakeSubsonic fake;
+        fake.setResult("getPlaylists", R"("playlists":{"playlist":[{"id":"p1","name":"Road"},{"id":"p2","name":"Empty"}]})");
+        fake.setHandler("getPlaylist", [](const QUrlQuery &q) {
+            return q.queryItemValue("id") == "p1"
+                       ? QByteArray(R"("playlist":{"id":"p1","entry":[{"id":"7","title":"A"},{"id":"9","title":"B"}]})")
+                       : QByteArray(R"("playlist":{"id":"p2"})");
+        });
+        SubsonicClient c;
+        c.setServer(fake.url(), "amy", "sesame");
+        QSignalSpy done(&c, &SubsonicClient::playlistsFetched);
+        c.fetchPlaylists();
+        QTRY_COMPARE(done.count(), 1);
+        const QVariantList lists = done.at(0).at(0).toList();
+        QCOMPARE(lists.size(), 2);
+        QCOMPARE(lists.at(0).toMap().value("name").toString(), QString("Road"));
+        QCOMPARE(lists.at(0).toMap().value("paths").toStringList(), QStringList({"subsonic:7", "subsonic:9"}));
+        QCOMPARE(lists.at(1).toMap().value("paths").toStringList(), QStringList());
+    }
+
+    void theSyncPublishesServerPlaylistsAndFavorites()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 2}, {"a2", 2}});             // the first song of each album is starred
+        fake.setResult("getPlaylists", R"("playlists":{"playlist":[{"id":"p1","name":"Road"}]})");
+        fake.setResult("getPlaylist", R"("playlist":{"id":"p1","entry":[{"id":"a1-2","title":"T2"}]})");
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Playlists playlists(dir.filePath("pl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        SubsonicSource source(settings, library, playlists, secrets, client);
+        source.saveServer(fake.url(), "amy", "sesame", true);
+        QTRY_COMPARE(playlists.list()->rowCount(), 2);
+        QCOMPARE(playlists.list()->get(0).value("title").toString(), QString("Road"));
+        QCOMPARE(playlists.list()->get(1).value("title").toString(), QString("Favorites"));
+        const QString favKey = playlists.list()->get(1).value("key").toString();
+        QCOMPARE(playlists.paths(favKey), QStringList({"subsonic:a1-1", "subsonic:a2-1"}));
+        QVERIFY(playlists.list()->get(1).value("readOnly").toBool());
+
+        source.remove();
+        QCOMPARE(playlists.list()->rowCount(), 0);
     }
 
     void mpvStreamsASongFromTheServerUrl()
@@ -233,7 +282,8 @@ private slots:
         Secrets secrets(writeFake(dir.path()));
         SubsonicClient client;
         client.setServer(fake.url(), "amy", "sesame");
-        SubsonicSource source(settings, library, secrets, client);
+        Playlists playlists(dir.filePath("pl"));
+        SubsonicSource source(settings, library, playlists, secrets, client);
 
         Track a, b;
         a.path = "subsonic:1"; a.title = "One"; a.artist = a.albumArtist = "Amy"; a.album = "Beta"; a.coverId = "al-1";
@@ -280,7 +330,8 @@ private slots:
         Library fresh({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
         SubsonicClient client;
         client.setTimeoutMs(500);
-        SubsonicSource source(settings, fresh, secrets, client);
+        Playlists playlists(dir.filePath("pl"));
+        SubsonicSource source(settings, fresh, playlists, secrets, client);
         source.start();
         QCOMPARE(fresh.songs()->rowCount(), 1);
         QTRY_VERIFY_WITH_TIMEOUT(source.status().startsWith("Server offline"), 5000);
@@ -298,7 +349,8 @@ private slots:
         Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
         Secrets secrets(writeFake(dir.path()));
         SubsonicClient client;
-        SubsonicSource source(settings, library, secrets, client);
+        Playlists playlists(dir.filePath("pl"));
+        SubsonicSource source(settings, library, playlists, secrets, client);
         source.saveServer(fake.url(), "amy", "sesame", true);
         QTRY_COMPARE(library.songs()->rowCount(), 2);
 

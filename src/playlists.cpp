@@ -11,7 +11,7 @@
 Playlists::Playlists(const QString &dir, QObject *parent)
     : QObject(parent)
     , m_dir(dir)
-    , m_list({"key", "title", "subtitle", "meta", "cover"})
+    , m_list({"key", "title", "subtitle", "meta", "cover", "readOnly"})
 {
     reload();
 }
@@ -68,9 +68,26 @@ QList<Playlists::Entry> Playlists::entries(const QString &name) const
     return out;
 }
 
+namespace {
+// The row key of a server playlist: it cannot clash with the name of a local file.
+const QString kServerKey = QStringLiteral("\x1f""server\x1f");
+}
+
+void Playlists::setServerLists(const QList<ServerList> &lists)
+{
+    m_server = lists;
+    reload();
+}
+
 QStringList Playlists::paths(const QString &name) const
 {
     QStringList out;
+    if (name.startsWith(kServerKey)) {
+        for (const ServerList &s : m_server)
+            if (kServerKey + s.name == name)
+                return s.paths;
+        return out;
+    }
     for (const Entry &e : entries(name))
         out << e.path;
     return out;
@@ -117,7 +134,16 @@ void Playlists::reload()
                      {"title", n},
                      {"subtitle", QStringLiteral("%1 songs").arg(count)},
                      {"meta", QString()},
-                     {"cover", QString()}});
+                     {"cover", QString()},
+                     {"readOnly", false}});
+    }
+    for (const ServerList &s : std::as_const(m_server)) {
+        rows.append({{"key", kServerKey + s.name},
+                     {"title", s.name},
+                     {"subtitle", QStringLiteral("%1 songs · server").arg(s.paths.size())},
+                     {"meta", QString()},
+                     {"cover", QString()},
+                     {"readOnly", true}});
     }
     m_list.setRows(rows);
     emit changed();

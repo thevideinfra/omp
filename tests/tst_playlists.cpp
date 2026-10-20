@@ -67,6 +67,34 @@ private slots:
         QCOMPARE(f.readAll(), QByteArray("#EXTM3U\n#EXTINF:100,B - Two\n/m/two.flac\n/m/three.flac\n"));
     }
 
+    void serverPlaylistsListAfterTheLocalOnesAndStayReadOnly()
+    {
+        QTemporaryDir dir;
+        Playlists p(dir.path());
+        QVERIFY(p.create("Zed local"));
+        p.setServerLists({{"Road", {"subsonic:1", "subsonic:2"}}, {"Favorites", {"subsonic:2"}}});
+        QCOMPARE(p.list()->rowCount(), 3);
+        QCOMPARE(p.list()->get(0).value("title").toString(), QString("Zed local"));
+        QVERIFY(!p.list()->get(0).value("readOnly").toBool());
+        QCOMPARE(p.list()->get(1).value("title").toString(), QString("Road"));
+        QVERIFY(p.list()->get(1).value("readOnly").toBool());
+        QCOMPARE(p.list()->get(1).value("subtitle").toString(), QString("2 songs · server"));
+        const QString key = p.list()->get(1).value("key").toString();
+        QCOMPARE(p.paths(key), QStringList({"subsonic:1", "subsonic:2"}));
+        QCOMPARE(p.names(), QStringList({"Zed local"}));          // the picker offers local playlists only
+
+        QVERIFY(!p.remove(key));                                 // none of the edits touch a server list
+        QVERIFY(!p.rename(key, "Other"));
+        QVERIFY(!p.addPaths(key, {"/m/a.flac"}));
+        QVERIFY(!p.removeAt(key, 0));
+        QCOMPARE(p.paths(key).size(), 2);
+
+        QVERIFY(p.create("Another"));                            // a local change keeps the server rows
+        QCOMPARE(p.list()->rowCount(), 4);
+        p.setServerLists({});
+        QCOMPARE(p.list()->rowCount(), 2);
+    }
+
     void createWithPicksAUniqueName()
     {
         QTemporaryDir dir;

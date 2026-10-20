@@ -471,6 +471,19 @@ QString Library::remoteCacheFile() const
     return QFileInfo(m_cacheFile).absolutePath() + QStringLiteral("/subsonic.jsonl");
 }
 
+QStringList Library::starredRemotePaths() const
+{
+    QVector<Track> starred;
+    for (const Track &t : m_remote)
+        if (t.starred)
+            starred.append(t);
+    std::sort(starred.begin(), starred.end(), [](const Track &a, const Track &b) { return ciLess(a.title, b.title); });
+    QStringList out;
+    for (const Track &t : starred)
+        out << t.path;
+    return out;
+}
+
 void Library::loadRemoteCache()
 {
     QFile f(remoteCacheFile());

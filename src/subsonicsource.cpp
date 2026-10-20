@@ -1,0 +1,122 @@
+#include "subsonicsource.h"
+
+SubsonicSource::SubsonicSource(Settings &settings, Library &library, Secrets &secrets,
+                               SubsonicClient &client, QObject *parent)
+    : QObject(parent)
+    , m_settings(settings)
+    , m_library(library)
+    , m_secrets(secrets)
+    , m_client(client)
+{
+    connect(&m_client, &SubsonicClient::libraryProgress, this, [this](int done, int total) {
+        setStatus(tr("Syncing %1/%2").arg(done).arg(total), true);
+    });
+    connect(&m_client, &SubsonicClient::libraryFetched, this, [this](const QVector<Track> &tracks) {
+        m_library.setRemoteTracks(tracks);
+        m_library.writeRemoteCache();
+        setStatus(tr("Connected: %1 songs").arg(tracks.size()));
+    });
+    connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
+        setStatus(tr("Server offline: %1").arg(message));   // the cached songs stay
+    });
+    connect(&m_settings, &Settings::changed, this, &SubsonicSource::onSettingsChanged);
+    m_signature = QStringLiteral("%1|%2|%3").arg(m_settings.serverEnabled()).arg(m_settings.serverUrl(), m_settings.serverUser());
+}
+
+QString SubsonicSource::account() const
+{
+    return m_settings.serverUser() + QLatin1Char('@') + m_settings.serverUrl();
+}
+
+void SubsonicSource::setStatus(const QString &status, bool syncing)
+{
+    if (status == m_status && syncing == m_syncing)
+        return;
+    m_status = status;
+    m_syncing = syncing;
+    emit statusChanged();
+}
+
+void SubsonicSource::start()
+{
+    m_library.loadRemoteCache();
+    sync();
+}
+
+void SubsonicSource::onSettingsChanged()
+{
+    const QString now = QStringLiteral("%1|%2|%3").arg(m_settings.serverEnabled()).arg(m_settings.serverUrl(), m_settings.serverUser());
+    if (now == m_signature)
+        return;
+    m_signature = now;
+    sync();
+}
+
+void SubsonicSource::sync()
+{
+    if (m_syncing)
+        return;
+    if (!m_settings.serverEnabled() || m_settings.serverUrl().isEmpty() || m_settings.serverUser().isEmpty()) {
+        setStatus({});
+        return;
+    }
+    setStatus(tr("Connecting…"), true);
+    if (m_passwordFor == account()) {
+        fetchWith(m_password);
+        return;
+    }
+    auto *conn = new QMetaObject::Connection;
+    *conn = connect(&m_secrets, &Secrets::looked, this, [this, conn](const QString &password, bool found) {
+        disconnect(*conn);
+        delete conn;
+        if (!found) {
+            setStatus(tr("Server password not found in the keyring: save the server again"));
+            return;
+        }
+        m_password = password;
+        m_passwordFor = account();
+        fetchWith(password);
+    });
+    m_secrets.lookup(account());
+}
+
+void SubsonicSource::fetchWith(const QString &password)
+{
+    m_client.setServer(m_settings.serverUrl(), m_settings.serverUser(), password);
+    m_client.fetchLibrary();
+}
+
+void SubsonicSource::testConnection(const QString &url, const QString &user, const QString &password)
+{
+    auto *probe = new SubsonicClient(this);
+    probe->setServer(url, user, password);
+    connect(probe, &SubsonicClient::pingDone, this, [this, probe](bool ok, const QString &message) {
+        emit testResult(ok, ok ? tr("Connected") : message);
+        probe->deleteLater();
+    });
+    probe->ping();
+}
+
+void SubsonicSource::saveServer(const QString &url, const QString &user, const QString &password, bool enabled)
+{
+    m_password = password;
+    m_passwordFor = user + QLatin1Char('@') + url;   // what account() will be once the settings land
+    m_secrets.store(m_passwordFor, password);
+    m_settings.set("serverUrl", url);
+    m_settings.set("serverUser", user);
+    m_settings.set("serverEnabled", enabled);
+    sync();   // a change in the settings starts one too; a running sync is not doubled
+}
+
+void SubsonicSource::remove()
+{
+    m_secrets.clear(account());
+    m_password.clear();
+    m_passwordFor.clear();
+    m_library.setRemoteTracks({});
+    m_library.writeRemoteCache();
+    m_settings.set("serverEnabled", false);
+    m_settings.set("serverUrl", QString());
+    m_settings.set("serverUser", QString());
+    setStatus({});
+}

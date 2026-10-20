@@ -21,7 +21,10 @@
 #include "mpris.h"
 #include "player.h"
 #include "playlists.h"
+#include "secrets.h"
 #include "settings.h"
+#include "subsonicclient.h"
+#include "subsonicsource.h"
 #include "shell.h"
 #include "theme.h"
 
@@ -130,6 +133,9 @@ int main(int argc, char *argv[])
 
     Playlists playlists;   // declared before the engine: its context property must outlive the QML
     Autostart autostart;
+    Secrets secrets;
+    SubsonicClient subsonicClient;
+    SubsonicSource subsonic(settings, library, secrets, subsonicClient);
     QQmlApplicationEngine engine;
     Shell shell(engine, player, theme);
     Mpris mpris(player, library);
@@ -144,6 +150,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("library", &library);
     ctx->setContextProperty("playlists", &playlists);
     ctx->setContextProperty("autostart", &autostart);
+    ctx->setContextProperty("subsonic", &subsonic);
     ctx->setContextProperty("shell", &shell);
 
     engine.loadFromModule("Omamusic", "Main");
@@ -167,6 +174,7 @@ int main(int argc, char *argv[])
     QObject::connect(&instance, &Instance::verbReceived, &shell, &Shell::handleVerb);
     player.start();
     library.start();
+    subsonic.start();
     shell.handleVerb(verb);
     return app.exec();
 }

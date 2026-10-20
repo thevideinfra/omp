@@ -1,6 +1,11 @@
 #include <QtTest>
 
+#include "fakesecrettool.h"
 #include "fakesubsonic.h"
+#include "library.h"
+#include "secrets.h"
+#include "settings.h"
+#include "subsonicsource.h"
 #include "subsonicclient.h"
 #include "track.h"
 
@@ -159,6 +164,98 @@ private slots:
         QTRY_COMPARE(failed.count(), 1);
         QVERIFY(failed.at(0).at(0).toString().contains("Album gone"));
         QCOMPARE(done.count(), 0);
+    }
+
+    void theSourceSyncsTheServerIntoTheLibraryAndKeepsThePasswordOutOfTheConfig()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 2}, {"a2", 3}});
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        SubsonicSource source(settings, library, secrets, client);
+
+        source.saveServer(fake.url(), "amy", "sesame", true);
+        QTRY_COMPARE(library.songs()->rowCount(), 5);
+        QVERIFY(source.status().startsWith("Connected"));
+        QVERIFY(QFileInfo::exists(dir.filePath("subsonic.jsonl")));
+        QVERIFY(settings.serverEnabled());
+        settings.save();
+        QFile cfg(dir.filePath("config.toml"));
+        QVERIFY(cfg.open(QIODevice::ReadOnly));
+        const QByteArray text = cfg.readAll();
+        QVERIFY(text.contains("server_user"));
+        QVERIFY(!text.contains("sesame"));                       // the keyring has it, not the file
+
+        // A new run reads the cache first and the password from the keyring.
+        Library again({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        SubsonicClient client2;
+        SubsonicSource source2(settings, again, secrets, client2);
+        source2.start();
+        QCOMPARE(again.songs()->rowCount(), 5);                  // at once, from the cache
+        QTRY_VERIFY(source2.status().startsWith("Connected"));
+    }
+
+    void aDeadServerKeepsTheCachedSongs()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Track t;
+        t.path = "subsonic:9"; t.title = "Kept"; t.artist = "Amy"; t.album = "Beta"; t.albumArtist = "Amy";
+        library.setRemoteTracks({t});
+        library.writeRemoteCache();
+        Secrets secrets(writeFake(dir.path()));
+        QSignalSpy stored(&secrets, &Secrets::stored);
+        secrets.store("amy@http://127.0.0.1:1", "sesame");
+        QTRY_COMPARE(stored.count(), 1);
+        settings.set("serverUrl", "http://127.0.0.1:1");
+        settings.set("serverUser", "amy");
+        settings.set("serverEnabled", true);
+
+        Library fresh({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        SubsonicClient client;
+        client.setTimeoutMs(500);
+        SubsonicSource source(settings, fresh, secrets, client);
+        source.start();
+        QCOMPARE(fresh.songs()->rowCount(), 1);
+        QTRY_VERIFY_WITH_TIMEOUT(source.status().startsWith("Server offline"), 5000);
+        QCOMPARE(fresh.songs()->rowCount(), 1);                  // still there
+        QVERIFY(!source.syncing());
+    }
+
+    void removingTheServerForgetsEverything()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.serveAlbums({{"a1", 2}});
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        SubsonicSource source(settings, library, secrets, client);
+        source.saveServer(fake.url(), "amy", "sesame", true);
+        QTRY_COMPARE(library.songs()->rowCount(), 2);
+
+        QSignalSpy cleared(&secrets, &Secrets::cleared);
+        source.remove();
+        QCOMPARE(library.songs()->rowCount(), 0);
+        QVERIFY(!settings.serverEnabled());
+        QCOMPARE(settings.serverUrl(), QString());
+        QCOMPARE(source.status(), QString());
+        Library reloaded({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        reloaded.loadRemoteCache();
+        QCOMPARE(reloaded.songs()->rowCount(), 0);                // the cache is gone too
+        QTRY_COMPARE(cleared.count(), 1);                         // the keyring call is asynchronous
+        QSignalSpy looked(&secrets, &Secrets::looked);
+        secrets.lookup(QString("amy@") + fake.url());
+        QTRY_COMPARE(looked.count(), 1);
+        QVERIFY(!looked.at(0).at(1).toBool());                    // and the keyring entry
     }
 };
 

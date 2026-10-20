@@ -65,7 +65,7 @@ ApplicationWindow {
         case Qt.Key_Left:
             if (!win.searching && win.drillTab) currentList().back()
             break
-        case Qt.Key_R: library.rescan(); break
+        case Qt.Key_R: library.rescan(); subsonic.sync(); break
         case Qt.Key_S: player.shuffle = !player.shuffle; break
         case Qt.Key_M: { const l = currentList(); if (l.pick) l.pick() } break
         case Qt.Key_Delete: { const l = currentList(); if (l.removeSelected) l.removeSelected() } break

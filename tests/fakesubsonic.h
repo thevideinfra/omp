@@ -33,6 +33,25 @@ public:
     {
         m_handlers.insert(method, handler);
     }
+    // Serves getAlbumList2 (paged) and getAlbum for albums with the given song counts.
+    void serveAlbums(const QMap<QString, int> &songsPerAlbum)
+    {
+        setHandler("getAlbumList2", [songsPerAlbum](const QUrlQuery &q) {
+            const int off = q.queryItemValue("offset").toInt(), size = q.queryItemValue("size").toInt();
+            const QStringList ids = songsPerAlbum.keys();
+            QStringList items;
+            for (int i = off; i < qMin(int(ids.size()), off + size); ++i)
+                items << QStringLiteral("{\"id\":\"%1\"}").arg(ids.at(i));
+            return QByteArray("\"albumList2\":{\"album\":[") + items.join(',').toUtf8() + "]}";
+        });
+        setHandler("getAlbum", [songsPerAlbum](const QUrlQuery &q) {
+            const QString id = q.queryItemValue("id");
+            QStringList songs;
+            for (int i = 1; i <= songsPerAlbum.value(id); ++i)
+                songs << QStringLiteral("{\"id\":\"%1-%2\",\"title\":\"T%2\",\"artist\":\"Amy\",\"album\":\"%1\",\"track\":%2,\"coverArt\":\"%1\"}").arg(id).arg(i);
+            return QByteArray("\"album\":{\"id\":\"") + id.toUtf8() + "\",\"song\":[" + songs.join(',').toUtf8() + "]}";
+        });
+    }
     // A raw body (a cover, a stream) with its content type.
     void setBinary(const QString &method, const QByteArray &body, const QByteArray &type = "image/jpeg")
     {

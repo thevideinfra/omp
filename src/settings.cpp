@@ -53,6 +53,9 @@ const QVector<Key> &keys()
         {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
         {"saveLayout", "save_layout", Type::Bool, false, {}},
         {"saveSort", "save_sort", Type::Bool, false, {}},
+        {"serverEnabled", "server_enabled", Type::Bool, false, {}},
+        {"serverUrl", "server_url", Type::String, QString(), {}},
+        {"serverUser", "server_user", Type::String, QString(), {}},
         {"sortSongs", "sort_songs", Type::String, QString(), {}},
         {"sortAlbums", "sort_albums", Type::String, QString(), {}},
         {"sortArtists", "sort_artists", Type::String, QString(), {}},
@@ -83,6 +86,9 @@ QVariant validated(const Key &k, const QVariant &v)
     case Type::String: {
         const QString s = v.toString().trimmed();
         if (s.contains('"') || s.contains('\\') || s.contains('\n'))
+            return {};
+        if (k.prop == QLatin1String("serverUrl") && !s.isEmpty()
+            && !s.startsWith(QLatin1String("http://")) && !s.startsWith(QLatin1String("https://")))
             return {};
         if ((k.prop == QLatin1String("accent") || k.prop == QLatin1String("panelAccent")) && s.isEmpty())
             return {};

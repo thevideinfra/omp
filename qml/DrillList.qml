@@ -31,6 +31,36 @@ Item {
     property var rows: []
     property var allTracks: []
 
+    // The title of a column, with how many entries it lists.
+    component PaneHeader: Rectangle {
+        property string text
+        property int count: -1
+        Layout.fillWidth: true
+        Layout.preferredHeight: S.sp(34)
+        color: theme.sunken
+        UiText {
+            x: S.sp(12)
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.text
+            px: 14
+        }
+        UiText {
+            anchors.right: parent.right
+            anchors.rightMargin: S.sp(12)
+            anchors.verticalCenter: parent.verticalCenter
+            visible: parent.count >= 0
+            text: parent.count
+            color: theme.dimForeground
+            px: 12
+        }
+        Rectangle {   // the accent underline
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 2
+            color: Qt.alpha(theme.accent, 0.5)
+        }
+    }
+
     function move(delta) {
         if (midFocus) {
             mid.move(delta)
@@ -265,12 +295,12 @@ Item {
                 if (n === 3 && f.length >= 2 && f[1] > 0 && f[1] < 1) middle = f[1]
             }
             listPane.SplitView.preferredWidth = list * width
-            if (n === 3) mid.SplitView.preferredWidth = middle * width
+            if (n === 3) midPane.SplitView.preferredWidth = middle * width
         }
         function remember() {
             if (!settingsStore.saveLayout || !userSized || width <= 0) return
             const list = (listPane.width / width).toFixed(4)
-            settingsStore.setLayoutFor(root.kind, root.kind === "artist" ? list + "," + (mid.width / width).toFixed(4) : list)
+            settingsStore.setLayoutFor(root.kind, root.kind === "artist" ? list + "," + (midPane.width / width).toFixed(4) : list)
         }
         onWidthChanged: applyLayout(false)
         onResizingChanged: {
@@ -300,6 +330,11 @@ Item {
             objectName: "listPane"
             SplitView.minimumWidth: S.sp(140)
             spacing: 0
+
+            PaneHeader {
+                text: root.kind === "artist" ? qsTr("Artists") : root.kind === "album" ? qsTr("Albums") : qsTr("Playlists")
+                count: top.count
+            }
 
             Rectangle {
                 visible: root.kind === "playlist"
@@ -336,17 +371,26 @@ Item {
         }
 
         // The artist's albums, with thumbnails.
-        BrowseList {
-            id: mid
+        ColumnLayout {
+            id: midPane
             visible: root.kind === "artist"
-            artSize: S.sp(96)
             SplitView.minimumWidth: S.sp(140)
-            model: ListModel { id: albumModel }
-            onCurrentIndexChanged: root.selectAlbum(currentIndex)
-            onClicked: { root.rightFocus = false; root.midFocus = true; root.clicked() }
-            onActivated: (row) => player.playTracks(root.albumTracksAt(row), 0)
-            onEnqueued: (row) => player.enqueueTracks(root.albumTracksAt(row))
-            onMenuRequested: (row) => root.pickRequested(root.albumTracksAt(row))
+            spacing: 0
+
+            PaneHeader { text: qsTr("Albums"); count: mid.count }
+
+            BrowseList {
+                id: mid
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                artSize: S.sp(96)
+                model: ListModel { id: albumModel }
+                onCurrentIndexChanged: root.selectAlbum(currentIndex)
+                onClicked: { root.rightFocus = false; root.midFocus = true; root.clicked() }
+                onActivated: (row) => player.playTracks(root.albumTracksAt(row), 0)
+                onEnqueued: (row) => player.enqueueTracks(root.albumTracksAt(row))
+                onMenuRequested: (row) => root.pickRequested(root.albumTracksAt(row))
+            }
         }
 
         ColumnLayout {
@@ -354,6 +398,8 @@ Item {
             SplitView.fillWidth: true
             SplitView.minimumWidth: S.sp(200)
             spacing: 0
+
+            PaneHeader { text: qsTr("Songs"); count: root.rows.length }
 
             RowLayout {
                 Layout.fillWidth: true

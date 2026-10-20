@@ -8,6 +8,15 @@ ListView {
     property bool songRows: false    // rows are songs: a heart marks the favorites
     property bool showSource: true   // a "local" / "server" tag, when the row's songs are known
     property bool sections: false    // group rows under their "initial" (a letter header)
+    // Song lists as a table: Title, Artist, Album and Time in aligned columns under a header row.
+    property bool table: false
+    readonly property real timeW: S.sp(52)
+    readonly property real badgeW: S.sp(120)
+    readonly property real tableLeft: S.sp(8) + artSize + S.sp(10)
+    readonly property real colSpace: Math.max(0, width - tableLeft - S.sp(12) - timeW - S.sp(10) - badgeW - S.sp(10))
+    readonly property real titleW: colSpace * 0.44
+    readonly property real artistW: colSpace * 0.28
+    readonly property real albumW: colSpace * 0.28
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
@@ -28,19 +37,67 @@ ListView {
 
     FastWheel { view: root }
 
+    headerPositioning: ListView.OverlayHeader
+    header: Rectangle {
+        z: 2
+        width: root.width
+        height: root.table ? S.sp(30) : 0
+        visible: root.table
+        color: theme.sunken
+        Row {
+            x: root.tableLeft
+            height: parent.height
+            Repeater {
+                model: [[qsTr("Title"), root.titleW], [qsTr("Artist"), root.artistW], [qsTr("Album"), root.albumW]]
+                UiText {
+                    required property var modelData
+                    width: modelData[1]
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: modelData[0]
+                    color: theme.dimForeground
+                    px: 12
+                }
+            }
+        }
+        UiText {
+            anchors.right: parent.right
+            anchors.rightMargin: S.sp(12)
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.timeW
+            horizontalAlignment: Text.AlignRight
+            text: qsTr("Time")
+            color: theme.dimForeground
+            px: 12
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 1
+            color: Qt.alpha(theme.accent, 0.5)
+        }
+    }
+
     section.property: sections ? "initial" : ""
     section.criteria: ViewSection.FullString
-    section.delegate: Item {
+    // A letter heading: a darker band, a large accent letter and a line above it.
+    section.delegate: Rectangle {
         required property string section
         width: ListView.view.width
-        height: section === "" ? 0 : S.sp(26)
+        height: section === "" ? 0 : S.sp(38)
         visible: section !== ""
+        color: theme.sunken
+        Rectangle {
+            width: parent.width
+            height: 2
+            color: Qt.alpha(theme.accent, 0.6)
+        }
         UiText {
-            x: S.sp(12)
+            x: S.sp(14)
             anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: S.sp(1)
             text: parent.section
             color: theme.accent
-            px: 12
+            px: 18
         }
     }
 
@@ -55,8 +112,13 @@ ListView {
                                          : cover.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
         readonly property bool favorite: { library.starredRevision; return root.songRows && cover !== "" && library.isStarred(cover) }
 
+        readonly property int dash: subtitle.indexOf(" — ")
+        readonly property string artistText: dash >= 0 ? subtitle.substring(0, dash) : subtitle
+        readonly property string albumText: dash >= 0 ? subtitle.substring(dash + 3) : ""
+
         width: ListView.view.width
-        height: Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
+        height: root.table ? Math.max(S.sp(52), root.artSize + S.sp(12))
+                           : Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
         color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
                : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
@@ -73,8 +135,30 @@ ListView {
             asynchronous: true
         }
 
+        Row {
+            id: tableRow
+            visible: root.table
+            x: root.tableLeft
+            anchors.verticalCenter: parent.verticalCenter
+            UiText {
+                width: root.titleW
+                text: title
+                color: index === root.playingRow ? theme.accent : theme.foreground
+                elide: Text.ElideRight
+            }
+            // A folder row has no artist or album: its path takes both columns.
+            UiText {
+                width: cover === "" ? root.artistW + root.albumW : root.artistW
+                text: cover === "" ? subtitle : artistText
+                color: theme.dimForeground
+                elide: Text.ElideRight
+            }
+            UiText { visible: cover !== ""; width: root.albumW; text: albumText; color: theme.dimForeground; elide: Text.ElideRight }
+        }
+
         Column {
             id: textColumn
+            visible: !root.table
             anchors {
                 left: art.right
                 leftMargin: S.sp(10)
@@ -138,6 +222,8 @@ ListView {
                 rightMargin: S.sp(12)
                 verticalCenter: parent.verticalCenter
             }
+            width: root.table ? root.timeW : implicitWidth
+            horizontalAlignment: Text.AlignRight
             text: meta
             color: theme.dimForeground
             px: 12

@@ -545,6 +545,33 @@ private slots:
         QCOMPARE(lib.songs()->rowCount(), 1);
     }
 
+    void serverCopiesOfLocalSongsCanBeHidden()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        Track a = mk("/m/a.flac", "Alpha", "Amy", "Beta", 1);   a.duration = 200;
+        Track b = mk("/m/b.flac", "Bravo", "Amy", "Beta", 2);   b.duration = 100;
+        lib.setTracks({a, b});
+        Track dupA = mk("subsonic:s1/1", "ALPHA", "amy", "beta", 1); dupA.duration = 201.4;   // the same song: case and a little length differ
+        Track otherAlbum = mk("subsonic:s1/2", "Alpha", "Amy", "Greatest Hits", 1); otherAlbum.duration = 200;
+        Track longer = mk("subsonic:s1/3", "Bravo", "Amy", "Beta", 2); longer.duration = 140;  // not the same recording
+        Track onlyThere = mk("subsonic:s1/4", "Delta", "Amy", "Beta", 3); onlyThere.duration = 90;
+        lib.setRemoteTracks("s1", {dupA, otherAlbum, longer, onlyThere});
+        QCOMPARE(lib.songs()->rowCount(), 6);                               // shown by default: nothing is hidden
+
+        lib.setHideRemoteDuplicates(true);
+        QCOMPARE(lib.songs()->rowCount(), 5);                               // only the true duplicate goes
+        QStringList paths;
+        for (int i = 0; i < lib.songs()->rowCount(); ++i)
+            paths << lib.songs()->get(i).value("path").toString();
+        QVERIFY(!paths.contains("subsonic:s1/1"));
+        QVERIFY(paths.contains("subsonic:s1/2"));                           // another album of the same song stays
+        QVERIFY(paths.contains("subsonic:s1/3"));                           // a clearly different length stays
+        QCOMPARE(lib.tracksForPaths({"subsonic:s1/1"}).size(), 1);          // but a playlist can still find the hidden copy
+
+        lib.setHideRemoteDuplicates(false);
+        QCOMPARE(lib.songs()->rowCount(), 6);                               // and it comes back
+    }
+
     void serverSongsSurviveARestartThroughTheirOwnCache()
     {
         QTemporaryDir state;

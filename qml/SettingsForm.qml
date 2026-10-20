@@ -97,6 +97,13 @@ Item {
             ToggleRow {
                 visible: root.section === 0
                 Layout.fillWidth: true
+                label: qsTr("Hide server songs I already have locally")
+                checked: settingsStore.hideServerDuplicates
+                onToggled: (v) => settingsStore.set("hideServerDuplicates", v)
+            }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
                 label: qsTr("Show local / server tags on songs")
                 checked: settingsStore.showSourceTags
                 onToggled: (v) => settingsStore.set("showSourceTags", v)

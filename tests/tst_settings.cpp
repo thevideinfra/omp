@@ -240,6 +240,18 @@ private slots:
         QCOMPARE(neg.replayGainPreamp(), 15);                // out of range values are clamped
     }
 
+    void hidingServerDuplicatesIsOffUntilChosen()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QVERIFY(!s.hideServerDuplicates());
+            s.set("hideServerDuplicates", true);
+        }
+        QVERIFY(Settings(f).hideServerDuplicates());
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

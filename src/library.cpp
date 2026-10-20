@@ -545,7 +545,7 @@ void Library::setStarred(const QString &rawPath, bool starred)
     const QString path = Track::normalized(rawPath);
     bool changed = false;
     QString serverId = Track::serverOf(path);
-    for (QVector<Track> *list : {&m_remote[serverId], &m_tracks}) {
+    for (QVector<Track> *list : {&m_remote[serverId], &m_tracks, &m_hidden}) {
         for (Track &t : *list) {
             if (t.path == path && t.starred != starred) {
                 t.starred = starred;
@@ -605,11 +605,37 @@ void Library::writeRemoteCache(const QString &serverId) const
         QFile::remove(QFileInfo(file).absolutePath() + QStringLiteral("/subsonic.jsonl"));   // the old single cache is superseded
 }
 
+void Library::setHideRemoteDuplicates(bool hide)
+{
+    if (hide == m_hideDuplicates)
+        return;
+    m_hideDuplicates = hide;
+    combine();
+}
+
 void Library::combine()
 {
     m_tracks = m_local;
-    for (const QVector<Track> &list : std::as_const(m_remote))
-        m_tracks += list;
+    m_hidden.clear();
+    // The same recording: the same artist, title and album, and a length within two seconds.
+    QHash<QString, QVector<double>> localLengths;
+    if (m_hideDuplicates)
+        for (const Track &t : std::as_const(m_local))
+            localLengths[fold(t.artist) + QChar(0x1f) + fold(t.title) + QChar(0x1f) + fold(t.album)].append(t.duration);
+    for (const QVector<Track> &list : std::as_const(m_remote)) {
+        for (const Track &t : list) {
+            bool duplicate = false;
+            if (m_hideDuplicates) {
+                for (double len : localLengths.value(fold(t.artist) + QChar(0x1f) + fold(t.title) + QChar(0x1f) + fold(t.album))) {
+                    if (len <= 0 || t.duration <= 0 || qAbs(len - t.duration) <= 2.0) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+            }
+            (duplicate ? m_hidden : m_tracks).append(t);
+        }
+    }
     m_coverCache.clear();
     rebuildGroups();
     browse(m_folderPath);
@@ -641,6 +667,8 @@ void Library::rebuildGroups()
         display.insert(it.key(), best);
     }
 
+    for (const Track &t : std::as_const(m_hidden))
+        m_byPath.insert(t.path, t);   // left out of the lists, but a playlist can still find it
     for (const Track &t : std::as_const(m_tracks)) {
         m_byPath.insert(t.path, t);
         m_byAlbum[albumKey(t)].append(t);

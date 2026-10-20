@@ -119,7 +119,11 @@ int main(int argc, char *argv[])
                                          QCoreApplication::applicationDirPath() + "/omp-scan"),
                     Paths::stateDir() + QStringLiteral("/index.jsonl"));
 
-    QObject::connect(&settings, &Settings::changed, &library, [&] { library.setRoots(settings.folders()); });
+    library.setHideRemoteDuplicates(settings.hideServerDuplicates());
+    QObject::connect(&settings, &Settings::changed, &library, [&] {
+        library.setRoots(settings.folders());
+        library.setHideRemoteDuplicates(settings.hideServerDuplicates());
+    });
 
     // The sort choices come back from the config only when "remember sort order" is on.
     const auto storeSort = [&] {

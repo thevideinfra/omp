@@ -13,6 +13,9 @@ Item {
     property var model
     property bool rightFocus: false
     property bool midFocus: false      // artists: the albums column has the keyboard
+    // Artists: show the albums column (true) or one list of all the artist's albums and songs (false).
+    readonly property bool albumsColumn: kind !== "artist" || settingsStore.artistAlbumsColumn
+    onAlbumsColumnChanged: { if (kind === "artist") { rebuildDetail(); panes.userSized = false; panes.applyLayout(false) } }
     property int albumIndex: 0         // artists: the open album
     property var albumGroups: []       // artists: [{ title, artist, tracks }]
     property var artistTracks: []
@@ -34,8 +37,11 @@ Item {
 
     // The title of a column, with how many entries it lists.
     component PaneHeader: Rectangle {
+        id: paneHeader
         property string text
         property int count: -1
+        property string actionText      // an optional chip on the right (the Artists view switch)
+        signal action()
         Layout.fillWidth: true
         Layout.preferredHeight: S.sp(34)
         color: theme.sunken
@@ -45,7 +51,28 @@ Item {
             text: parent.text
             px: 14
         }
+        Rectangle {
+            visible: paneHeader.actionText !== ""
+            anchors.right: countText.left
+            anchors.rightMargin: S.sp(10)
+            anchors.verticalCenter: parent.verticalCenter
+            width: actionLabel.implicitWidth + S.sp(16)
+            height: S.sp(24)
+            radius: S.sp(5)
+            color: actionArea.containsMouse ? Qt.alpha(theme.accent, 0.15) : Qt.alpha(theme.foreground, 0.06)
+            border.width: 1
+            border.color: actionArea.containsMouse ? Qt.alpha(theme.accent, 0.5) : Qt.alpha(theme.foreground, 0.15)
+            UiText { id: actionLabel; anchors.centerIn: parent; text: paneHeader.actionText; px: 11 }
+            MouseArea {
+                id: actionArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: paneHeader.action()
+            }
+        }
         UiText {
+            id: countText
             anchors.right: parent.right
             anchors.rightMargin: S.sp(12)
             anchors.verticalCenter: parent.verticalCenter
@@ -143,7 +170,7 @@ Item {
     }
     function focusRight() {
         if (rows.length === 0) return false
-        if (kind === "artist" && !midFocus && !rightFocus) {
+        if (kind === "artist" && albumsColumn && !midFocus && !rightFocus) {
             midFocus = true
             return true
         }
@@ -155,7 +182,7 @@ Item {
     function back() {
         if (rightFocus) {
             rightFocus = false
-            midFocus = kind === "artist"
+            midFocus = kind === "artist" && albumsColumn
             return true
         }
         if (midFocus) {
@@ -214,13 +241,23 @@ Item {
 
     // The right pane: the open item's songs; for an artist, the open album's.
     function rebuildDetail() {
-        const one = kind === "artist" && albumIndex < albumGroups.length
+        const allAlbums = kind === "artist" && !albumsColumn   // one list: every album with its songs
+        const one = kind === "artist" && albumsColumn && albumIndex < albumGroups.length
         const tracks = one ? albumGroups[albumIndex].tracks : artistTracks
         allTracks = tracks
         const out = []
-        tracks.forEach((t, i) => out.push({ header: false, indent: false, title: t.title,
-            subtitle: t.artist, meta: t.meta, cover: "", tracks: tracks, start: i,
-            plIndex: t.playlistIndex ?? -1 }))
+        if (allAlbums) {
+            albumGroups.forEach(g => {
+                out.push({ header: true, indent: false, title: g.title, subtitle: g.artist,
+                    meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path, tracks: g.tracks, start: 0 })
+                g.tracks.forEach((t, i) => out.push({ header: false, indent: true, title: t.title,
+                    subtitle: t.artist, meta: t.meta, cover: "", tracks: g.tracks, start: i }))
+            })
+        } else {
+            tracks.forEach((t, i) => out.push({ header: false, indent: false, title: t.title,
+                subtitle: t.artist, meta: t.meta, cover: "", tracks: tracks, start: i,
+                plIndex: t.playlistIndex ?? -1 }))
+        }
         rows = out
         detailModel.clear()
         out.forEach(r => detailModel.append({ title: r.title, subtitle: r.subtitle, meta: r.meta,
@@ -312,9 +349,9 @@ Item {
         property bool userSized: false
         function applyLayout(ignoreStored) {
             if (userSized || width <= 0) return
-            const n = root.kind === "artist" ? 3 : 2
+            const n = root.kind === "artist" && root.albumsColumn ? 3 : 2
             let list = 1 / n, middle = 1 / n
-            if (!ignoreStored && settingsStore.saveLayout) {
+            if (!ignoreStored && settingsStore.saveLayout && (root.kind !== "artist" || n === 3)) {
                 const f = settingsStore.layoutFor(root.kind).split(",").map(Number)
                 if (f.length >= 1 && f[0] > 0 && f[0] < 1) list = f[0]
                 if (n === 3 && f.length >= 2 && f[1] > 0 && f[1] < 1) middle = f[1]
@@ -324,6 +361,7 @@ Item {
         }
         function remember() {
             if (!settingsStore.saveLayout || !userSized || width <= 0) return
+            if (root.kind === "artist" && !root.albumsColumn) return   // the saved sizes are for three columns
             const list = (listPane.width / width).toFixed(4)
             settingsStore.setLayoutFor(root.kind, root.kind === "artist" ? list + "," + (midPane.width / width).toFixed(4) : list)
         }
@@ -359,6 +397,8 @@ Item {
             PaneHeader {
                 text: root.kind === "artist" ? qsTr("Artists") : root.kind === "album" ? qsTr("Albums") : qsTr("Playlists")
                 count: top.count
+                actionText: root.kind === "artist" ? (root.albumsColumn ? qsTr("Hide albums") : qsTr("Show albums")) : ""
+                onAction: settingsStore.set("artistAlbumsColumn", !root.albumsColumn)
             }
 
             SortHeader {
@@ -410,7 +450,7 @@ Item {
         // The artist's albums, with thumbnails.
         ColumnLayout {
             id: midPane
-            visible: root.kind === "artist"
+            visible: root.kind === "artist" && root.albumsColumn
             SplitView.minimumWidth: S.sp(140)
             spacing: 0
 
@@ -447,7 +487,7 @@ Item {
                 UiText {
                     Layout.fillWidth: true
                     visible: !root.renaming
-                    text: root.kind === "artist" && root.albumIndex < root.albumGroups.length
+                    text: root.kind === "artist" && root.albumsColumn && root.albumIndex < root.albumGroups.length
                           ? root.openTitle + " — " + root.albumGroups[root.albumIndex].title : root.openTitle
                     font.bold: true
                     elide: Text.ElideRight
@@ -541,7 +581,7 @@ Item {
                 // As wide as the pane (so dragging the divider resizes it), but never more
                 // than half its height, so the songs stay in view.
                 readonly property real side: Math.max(S.sp(120), Math.min(rightPane.width - S.sp(16), rightPane.height * 0.5))
-                visible: root.kind !== "playlist" && root.allTracks.length > 0   // with no art, a placeholder keeps the layout
+                visible: root.kind !== "playlist" && root.allTracks.length > 0 && root.albumsColumn   // with no art, a placeholder keeps the layout
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: visible ? side : 0
                 Layout.preferredHeight: visible ? side : 0

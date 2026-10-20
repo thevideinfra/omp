@@ -190,6 +190,30 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(tab, "sortBy", Q_ARG(QVariant, QString("title"))));   // put it back
     }
 
+    void withoutTheAlbumsColumnTheArtistShowsAllItsAlbumsAndSongs()
+    {
+        settings->set("artistAlbumsColumn", false);
+        QTRY_COMPARE(rows().size(), 5);                               // Beta, its 2 songs, Gamma, its song
+        QVERIFY(rows().at(0).toMap().value("header").toBool());
+        QCOMPARE(title(0), QString("Beta"));
+        QCOMPARE(title(3), QString("Gamma"));
+        QCOMPARE(tab->property("allTracks").toList().size(), 3);      // Play all plays everything
+        QQuickItem *pane = tab->findChild<QQuickItem *>("listPane");
+        QTRY_VERIFY2(qAbs(pane->width() - 500.0) < 20, qPrintable(QString::number(pane->width())));   // two columns now
+        QVariant ok;
+        QVERIFY(QMetaObject::invokeMethod(tab, "focusRight", Q_RETURN_ARG(QVariant, ok)));
+        QVERIFY(tab->property("rightFocus").toBool());                // Right goes straight to the songs
+        QVERIFY(!tab->property("midFocus").toBool());
+        QVERIFY(QMetaObject::invokeMethod(tab, "back", Q_RETURN_ARG(QVariant, ok)));
+        QVERIFY(!tab->property("rightFocus").toBool());
+        QVERIFY(!tab->property("midFocus").toBool());                 // and Left goes back to the artists
+
+        settings->set("artistAlbumsColumn", true);
+        QTRY_VERIFY(rows().size() < 5);                               // back to one album's songs
+        QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 0)));
+        QCOMPARE(rows().size(), 2);
+    }
+
     void selectKeyOpensTheArtistWithThatKey()
     {
         QVariant ok;

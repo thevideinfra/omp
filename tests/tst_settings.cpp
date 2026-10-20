@@ -203,6 +203,18 @@ private slots:
         QCOMPARE(Settings::parse("hidden_tabs = \"Songs,bogus,Songs\"\n").value("hiddenTabs").toString(), QString("Songs"));
     }
 
+    void artistViewOptionDefaultsToTheAlbumsColumn()
+    {
+        QTemporaryDir dir;
+        const QString f = dir.filePath("config.toml");
+        {
+            Settings s(f);
+            QVERIFY(s.artistAlbumsColumn());
+            s.set("artistAlbumsColumn", false);
+        }
+        QVERIFY(!Settings(f).artistAlbumsColumn());
+    }
+
     void scales()
     {
         QCOMPARE(Settings::densityScaleFor("compact"), 0.8);

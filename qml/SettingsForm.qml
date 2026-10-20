@@ -66,6 +66,13 @@ Item {
             ToggleRow {
                 visible: root.section === 0
                 Layout.fillWidth: true
+                label: qsTr("Artists: show the albums column")
+                checked: settingsStore.artistAlbumsColumn
+                onToggled: (v) => settingsStore.set("artistAlbumsColumn", v)
+            }
+            ToggleRow {
+                visible: root.section === 0
+                Layout.fillWidth: true
                 label: qsTr("Show local / server tags on songs")
                 checked: settingsStore.showSourceTags
                 onToggled: (v) => settingsStore.set("showSourceTags", v)

@@ -53,6 +53,7 @@ const QVector<Key> &keys()
         {"eqPreset", "eq_preset", Type::String, QString("Flat"), {}},
         {"saveLayout", "save_layout", Type::Bool, false, {}},
         {"saveSort", "save_sort", Type::Bool, false, {}},
+        {"artistAlbumsColumn", "artist_albums_column", Type::Bool, true, {}},
         {"hiddenTabs", "hidden_tabs", Type::String, QString(), {}},
         {"songColumns", "song_columns", Type::String, QString("title,artist,album,year,time"), {}},
         {"railCollapsed", "rail_collapsed", Type::Bool, false, {}},

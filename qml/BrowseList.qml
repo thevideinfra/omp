@@ -135,7 +135,19 @@ ListView {
         }
     }
 
-    section.property: sections ? "initial" : ""
+    // The list view keeps the old letter headings when the whole model is replaced (a re-sort),
+    // so they are switched off and on again after every reset.
+    property bool sectionsLive: true
+    Connections {
+        target: root.model ? root.model : null
+        ignoreUnknownSignals: true
+        function onModelReset() {
+            if (!root.sections) return
+            root.sectionsLive = false
+            Qt.callLater(() => { root.sectionsLive = true })
+        }
+    }
+    section.property: sections && sectionsLive ? "initial" : ""
     section.criteria: ViewSection.FullString
     // A letter heading: a darker band, a large accent letter and a line above it.
     section.delegate: Rectangle {

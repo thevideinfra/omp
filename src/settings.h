@@ -18,6 +18,7 @@ class Settings : public QObject
     Q_PROPERTY(bool saveSort READ saveSort NOTIFY changed)
     Q_PROPERTY(QStringList songColumns READ songColumns NOTIFY changed)
     Q_PROPERTY(QStringList hiddenTabs READ hiddenTabs NOTIFY changed)
+    Q_PROPERTY(bool artistAlbumsColumn READ artistAlbumsColumn NOTIFY changed)
     Q_PROPERTY(bool railCollapsed READ railCollapsed NOTIFY changed)
     Q_PROPERTY(bool showSourceTags READ showSourceTags NOTIFY changed)
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
@@ -64,6 +65,8 @@ public:
     QString serverUser() const { return m_values.value("serverUser").toString(); }
     bool railCollapsed() const { return m_values.value("railCollapsed").toBool(); }
     bool showSourceTags() const { return m_values.value("showSourceTags").toBool(); }
+    // Artists tab: true = artists | albums | songs, false = artists | all of the artist's albums and songs.
+    bool artistAlbumsColumn() const { return m_values.value("artistAlbumsColumn").toBool(); }
     bool saveSort() const { return m_values.value("saveSort").toBool(); }
     QString sortSongs() const { return m_values.value("sortSongs").toString(); }
     QString sortAlbums() const { return m_values.value("sortAlbums").toString(); }

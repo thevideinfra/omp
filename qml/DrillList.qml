@@ -365,7 +365,7 @@ Item {
                 visible: root.kind !== "playlist"
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? implicitHeight : 0
-                options: root.kind === "album" ? [["title", "Title"], ["artist", "Artist"], ["length", "Length"], ["added", "Added"]]
+                options: root.kind === "album" ? [["title", "Title"], ["artist", "Artist"], ["added", "Added"]]
                                                : [["title", "Name"], ["added", "Added"]]
                 sortKey: root.kind === "album" ? library.albumSort : library.artistSort
                 descending: root.kind === "album" ? library.albumDescending : library.artistDescending

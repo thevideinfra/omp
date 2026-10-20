@@ -87,8 +87,10 @@ include(GNUInstallDirs)
 install(TARGETS omp RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(PROGRAMS bin/omp-scan DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
 install(FILES data/omp.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES resources/omp-icon.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omp.svg)       # the launcher icon
 install(FILES resources/omp-symbolic.svg
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omp.svg)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/symbolic/apps RENAME omp-symbolic.svg)
 
 enable_testing()
 add_subdirectory(tests)

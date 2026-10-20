@@ -7,10 +7,12 @@ Canvas {
     id: root
     property string kind
     property color ink: theme.foreground
+    property color ink2: ink      // the logo's note; ink is its ring
 
     width: S.sp(20)
     height: S.sp(20)
     onInkChanged: requestPaint()
+    onInk2Changed: requestPaint()
     onKindChanged: requestPaint()
     onWidthChanged: requestPaint()
     Component.onCompleted: requestPaint()
@@ -66,6 +68,17 @@ Canvas {
             circle(6, 6.25, 0.9, true)
             circle(6, 13.75, 0.9, true)
             break
+        case "logo": {   // the OMP mark: a disc ring with a note, drawn on a 24 x 24 grid
+            ctx.scale(20 / 24, 20 / 24)
+            ctx.lineWidth = 2
+            ctx.beginPath(); ctx.arc(12, 12, 10, 0, 2 * Math.PI); ctx.stroke()
+            ctx.fillStyle = ink2
+            ctx.beginPath(); ctx.arc(9.5, 15.9, 2.5, 0, 2 * Math.PI); ctx.fill()
+            ctx.fillRect(11.1, 7, 1.5, 10)
+            ctx.beginPath(); ctx.moveTo(12.6, 7); ctx.bezierCurveTo(14.9, 7.3, 16.4, 8.4, 16.6, 10.7)
+            ctx.bezierCurveTo(15.6, 9.7, 14.2, 9.2, 12.6, 9.1); ctx.closePath(); ctx.fill()
+            break
+        }
         case "settings":
             circle(10, 10, 2.8, false)
             circle(10, 10, 6, false)

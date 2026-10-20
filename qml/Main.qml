@@ -174,11 +174,24 @@ ApplicationWindow {
                         y: S.sp(8)
                         width: parent.width - S.sp(16)
                         height: S.sp(64)
-                        UiText {
+                        Row {
                             anchors.centerIn: parent
-                            text: "OMP"
-                            color: theme.accent
-                            px: 16
+                            spacing: S.sp(8)
+                            TabIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: S.sp(30)
+                                height: S.sp(30)
+                                kind: "logo"
+                                ink: theme.accent
+                                ink2: theme.foreground
+                            }
+                            UiText {
+                                visible: !rail.collapsed
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "OMP"
+                                color: theme.accent
+                                px: 18
+                            }
                         }
                     }
 

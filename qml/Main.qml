@@ -27,6 +27,12 @@ ApplicationWindow {
         else shell.quitApp()
     }
 
+    function showContext(tracks, x, y, canRemove) {
+        contextMenu.tracks = tracks
+        contextMenu.canRemove = canRemove
+        contextMenu.openAt(x, y)
+    }
+
     function currentList() {
         return stack.children[stack.currentIndex]
     }
@@ -338,6 +344,7 @@ ApplicationWindow {
                             model: library.albums
                             onClicked: keyRoot.forceActiveFocus()
                             onPickRequested: (tracks) => picker.openFor(tracks)
+                            onContextRequested: (tracks, x, y, canRemove) => win.showContext(tracks, x, y, canRemove)
                         }
 
                         DrillList {   // Artists
@@ -346,6 +353,7 @@ ApplicationWindow {
                             model: library.artists
                             onClicked: keyRoot.forceActiveFocus()
                             onPickRequested: (tracks) => picker.openFor(tracks)
+                            onContextRequested: (tracks, x, y, canRemove) => win.showContext(tracks, x, y, canRemove)
                         }
 
                         BrowseList {
@@ -356,6 +364,7 @@ ApplicationWindow {
                             onActivated: (row) => player.playTracks([library.songs.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.songs.get(row))
                             onMenuRequested: (row) => picker.openFor([library.songs.get(row)])
+                            onContextRequested: (row, x, y) => win.showContext([library.songs.get(row)], x, y, false)
                         }
 
                         DrillList {   // Playlists
@@ -364,6 +373,7 @@ ApplicationWindow {
                             model: playlists.list
                             onClicked: keyRoot.forceActiveFocus()
                             onPickRequested: (tracks) => picker.openFor(tracks)
+                            onContextRequested: (tracks, x, y, canRemove) => win.showContext(tracks, x, y, canRemove)
                             onNewPlaylistRequested: picker.openNew([])
                         }
 
@@ -396,6 +406,11 @@ ApplicationWindow {
                                 if (!r.isDir)
                                     picker.openFor([r])
                             }
+                            onContextRequested: (row, x, y) => {
+                                const r = library.folder.get(row)
+                                if (!r.isDir)
+                                    win.showContext([r], x, y, false)
+                            }
                         }
 
                         BrowseList {
@@ -406,6 +421,7 @@ ApplicationWindow {
                             playingRow: player.currentIndex
                             onActivated: (row) => player.jumpTo(row)
                             onMenuRequested: (row) => picker.openFor([player.queue.get(row)])
+                            onContextRequested: (row, x, y) => win.showContext([player.queue.get(row)], x, y, false)
                         }
 
                         SettingsForm { }   // Settings
@@ -418,6 +434,7 @@ ApplicationWindow {
                             onActivated: (row) => player.playTracks([library.results.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.results.get(row))
                             onMenuRequested: (row) => picker.openFor([library.results.get(row)])
+                            onContextRequested: (row, x, y) => win.showContext([library.results.get(row)], x, y, false)
                         }
                     }
                 }
@@ -555,5 +572,11 @@ ApplicationWindow {
     }
 
     PlaylistPicker { id: picker }
+    SongMenu {
+        id: contextMenu
+        onAddToPlaylist: (tracks) => picker.openFor(tracks)
+        onRemoveFromPlaylist: { const l = win.currentList(); if (l.removeSelected) l.removeSelected() }
+        onClosed: keyRoot.forceActiveFocus()
+    }
     EqualizerPopup { id: eqPopup }
 }

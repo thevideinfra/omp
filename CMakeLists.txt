@@ -53,6 +53,7 @@ qt_add_qml_module(omamusic
         qml/ServerForm.qml
         qml/ChipButton.qml
         qml/TabIcon.qml
+        qml/SongMenu.qml
         qml/PlaylistPicker.qml
         qml/FastWheel.qml
         qml/Panel.qml

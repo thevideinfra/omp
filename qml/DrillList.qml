@@ -19,7 +19,8 @@ Item {
     readonly property alias detailIndex: detail.currentIndex
     property string openTitle: ""
     signal clicked()
-    signal pickRequested(var tracks)   // add these songs to a playlist
+    signal pickRequested(var tracks)   // add these songs to a playlist (the m key)
+    signal contextRequested(var tracks, real x, real y, bool canRemove)   // right-click
     signal newPlaylistRequested()
     property bool openReadOnly: false   // playlists: the open one is a server playlist (no edits)
     property bool renaming: false
@@ -367,6 +368,7 @@ Item {
                 onActivated: (row) => player.playTracks(root.tracksOf(row), 0)
                 onEnqueued: (row) => player.enqueueTracks(root.tracksOf(row))
                 onMenuRequested: (row) => root.pickRequested(root.tracksOf(row))
+                onContextRequested: (row, x, y) => root.contextRequested(root.tracksOf(row), x, y, false)
             }
         }
 
@@ -390,6 +392,7 @@ Item {
                 onActivated: (row) => player.playTracks(root.albumTracksAt(row), 0)
                 onEnqueued: (row) => player.enqueueTracks(root.albumTracksAt(row))
                 onMenuRequested: (row) => root.pickRequested(root.albumTracksAt(row))
+                onContextRequested: (row, x, y) => root.contextRequested(root.albumTracksAt(row), x, y, false)
             }
         }
 
@@ -637,7 +640,12 @@ Item {
                         onClicked: (mouse) => {
                             detail.currentIndex = item.index
                             root.rightFocus = true
-                            if (mouse.button === Qt.RightButton) root.pick()
+                            if (mouse.button === Qt.RightButton) {
+                                const p = mapToItem(null, mouse.x, mouse.y)
+                                const r = root.rows[item.index]
+                                root.contextRequested(r.header ? r.tracks : [r.tracks[r.start]], p.x, p.y,
+                                                      root.kind === "playlist" && !root.openReadOnly && !r.header)
+                            }
                             root.clicked()
                         }
                         onDoubleClicked: { root.rightFocus = true; root.playRow(item.index); root.clicked() }

@@ -88,7 +88,8 @@ Main window:
 | j / k, Down / Up | move selection |
 | Enter | play selection |
 | a | add selection to queue |
-| m | add selection to a playlist (also right-click) |
+| m | add selection to a playlist |
+| right-click | menu at the pointer: Play, Add to queue, Add to playlist, Add to / Remove from favorites (one server song), Remove from playlist (in a local playlist); Esc closes it |
 | s / o | toggle shuffle / cycle repeat |
 | f | star / unstar the playing server song |
 | Delete | remove the selected song from the open playlist |
@@ -123,7 +124,7 @@ Playlists are `.m3u` files (one path per line) in `~/.local/share/omamusic/playl
 
 The Artists tab has three columns: the artists under A, B, C... headings (when sorted by name), the selected artist's albums with large thumbnails, and the open album's songs under a large cover. An artist opens on its first album. Right/Left move between the columns. The columns in Albums, Artists and Playlists start out equal (halves, thirds for artists) and can be resized by dragging their dividers (Settings > App > Layout has "Remember column sizes", off by default, which stores the sizes you drag for each tab, and "Reset column sizes", which goes back to equal columns); the large album cover grows and shrinks with its column. Artists in the list show a thumbnail of their first album.
 
-Songs sort by title, artist, album, length or added (newest first), albums by title, artist, length or added, and artists by name, length or added, each with a reverse toggle; "Remember sort order" in Settings > App > Layout (off by default) keeps the three choices between runs. The left rail shows a picture and a name for each tab and collapses to just the pictures with the button at its bottom (remembered); it has an area at the top reserved for a logo. "Show local / server tags on songs" in Settings > App turns the small tags off. Songs, Queue, Search and Folders are tables (Title, Artist, Album, Time) under a header row; the columns in Albums, Artists and Playlists have titles, and the artist list has a large letter heading for each initial.
+Songs sort by title, artist, album, year, length, added (newest first) or favorite (starred first), albums by title, artist, length or added, and artists by name, length or added, each with a reverse toggle; "Remember sort order" in Settings > App > Layout (off by default) keeps the three choices between runs. The left rail shows a picture and a name for each tab and collapses to just the pictures with the button at its bottom (remembered); it has an area at the top reserved for a logo. "Show local / server tags on songs" in Settings > App turns the small tags off. Songs, Queue, Search and Folders are tables (Title, Artist, Album, Time) under a header row; the columns in Albums, Artists and Playlists have titles, and the artist list has a large letter heading for each initial.
 
 The bar under the song has **shuffle and repeat (off, all, one) buttons; `s` toggles shuffle and `o` cycles repeat. Shuffle reorders the queue and keeps the playing song; switching it off restores the order. Both are remembered. The equalizer button (sliders icon) beside the transport buttons opens a popup that picks one of the standard presets (a ten-band mpv filter), also remembered; boosts come with a small level cut so loud tracks do not clip.
 

@@ -25,7 +25,8 @@ ListView {
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
-    signal menuRequested(int row)   // right-click, or the m key
+    signal menuRequested(int row)   // the m key
+    signal contextRequested(int row, real x, real y)   // right-click, with the window position
 
     clip: true
     currentIndex: 0
@@ -269,7 +270,10 @@ ListView {
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: (mouse) => {
                 root.currentIndex = index
-                if (mouse.button === Qt.RightButton) root.menuRequested(index)
+                if (mouse.button === Qt.RightButton) {
+                    const p = mapToItem(null, mouse.x, mouse.y)
+                    root.contextRequested(index, p.x, p.y)
+                }
                 root.clicked()
             }
             onDoubleClicked: { root.activated(index); root.clicked() }

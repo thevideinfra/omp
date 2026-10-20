@@ -1,6 +1,9 @@
 #include "shell.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QGuiApplication>
+#include <QStyleHints>
 #include <QFile>
 #include <QIcon>
 #include <QMetaObject>
@@ -16,6 +19,7 @@ Shell::Shell(QQmlApplicationEngine &engine, Player &player, const Theme &theme, 
     , m_engine(engine)
     , m_player(player)
     , m_theme(theme)
+    , m_trayClicks(QGuiApplication::styleHints()->mouseDoubleClickInterval())
 {
     updateIcon();
     connect(&m_theme, &Theme::changed, this, &Shell::updateIcon);
@@ -29,9 +33,18 @@ Shell::Shell(QQmlApplicationEngine &engine, Player &player, const Theme &theme, 
     m_tray.setContextMenu(&m_menu);
     m_tray.setToolTip(QStringLiteral("omamusic"));
     connect(&m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason r) {
-        if (r == QSystemTrayIcon::Trigger)
-            togglePanel();
-        else if (r == QSystemTrayIcon::MiddleClick)
+        if (r == QSystemTrayIcon::Trigger) {
+            // A second click right after the first opens the full window instead of the panel.
+            if (m_trayClicks.click(QDateTime::currentMSecsSinceEpoch())) {
+                hidePanel();
+                showMain();
+            } else {
+                togglePanel();
+            }
+        } else if (r == QSystemTrayIcon::DoubleClick) {   // for hosts that do report it
+            hidePanel();
+            showMain();
+        } else if (r == QSystemTrayIcon::MiddleClick)
             m_player.togglePause();
     });
     m_tray.show();

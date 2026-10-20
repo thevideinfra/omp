@@ -107,7 +107,7 @@ The App section of Settings has **Start at login (in the tray)**, off by default
 
 ## Tray
 
-- Left-click: toggle the panel.
+- Left-click: toggle the panel. Double-click (two clicks within the system double-click time): open the full window instead.
 - Middle-click: play / pause.
 - No scroll gesture.
 - The tray icon is drawn from the theme foreground at startup and on a theme change.

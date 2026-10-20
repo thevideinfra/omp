@@ -6,6 +6,8 @@
 #include <QQuickWindow>
 #include <QSystemTrayIcon>
 
+#include "doubleclick.h"
+
 class Player;
 class Theme;
 class QQmlApplicationEngine;
@@ -36,6 +38,7 @@ private:
     Player &m_player;
     const Theme &m_theme;
     QSystemTrayIcon m_tray;
+    DoubleClick m_trayClicks;
     QMenu m_menu;
     QPointer<QQuickWindow> m_panel;
 };

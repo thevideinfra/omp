@@ -13,7 +13,7 @@ This puts `omamusic` and `omamusic-scan` in `~/.local/bin` and adds a launcher e
 
 ## Dependencies
 
-Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `qt6-svg` (tray icon), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`.
+Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `qt6-svg` (tray icon), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`, and `libsecret` (its `secret-tool` keeps the Subsonic password in the keyring; only needed for a server).
 
 ## Build
 
@@ -90,6 +90,7 @@ Main window:
 | a | add selection to queue |
 | m | add selection to a playlist (also right-click) |
 | s / o | toggle shuffle / cycle repeat |
+| f | star / unstar the playing server song |
 | Delete | remove the selected song from the open playlist |
 | r | rescan the library |
 | Backspace | up one folder (Folders tab); out of the song pane |
@@ -134,6 +135,18 @@ A folder image (`cover.jpg`, `folder.jpg`, `front.jpg`, `.png` too) wins. Otherw
 
 omamusic has its own MPRIS service (`org.mpris.MediaPlayer2.omamusic`, identity `omamusic`): play/pause, next/previous, seek, volume, shuffle, loop, title, artist, album and cover art show on the bus, and Raise/Quit work. mpv runs with `--load-scripts=no`, so the `mpv-mpris` script is not used. Untagged files show their file name as the title.
 
+## Subsonic server
+
+Settings > Library > Subsonic server connects omamusic to a Subsonic-API server (Navidrome, Airsonic, Subsonic). Enter the address, user and password, press Test connection, then Save. The password goes into the system keyring through `secret-tool` (it is never written to `config.toml`, which keeps only `server_enabled`, `server_url` and `server_user`).
+
+- The server's songs join your own in Albums, Artists, Songs and search. A server album never merges with a local album of the same name. Folders stays local.
+- The library syncs at start and with `r`. It is cached in `~/.local/state/omamusic/subsonic.jsonl`, so it opens at once and stays visible when the server is offline ("Server offline" shows in the bottom bar).
+- Songs stream through mpv; covers are downloaded once and cached.
+- Server playlists show in Playlists after your own, read-only, marked "server". **Favorites** lists the songs you starred. A heart button in the bottom bar (or `f`) stars or unstars the playing server song.
+- Plays are reported to the server ("now playing" at the start, a scrobble after half the song or four minutes).
+- Remove (in the same settings section) forgets the password, the cached songs and the settings.
+- Not included: offline downloads, several servers, editing server playlists.
+
 ## Hyprland panel rule
 
 Put this in your Hyprland Lua config (tested on Hyprland 0.56.2; opens the panel centered under the mouse cursor, i.e. under the tray icon you clicked, just below the bar):
@@ -153,7 +166,7 @@ The panel sizes itself to its content, so the rule has no `size`. A Qt client ca
 
 Network shares: a music folder that is missing, empty or stops answering (unmounted or hung NFS/SMB; the scan gives up after 20 s without progress) is shown as offline in Settings > Library and keeps its last known songs, while the other folders rescan normally. Covers and change watching skip folders that have not been confirmed reachable, so a dead mount cannot freeze the window. Playing a song on a dead mount is still up to mpv.
 
-Deferred to later plans: Subsonic. The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
+The tray icon follows the theme foreground (checked against a throwaway instance on the live bar: the icon changed colour within two seconds of a theme file change).
 
 ## Test
 

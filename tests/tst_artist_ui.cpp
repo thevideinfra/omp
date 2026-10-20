@@ -176,6 +176,16 @@ private slots:
         settings->set("saveLayout", false);
     }
 
+    void selectKeyOpensTheArtistWithThatKey()
+    {
+        QVariant ok;
+        QVERIFY(QMetaObject::invokeMethod(tab, "selectKey", Q_RETURN_ARG(QVariant, ok), Q_ARG(QVariant, QString("Amy"))));
+        QVERIFY(ok.toBool());
+        QCOMPARE(tab->property("openTitle").toString(), QString("Amy"));
+        QVERIFY(QMetaObject::invokeMethod(tab, "selectKey", Q_RETURN_ARG(QVariant, ok), Q_ARG(QVariant, QString("Nobody"))));
+        QVERIFY(!ok.toBool());
+    }
+
     void anotherArtistStartsBackOnAllAlbums()
     {
         QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 1)));

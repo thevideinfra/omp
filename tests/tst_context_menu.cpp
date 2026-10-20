@@ -15,7 +15,8 @@ class StubPlayer : public QObject
 public:
     Q_INVOKABLE void playTracks(const QVariantList &t, int start) { played = t; playedStart = start; }
     Q_INVOKABLE void enqueueTracks(const QVariantList &t) { queued = t; }
-    QVariantList played, queued;
+    Q_INVOKABLE void playNext(const QVariantList &t) { next = t; }
+    QVariantList played, queued, next;
     int playedStart = -1;
 };
 
@@ -105,6 +106,25 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(entry("playlist"), "triggered"));
         QCOMPARE(add.count(), 1);
         QCOMPARE(add.first().first().value<QVariantList>().size(), 1);
+    }
+
+    void playNextAndGoToArtistAndAlbum()
+    {
+        menu->setProperty("tracks", QVariantList{song("/m/a.flac")});
+        QVERIFY(entry("next")->property("enabled").toBool());
+        QVERIFY(QMetaObject::invokeMethod(menu, "playNext"));
+        QCOMPARE(player.next.size(), 1);
+
+        QVERIFY(entry("artist")->property("wanted").toBool());
+        QSignalSpy artist(menu, SIGNAL(goToArtist(QString))), album(menu, SIGNAL(goToAlbum(QString)));
+        QVERIFY(QMetaObject::invokeMethod(entry("artist"), "triggered"));
+        QVERIFY(QMetaObject::invokeMethod(entry("album"), "triggered"));
+        QCOMPARE(artist.at(0).at(0).toString(), QString("/m/a.flac"));
+        QCOMPARE(album.at(0).at(0).toString(), QString("/m/a.flac"));
+
+        menu->setProperty("tracks", QVariantList{song("/m/a.flac"), song("/m/b.flac")});   // an album row: no single artist
+        QVERIFY(!entry("artist")->property("wanted").toBool());
+        QVERIFY(!entry("album")->property("wanted").toBool());
     }
 
     void aSingleServerSongCanBeFavoritedOrUnfavorited()

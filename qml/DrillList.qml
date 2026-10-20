@@ -117,6 +117,19 @@ Item {
         if (r.header) return
         playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
     }
+    // Selects the row with this key in the left list (for "Go to artist / album").
+    function selectKey(key) {
+        for (let i = 0; i < top.count; ++i) {
+            if (model.get(i).key === key) {
+                top.currentIndex = i
+                top.positionViewAtIndex(i, ListView.Center)
+                rightFocus = false
+                midFocus = false
+                return true
+            }
+        }
+        return false
+    }
     function focusRight() {
         if (rows.length === 0) return false
         if (kind === "artist" && !midFocus && !rightFocus) {

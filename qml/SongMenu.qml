@@ -10,6 +10,8 @@ Menu {
     property bool canRemove: false   // the songs sit in a local playlist
     signal addToPlaylist(var tracks)
     signal removeFromPlaylist()
+    signal goToArtist(string path)
+    signal goToAlbum(string path)
 
     readonly property bool single: tracks.length === 1
     readonly property bool remoteSingle: single && (tracks[0].path ?? "").indexOf("subsonic:") === 0
@@ -17,6 +19,7 @@ Menu {
 
     function play() { player.playTracks(tracks, 0) }
     function enqueue() { player.enqueueTracks(tracks) }
+    function playNext() { player.playNext(tracks) }
     function toggleFavorite() { subsonic.toggleStar(tracks[0].path) }
 
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -52,8 +55,11 @@ Menu {
     }
 
     Entry { objectName: "play"; text: qsTr("Play"); enabled: root.tracks.length > 0; onTriggered: root.play() }
+    Entry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
     Entry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
     Entry { objectName: "playlist"; text: qsTr("Add to playlist…"); enabled: root.tracks.length > 0; onTriggered: root.addToPlaylist(root.tracks) }
+    Entry { objectName: "artist"; wanted: root.single; text: qsTr("Go to artist"); onTriggered: root.goToArtist(root.tracks[0].path) }
+    Entry { objectName: "album"; wanted: root.single; text: qsTr("Go to album"); onTriggered: root.goToAlbum(root.tracks[0].path) }
     Entry {
         objectName: "favorite"
         wanted: root.remoteSingle

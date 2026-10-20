@@ -1,5 +1,6 @@
 import QtQuick
 import "Scale.js" as S
+import "Columns.js" as Columns
 
 ListView {
     id: root
@@ -8,20 +9,36 @@ ListView {
     property bool songRows: false    // rows are songs: a heart marks the favorites
     property bool showSource: true   // a "local" / "server" tag, when the row's songs are known
     property bool sections: false    // group rows under their "initial" (a letter header)
-    // Song lists as a table: Title, Artist, Album and Time in aligned columns under a header row.
+    // Song lists as a table: the chosen columns under a header row (Columns.js lists them).
     property bool table: false
-    readonly property real timeW: S.sp(52)
-    readonly property real yearW: S.sp(56)
+    property var columns: ["title", "artist", "album", "year", "time"]
+    property bool sortable: false     // a click on a header sorts by it
+    property string sortKey: ""
+    property bool sortDescending: false
     readonly property real badgeW: S.sp(120)
     readonly property real tableLeft: S.sp(8) + artSize + S.sp(10)
-    readonly property real colSpace: Math.max(0, width - tableLeft - S.sp(12) - timeW - S.sp(10) - badgeW - S.sp(10) - yearW)
-    readonly property real titleW: colSpace * 0.44
-    readonly property real artistW: colSpace * 0.28
-    readonly property real albumW: colSpace * 0.28
-    // x of the divider before each column after the first, and before the time
-    readonly property var dividerXs: [tableLeft + titleW - S.sp(6), tableLeft + titleW + artistW - S.sp(6),
-                                      tableLeft + titleW + artistW + albumW - S.sp(6),
-                                      tableLeft + titleW + artistW + albumW + yearW - S.sp(6)]
+    // Each shown column with its x and width: fixed ones keep their width, the rest share what is left.
+    readonly property var columnModel: {
+        let fixedTotal = 0, weightTotal = 0
+        columns.forEach(id => {
+            const c = Columns.catalog[id]
+            if (c.fixed) fixedTotal += S.sp(c.fixed)
+            else weightTotal += c.weight
+        })
+        const space = Math.max(0, width - tableLeft - S.sp(12) - badgeW - S.sp(10))
+        const flex = Math.max(0, space - fixedTotal)
+        let x = tableLeft
+        const out = []
+        columns.forEach(id => {
+            const c = Columns.catalog[id]
+            const w = c.fixed ? S.sp(c.fixed) : flex * c.weight / weightTotal
+            out.push({ id: id, label: c.label, sort: c.sort, x: x, w: w, right: !!c.right })
+            x += w
+        })
+        return out
+    }
+    signal sortRequested(string key)
+    signal columnsRequested(real x, real y)   // right-click on the header, with the window position
     signal activated(int row)
     signal enqueued(int row)
     signal clicked()
@@ -50,42 +67,59 @@ ListView {
         height: root.table ? S.sp(30) : 0
         visible: root.table
         color: theme.sunken
-        Row {
-            x: root.tableLeft
-            height: parent.height
-            Repeater {
-                model: [[qsTr("Title"), root.titleW], [qsTr("Artist"), root.artistW],
-                        [qsTr("Album"), root.albumW], [qsTr("Year"), root.yearW]]
+        MouseArea {   // right-click anywhere on the header: choose the columns
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+            onClicked: (mouse) => { const p = mapToItem(null, mouse.x, mouse.y); root.columnsRequested(p.x, p.y) }
+        }
+        Repeater {
+            model: root.table ? root.columnModel : []
+            Item {
+                id: cell
+                required property var modelData
+                required property int index
+                readonly property bool clickable: root.sortable && modelData.sort !== ""
+                readonly property bool sorted: clickable && root.sortKey === modelData.sort
+                x: modelData.x
+                width: modelData.w
+                height: parent.height
+                Rectangle {
+                    anchors.fill: parent
+                    color: headArea.containsMouse && cell.clickable ? Qt.alpha(theme.accent, 0.1) : "transparent"
+                }
                 UiText {
-                    required property var modelData
-                    width: modelData[1]
                     anchors.verticalCenter: parent.verticalCenter
-                    text: modelData[0]
-                    color: theme.dimForeground
+                    width: parent.width - S.sp(12)
+                    horizontalAlignment: modelData.right ? Text.AlignRight : Text.AlignLeft
+                    elide: Text.ElideRight
+                    text: modelData.label + (cell.sorted ? (root.sortDescending ? "  ▼" : "  ▲") : "")
+                    color: cell.sorted ? theme.accent : theme.dimForeground
                     px: 12
                 }
+                Rectangle {   // the divider before this column
+                    visible: index > 0
+                    x: -S.sp(6)
+                    y: S.sp(6)
+                    width: 1
+                    height: parent.height - S.sp(12)
+                    color: Qt.alpha(theme.foreground, 0.2)
+                }
+                MouseArea {
+                    id: headArea
+                    anchors.fill: parent
+                    hoverEnabled: cell.clickable
+                    cursorShape: cell.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: (mouse) => {
+                        if (mouse.button === Qt.RightButton) {
+                            const p = mapToItem(null, mouse.x, mouse.y)
+                            root.columnsRequested(p.x, p.y)
+                        } else if (cell.clickable) {
+                            root.sortRequested(modelData.sort)
+                        }
+                    }
+                }
             }
-        }
-        Repeater {   // dividers between the column titles
-            model: root.table ? root.dividerXs : []
-            Rectangle {
-                required property real modelData
-                x: modelData
-                y: S.sp(6)
-                width: 1
-                height: parent.height - S.sp(12)
-                color: Qt.alpha(theme.foreground, 0.2)
-            }
-        }
-        UiText {
-            anchors.right: parent.right
-            anchors.rightMargin: S.sp(12)
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.timeW
-            horizontalAlignment: Text.AlignRight
-            text: qsTr("Time")
-            color: theme.dimForeground
-            px: 12
         }
         Rectangle {
             anchors.bottom: parent.bottom
@@ -130,7 +164,8 @@ ListView {
                                          : cover.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
         readonly property bool favorite: { library.starredRevision; return root.songRows && cover !== "" && library.isStarred(cover) }
 
-        readonly property int yearValue: root.table && cover !== "" ? library.yearFor(cover) : 0
+        readonly property var info: root.table && cover !== "" ? library.trackInfo(cover) : ({})
+        readonly property string playlistsText: { playlists.revision; return root.table && cover !== "" ? playlists.namesFor(cover).join(", ") : "" }
         readonly property int dash: subtitle.indexOf(" — ")
         readonly property string artistText: dash >= 0 ? subtitle.substring(0, dash) : subtitle
         readonly property string albumText: dash >= 0 ? subtitle.substring(dash + 3) : ""
@@ -154,38 +189,49 @@ ListView {
             asynchronous: true
         }
 
-        Row {
-            id: tableRow
-            visible: root.table
-            x: root.tableLeft
-            anchors.verticalCenter: parent.verticalCenter
-            UiText {
-                width: root.titleW
-                text: title
-                color: index === root.playingRow ? theme.accent : theme.foreground
-                elide: Text.ElideRight
+        function cellText(id) {
+            switch (id) {
+            case "title": return title
+            case "artist": return artistText
+            case "album": return albumText
+            case "albumartist": return info.albumArtist ?? ""
+            case "year": return (info.year ?? 0) > 0 ? String(info.year) : ""
+            case "track": return (info.track ?? 0) > 0 ? ((info.disc ?? 0) > 1 ? info.disc + "." + info.track : String(info.track)) : ""
+            case "added": return (info.mtime ?? 0) > 0 ? Qt.formatDate(new Date(info.mtime * 1000), "yyyy-MM-dd") : ""
+            case "size": return (info.size ?? 0) > 0 ? (info.size / 1048576).toFixed(1) + " MB" : ""
+            case "format": return info.format ?? ""
+            case "playlists": return playlistsText
+            case "time": return meta
             }
-            // A folder row has no artist or album: its path takes both columns.
+            return ""
+        }
+
+        // The table cells. A folder row has only a name and its path (spread over the other columns).
+        Repeater {
+            model: root.table ? root.columnModel : []
             UiText {
-                width: cover === "" ? root.artistW + root.albumW : root.artistW
-                text: cover === "" ? subtitle : artistText
-                color: theme.dimForeground
+                required property var modelData
+                required property int index
+                readonly property bool folder: cover === ""
+                visible: !folder || modelData.id === "title" || index === 1
+                x: modelData.x
+                width: folder && index === 1 ? root.width - modelData.x - S.sp(12) - root.badgeW
+                                             : modelData.w - S.sp(12)
+                anchors.verticalCenter: parent.verticalCenter
+                horizontalAlignment: modelData.right ? Text.AlignRight : Text.AlignLeft
+                text: folder ? (index === 1 ? subtitle : (modelData.id === "title" ? title : "")) : cellText(modelData.id)
+                color: modelData.id === "title" && !folder ? (index === root.playingRow ? theme.accent : theme.foreground)
+                       : folder && modelData.id === "title" ? theme.foreground : theme.dimForeground
                 elide: Text.ElideRight
-            }
-            UiText { visible: cover !== ""; width: root.albumW; text: albumText; color: theme.dimForeground; elide: Text.ElideRight }
-            UiText {
-                visible: cover !== ""
-                width: root.yearW
-                text: yearValue > 0 ? yearValue : ""
-                color: theme.dimForeground
             }
         }
         Repeater {   // the same dividers down every row
-            model: root.table ? root.dividerXs : []
+            model: root.table ? root.columnModel : []
             Rectangle {
-                required property real modelData
-                x: modelData
-                y: 0
+                required property var modelData
+                required property int index
+                visible: index > 0 && cover !== ""
+                x: modelData.x - S.sp(6)
                 width: 1
                 height: parent.height
                 color: Qt.alpha(theme.foreground, 0.1)
@@ -220,8 +266,8 @@ ListView {
         Row {
             id: badges
             anchors {
-                right: metaText.left
-                rightMargin: S.sp(10)
+                right: root.table ? parent.right : metaText.left
+                rightMargin: root.table ? S.sp(12) : S.sp(10)
                 verticalCenter: parent.verticalCenter
             }
             spacing: S.sp(8)
@@ -258,7 +304,7 @@ ListView {
                 rightMargin: S.sp(12)
                 verticalCenter: parent.verticalCenter
             }
-            width: root.table ? root.timeW : implicitWidth
+            visible: !root.table
             horizontalAlignment: Text.AlignRight
             text: meta
             color: theme.dimForeground

@@ -27,6 +27,24 @@ ApplicationWindow {
         else shell.quitApp()
     }
 
+    // A click on a column header: the first click sorts ascending, the next on the same one descending.
+    function sortSongsBy(key) {
+        if (library.songSort === key) {
+            library.songDescending = !library.songDescending
+        } else {
+            library.songSort = key
+            library.songDescending = false
+        }
+    }
+
+    // Opens a tab with this row selected.
+    function goTo(tabName, tabItem, key) {
+        searchField.text = ""
+        win.tab = tabNames.indexOf(tabName)
+        tabItem.selectKey(key)
+        keyRoot.forceActiveFocus()
+    }
+
     function showContext(tracks, x, y, canRemove) {
         contextMenu.tracks = tracks
         contextMenu.canRemove = canRemove
@@ -360,6 +378,8 @@ ApplicationWindow {
                             onClicked: keyRoot.forceActiveFocus()   // Songs
                             songRows: true
                             table: true
+                            columns: settingsStore.songColumns
+                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             model: library.songs
                             onActivated: (row) => player.playTracks([library.songs.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.songs.get(row))
@@ -381,6 +401,8 @@ ApplicationWindow {
                             onClicked: keyRoot.forceActiveFocus()   // Folders
                             songRows: true
                             table: true
+                            columns: settingsStore.songColumns
+                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             id: folderList
                             model: library.folder
                             Connections {
@@ -417,6 +439,8 @@ ApplicationWindow {
                             onClicked: keyRoot.forceActiveFocus()   // Queue
                             songRows: true
                             table: true
+                            columns: settingsStore.songColumns
+                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             model: player.queue
                             playingRow: player.currentIndex
                             onActivated: (row) => player.jumpTo(row)
@@ -430,6 +454,8 @@ ApplicationWindow {
                             onClicked: keyRoot.forceActiveFocus()   // Search results
                             songRows: true
                             table: true
+                            columns: settingsStore.songColumns
+                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             model: library.results
                             onActivated: (row) => player.playTracks([library.results.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.results.get(row))
@@ -572,9 +598,12 @@ ApplicationWindow {
     }
 
     PlaylistPicker { id: picker }
+    ColumnMenu { id: columnMenu; onClosed: keyRoot.forceActiveFocus() }
     SongMenu {
         id: contextMenu
         onAddToPlaylist: (tracks) => picker.openFor(tracks)
+        onGoToArtist: (path) => win.goTo("Artists", artistsTab, library.artistKeyFor(path))
+        onGoToAlbum: (path) => win.goTo("Albums", albumsTab, library.albumKeyFor(path))
         onRemoveFromPlaylist: { const l = win.currentList(); if (l.removeSelected) l.removeSelected() }
         onClosed: keyRoot.forceActiveFocus()
     }

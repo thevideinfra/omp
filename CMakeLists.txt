@@ -54,6 +54,7 @@ qt_add_qml_module(omamusic
         qml/ChipButton.qml
         qml/TabIcon.qml
         qml/SongMenu.qml
+        qml/ColumnMenu.qml
         qml/PlaylistPicker.qml
         qml/FastWheel.qml
         qml/Panel.qml
@@ -61,6 +62,7 @@ qt_add_qml_module(omamusic
         qml/SortBar.qml
         qml/TransportButton.qml
         qml/Fmt.js
+        qml/Columns.js
         qml/Scale.js
         qml/UiText.qml
         qml/Segmented.qml

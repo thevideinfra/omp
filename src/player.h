@@ -26,6 +26,9 @@ class Player : public QObject
     Q_PROPERTY(QString eqPreset READ eqPreset WRITE setEqPreset NOTIFY eqPresetChanged)
     Q_PROPERTY(QStringList eqPresets READ eqPresets CONSTANT)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+    // Seconds left on the sleep timer, -1 when there is none.
+    Q_PROPERTY(int sleepRemaining READ sleepRemaining NOTIFY sleepChanged)
+    Q_PROPERTY(bool sleepAfterSong READ sleepAfterSong NOTIFY sleepChanged)
 
 public:
     explicit Player(const QString &mpvProgram = QStringLiteral("mpv"),
@@ -81,6 +84,13 @@ public:
     Q_INVOKABLE void seekTo(double seconds);
     Q_INVOKABLE void jumpTo(int index);
     Q_INVOKABLE void clearQueue();
+    // Pause when the time is up / when the song playing now has ended (the next one then waits).
+    Q_INVOKABLE void startSleepTimer(int minutes) { startSleepSeconds(minutes * 60); }
+    void startSleepSeconds(int seconds);
+    Q_INVOKABLE void sleepAfterCurrentSong();
+    Q_INVOKABLE void cancelSleep();
+    int sleepRemaining() const { return m_sleepRemaining; }
+    bool sleepAfterSong() const { return m_sleepAfterSong; }
     // Takes a song out of the queue; the one playing is skipped to the next.
     Q_INVOKABLE void removeAt(int index);
     // Moves a song so that it ends up at index `to`; the playing song keeps playing.
@@ -98,6 +108,7 @@ signals:
     void shuffleChanged();
     void repeatChanged();
     void eqPresetChanged();
+    void sleepChanged();
 
 private:
     void onConnected();
@@ -137,6 +148,9 @@ private:
     bool m_shuffle = false;
     QString m_repeat = QStringLiteral("off");
     QString m_eqPreset = QStringLiteral("Flat");
+    QTimer m_sleepTick;
+    int m_sleepRemaining = -1;
+    bool m_sleepAfterSong = false;
     QString m_replayGain = QStringLiteral("album");
     int m_preampDb = 0;
     bool m_gapless = true;

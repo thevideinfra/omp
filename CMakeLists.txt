@@ -55,6 +55,8 @@ qt_add_qml_module(omp
         qml/ChipButton.qml
         qml/TabIcon.qml
         qml/SongMenu.qml
+        qml/MenuEntry.qml
+        qml/SleepMenu.qml
         qml/ColumnMenu.qml
         qml/PlaylistPicker.qml
         qml/FastWheel.qml

@@ -32,6 +32,18 @@ Player::Player(const QString &mpvProgram, const QStringList &extraArgs, const QS
     });
     connect(&m_proc, &QProcess::finished, this, &Player::onProcessFinished);
 
+    m_sleepTick.setInterval(1000);
+    connect(&m_sleepTick, &QTimer::timeout, this, [this] {
+        if (--m_sleepRemaining > 0) {
+            emit sleepChanged();
+            return;
+        }
+        m_sleepTick.stop();
+        m_sleepRemaining = -1;
+        m_client.setProperty("pause", true);   // time is up
+        emit sleepChanged();
+    });
+
     m_retry.setInterval(50);
     connect(&m_retry, &QTimer::timeout, this, [this] {
         if (++m_attempts > 100) {
@@ -93,7 +105,7 @@ void Player::start()
 void Player::onConnected()
 {
     m_retry.stop();
-    for (const char *property : {"pause", "idle-active", "time-pos", "duration", "volume", "playlist-pos"})
+    for (const char *property : {"pause", "idle-active", "time-pos", "duration", "volume", "playlist-pos", "eof-reached"})
         m_client.observe(QString::fromLatin1(property));
     setError(QString());
     setReady(true);
@@ -140,6 +152,15 @@ void Player::onProperty(const QString &name, const QVariant &value)
             m_volume = v;
             m_startVolume = qBound(0, v, 130);   // a restarted mpv keeps it
             emit volumeChanged();
+        }
+    } else if (name == QLatin1String("eof-reached")) {
+        if (value.toBool() && m_sleepAfterSong) {
+            // keep-open held mpv at the end of the song: let the next one load, but wait there.
+            m_sleepAfterSong = false;
+            m_client.setProperty("keep-open", "no");
+            m_client.command({QStringLiteral("playlist-next")});
+            m_client.setProperty("pause", true);
+            emit sleepChanged();
         }
     } else if (name == QLatin1String("playlist-pos")) {
         const int i = value.isValid() ? value.toInt() : -1;
@@ -291,6 +312,36 @@ void Player::jumpTo(int index)
 {
     m_client.setProperty("playlist-pos", index);
     m_client.setProperty("pause", false);
+}
+
+void Player::startSleepSeconds(int seconds)
+{
+    if (seconds <= 0)
+        return;
+    cancelSleep();
+    m_sleepRemaining = seconds;
+    m_sleepTick.start();
+    emit sleepChanged();
+}
+
+void Player::sleepAfterCurrentSong()
+{
+    cancelSleep();
+    m_sleepAfterSong = true;
+    m_client.setProperty("keep-open", "always");   // pause at the end of each song instead of moving on
+    emit sleepChanged();
+}
+
+void Player::cancelSleep()
+{
+    const bool was = m_sleepRemaining >= 0 || m_sleepAfterSong;
+    m_sleepTick.stop();
+    m_sleepRemaining = -1;
+    if (m_sleepAfterSong)
+        m_client.setProperty("keep-open", "no");
+    m_sleepAfterSong = false;
+    if (was)
+        emit sleepChanged();
 }
 
 void Player::removeAt(int index)

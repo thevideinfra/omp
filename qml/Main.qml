@@ -522,7 +522,9 @@ ApplicationWindow {
                     horizontalAlignment: Text.AlignRight
                     text: player.error !== "" ? player.error
                           : library.scanning ? qsTr("Scanning…")
-                          : subsonic.status.indexOf("Server offline") === 0 || subsonic.status.indexOf("Syncing") === 0 ? subsonic.status : ""
+                          : subsonic.status.indexOf("Server offline") === 0 || subsonic.status.indexOf("Syncing") === 0 ? subsonic.status
+                          : player.sleepAfterSong ? qsTr("Sleep: after this song")
+                          : player.sleepRemaining >= 0 ? qsTr("Sleep in %1").arg(Fmt.time(player.sleepRemaining)) : ""
                 }
 
                 RowLayout {
@@ -584,6 +586,16 @@ ApplicationWindow {
                                 visible: (player.current.path ?? "").indexOf("subsonic:") === 0
                                 active: { library.starredRevision; return library.isStarred(player.current.path ?? "") }
                                 onClicked: { subsonic.toggleStar(player.current.path ?? ""); keyRoot.forceActiveFocus() }
+                            }
+                            TransportButton {
+                                id: sleepButton
+                                icon: "sleep"
+                                active: player.sleepRemaining >= 0 || player.sleepAfterSong
+                                onClicked: {
+                                    const p = sleepButton.mapToItem(null, 0, 0)
+                                    sleepMenu.openAt(p.x, p.y - sleepMenu.implicitHeight - S.sp(6))
+                                    keyRoot.forceActiveFocus()
+                                }
                             }
                             TransportButton {
                                 icon: "eq"
@@ -706,6 +718,7 @@ ApplicationWindow {
             }
         }
     }
+    SleepMenu { id: sleepMenu; onClosed: keyRoot.forceActiveFocus() }
     PlaylistPicker { id: picker }
     ColumnMenu { id: columnMenu; onClosed: keyRoot.forceActiveFocus() }
     SongMenu {

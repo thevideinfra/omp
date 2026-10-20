@@ -17,6 +17,13 @@ public:
     Q_INVOKABLE void enqueueTracks(const QVariantList &t) { queued = t; }
     Q_INVOKABLE void playNext(const QVariantList &t) { next = t; }
     Q_INVOKABLE void removeAt(int i) { removed << i; }
+    Q_PROPERTY(int sleepRemaining MEMBER sleepRemaining NOTIFY sleepChanged)
+    Q_PROPERTY(bool sleepAfterSong MEMBER sleepAfterSong NOTIFY sleepChanged)
+    Q_INVOKABLE void startSleepTimer(int minutes) { sleepMinutes = minutes; }
+    Q_INVOKABLE void sleepAfterCurrentSong() { afterSongAsked = true; }
+    Q_INVOKABLE void cancelSleep() { cancelled = true; }
+    int sleepRemaining = -1, sleepMinutes = 0;
+    bool sleepAfterSong = false, afterSongAsked = false, cancelled = false;
     Q_INVOKABLE void moveRow(int from, int to) { moves << QPoint(from, to); }
     Q_PROPERTY(int queueCount MEMBER queueCount)
     QList<int> removed;
@@ -24,6 +31,8 @@ public:
     int queueCount = 4;
     QVariantList played, queued, next;
     int playedStart = -1;
+signals:
+    void sleepChanged();
 };
 
 class StubLibrary : public QObject
@@ -70,6 +79,7 @@ class TstContextMenu : public QObject
     StubSubsonic subsonic;
     StubPlaylists playlists;
     QQmlEngine *engine = nullptr;
+    QQmlContext *context = nullptr;
     QObject *menu = nullptr;
     QQuickWindow *window = nullptr;
 
@@ -83,7 +93,7 @@ private slots:
         look = new LookScope(settings, false, this);
         theme = new Theme(dir.filePath("none.toml"), this);
         engine = new QQmlEngine(this);
-        auto *ctx = new QQmlContext(engine->rootContext(), engine);
+        auto *ctx = context = new QQmlContext(engine->rootContext(), engine);
         ctx->setContextProperty("settingsStore", settings);
         ctx->setContextProperty("theme", theme);
         ctx->setContextProperty("ui", look);
@@ -235,6 +245,36 @@ private slots:
         menu->setProperty("queueRow", 3);
         QVERIFY(!entry("moveDown")->property("enabled").toBool());     // nor the last down
         menu->setProperty("queueRow", -1);
+    }
+
+    void theSleepMenuStartsAndCancelsTheTimer()
+    {
+        QQmlComponent comp(engine, QUrl::fromLocalFile(QStringLiteral(OMA_QML_DIR "/SleepMenu.qml")));
+        QObject *sleep = comp.create(context);
+        QVERIFY2(sleep, qPrintable(comp.errorString()));
+        sleep->setParent(window);
+        sleep->setProperty("parent", QVariant::fromValue(window->contentItem()));
+        const auto item = [&](int i) {
+            QQuickItem *o = nullptr;
+            QMetaObject::invokeMethod(sleep, "itemAt", Q_RETURN_ARG(QQuickItem *, o), Q_ARG(int, i));
+            return static_cast<QObject *>(o);
+        };
+        QCOMPARE(sleep->property("count").toInt(), 7);              // five times, after this song, cancel
+        QVERIFY(!sleep->property("active").toBool());
+        QVERIFY(!item(6)->property("wanted").toBool());              // nothing to cancel yet
+
+        QVERIFY(QMetaObject::invokeMethod(item(1), "triggered"));    // 30 minutes
+        QCOMPARE(player.sleepMinutes, 30);
+        QVERIFY(QMetaObject::invokeMethod(item(5), "triggered"));
+        QVERIFY(player.afterSongAsked);
+
+        player.sleepRemaining = 600;                                 // a timer is running
+        emit player.sleepChanged();
+        QTRY_VERIFY(sleep->property("active").toBool());
+        QVERIFY(item(6)->property("wanted").toBool());
+        QVERIFY(QMetaObject::invokeMethod(item(6), "triggered"));
+        QVERIFY(player.cancelled);
+        delete sleep;
     }
 
     void aMusicFolderRowCanBeRemovedFromTheLibrary()

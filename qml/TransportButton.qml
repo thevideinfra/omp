@@ -5,7 +5,7 @@ import "Scale.js" as S
 Rectangle {
     id: root
     property string glyph
-    property string icon   // "shuffle", "repeat", "repeatOne", "next", "previous", "eq" or "heart": drawn, not typeset
+    property string icon   // "shuffle", "repeat", "repeatOne", "next", "previous", "eq", "heart" or "sleep": drawn, not typeset
     property bool big: false
     property bool active: false   // a toggle that is on
     signal clicked()
@@ -68,7 +68,12 @@ Rectangle {
                 ctx.closePath()
                 ctx.fill()
             }
-            if (root.icon === "heart") {
+            if (root.icon === "sleep") {   // a crescent moon: a disc with a bite out of it
+                ctx.beginPath(); ctx.arc(9.5, 10.5, 7.5, 0, 2 * Math.PI); ctx.fill()
+                ctx.globalCompositeOperation = "destination-out"
+                ctx.beginPath(); ctx.arc(14, 7.5, 6.3, 0, 2 * Math.PI); ctx.fill()
+                ctx.globalCompositeOperation = "source-over"
+            } else if (root.icon === "heart") {
                 ctx.beginPath()   // filled when it is a favorite
                 ctx.moveTo(10, 17)
                 ctx.bezierCurveTo(1, 11, 2, 3, 6.5, 3)

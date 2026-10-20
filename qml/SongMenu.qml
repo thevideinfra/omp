@@ -45,39 +45,14 @@ Menu {
     // Opens with its top-left corner at (x, y) in the window.
     function openAt(x, y) { popup(x, y) }
 
-    component Entry: MenuItem {
-        id: entry
-        property bool wanted: true   // shown in the menu at all
-        visible: wanted
-        implicitHeight: wanted ? S.sp(34) : 0
-        height: implicitHeight
-        contentItem: UiText {
-            leftPadding: S.sp(10)
-            verticalAlignment: Text.AlignVCenter
-            text: entry.text
-            color: entry.enabled ? theme.foreground : theme.dimForeground
-        }
-        arrow: UiText {   // the little arrow of an entry that opens a submenu
-            x: entry.width - width - S.sp(10)
-            anchors.verticalCenter: parent.verticalCenter
-            visible: entry.subMenu !== null
-            text: "▸"
-            color: theme.dimForeground
-        }
-        background: Rectangle {
-            radius: S.sp(6)
-            color: entry.highlighted ? Qt.alpha(theme.accent, 0.15) : "transparent"
-        }
-    }
-
-    Entry { objectName: "play"; text: qsTr("Play"); enabled: root.tracks.length > 0; onTriggered: root.play() }
-    Entry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
-    Entry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
-    Entry { objectName: "removeQueue"; wanted: root.queueRow >= 0; text: qsTr("Remove from queue"); onTriggered: root.removeFromQueue() }
-    Entry { objectName: "moveUp"; wanted: root.queueRow >= 0; enabled: root.queueRow > 0; text: qsTr("Move up"); onTriggered: root.moveInQueue(-1) }
-    Entry { objectName: "moveDown"; wanted: root.queueRow >= 0; enabled: root.queueRow < root.queueCount - 1; text: qsTr("Move down"); onTriggered: root.moveInQueue(1) }
+    MenuEntry { objectName: "play"; text: qsTr("Play"); enabled: root.tracks.length > 0; onTriggered: root.play() }
+    MenuEntry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
+    MenuEntry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
+    MenuEntry { objectName: "removeQueue"; wanted: root.queueRow >= 0; text: qsTr("Remove from queue"); onTriggered: root.removeFromQueue() }
+    MenuEntry { objectName: "moveUp"; wanted: root.queueRow >= 0; enabled: root.queueRow > 0; text: qsTr("Move up"); onTriggered: root.moveInQueue(-1) }
+    MenuEntry { objectName: "moveDown"; wanted: root.queueRow >= 0; enabled: root.queueRow < root.queueCount - 1; text: qsTr("Move down"); onTriggered: root.moveInQueue(1) }
     // Add to playlist: a submenu with a new playlist and the existing local ones.
-    delegate: Component { Entry {} }   // how submenus are drawn in this menu
+    delegate: Component { MenuEntry {} }   // how submenus are drawn in this menu
     Menu {
         id: playlistMenu
         objectName: "playlistMenu"
@@ -85,7 +60,7 @@ Menu {
         enabled: root.tracks.length > 0
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         padding: S.sp(4)
-        delegate: Component { Entry {} }
+        delegate: Component { MenuEntry {} }
         background: Rectangle {
             implicitWidth: S.sp(210)
             radius: S.sp(8)
@@ -93,13 +68,13 @@ Menu {
             border.width: 1
             border.color: Qt.alpha(theme.accent, 0.5)
         }
-        Entry { objectName: "newPlaylist"; text: qsTr("New playlist…"); onTriggered: root.newPlaylist(root.tracks) }
+        MenuEntry { objectName: "newPlaylist"; text: qsTr("New playlist…"); onTriggered: root.newPlaylist(root.tracks) }
         MenuSeparator {
             contentItem: Rectangle { implicitHeight: 1; color: Qt.alpha(theme.foreground, 0.15) }
         }
         Repeater {
             model: { playlists.revision; return playlists.names() }
-            Entry {
+            MenuEntry {
                 required property string modelData
                 objectName: "pl:" + modelData
                 text: modelData
@@ -107,20 +82,20 @@ Menu {
             }
         }
     }
-    Entry { objectName: "artist"; wanted: root.single && root.canGoArtist; text: qsTr("Go to artist"); onTriggered: root.goToArtist(root.tracks[0].path) }
-    Entry { objectName: "album"; wanted: root.single && root.canGoAlbum; text: qsTr("Go to album"); onTriggered: root.goToAlbum(root.tracks[0].path) }
-    Entry {
+    MenuEntry { objectName: "artist"; wanted: root.single && root.canGoArtist; text: qsTr("Go to artist"); onTriggered: root.goToArtist(root.tracks[0].path) }
+    MenuEntry { objectName: "album"; wanted: root.single && root.canGoAlbum; text: qsTr("Go to album"); onTriggered: root.goToAlbum(root.tracks[0].path) }
+    MenuEntry {
         objectName: "favorite"
         wanted: root.remoteSingle
         text: root.starred ? qsTr("Remove from favorites") : qsTr("Add to favorites")
         onTriggered: root.toggleFavorite()
     }
-    Entry {
+    MenuEntry {
         objectName: "removeFolder"
         wanted: root.folderPath !== ""
         enabled: settingsStore.folders.length > 1          // the last folder stays
         text: qsTr("Remove from library")
         onTriggered: root.removeFolder(root.folderPath)
     }
-    Entry { objectName: "remove"; wanted: root.canRemove; text: qsTr("Remove from playlist"); onTriggered: root.removeFromPlaylist() }
+    MenuEntry { objectName: "remove"; wanted: root.canRemove; text: qsTr("Remove from playlist"); onTriggered: root.removeFromPlaylist() }
 }

@@ -180,6 +180,54 @@ private slots:
         QCOMPARE(seen.value("gapless-audio").toString(), QString("true"));
     }
 
+    void aSleepTimerPausesPlaybackWhenItRunsOut()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 20.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        p.playTracks({row(a, "A")}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);
+
+        QCOMPARE(p.sleepRemaining(), -1);
+        p.startSleepSeconds(2);
+        QVERIFY(p.sleepRemaining() > 0 && p.sleepRemaining() <= 2);
+        QSignalSpy changed(&p, &Player::sleepChanged);
+        QTRY_VERIFY_WITH_TIMEOUT(!p.playing(), 5000);              // paused when the time is up
+        QCOMPARE(p.sleepRemaining(), -1);
+        QVERIFY(changed.count() >= 1);
+
+        p.togglePause();                                           // it can be resumed
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 3000);
+        p.startSleepSeconds(30);
+        p.cancelSleep();                                           // and cancelled
+        QCOMPARE(p.sleepRemaining(), -1);
+        QTest::qWait(1200);
+        QVERIFY(p.playing());
+    }
+
+    void stopAfterTheCurrentSongLeavesTheNextOneWaiting()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 2.0), b = writeWav(dir.filePath("b.wav"), 6.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+        p.playTracks({row(a, "A"), row(b, "B")}, 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);
+        p.sleepAfterCurrentSong();
+        QVERIFY(p.sleepAfterSong());
+
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 8000);   // A ended, B is next
+        QTRY_VERIFY_WITH_TIMEOUT(!p.playing(), 3000);              // but it waits
+        QVERIFY(!p.sleepAfterSong());                              // used up
+        p.togglePause();
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 3000);               // and plays on when asked
+        QTest::qWait(500);
+        QVERIFY(p.playing());                                      // normal playback resumed (no more waiting)
+    }
+
     void removeAtDropsASongAndKeepsTheRestInStep()
     {
         QTemporaryDir dir;

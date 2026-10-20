@@ -369,11 +369,8 @@ ApplicationWindow {
                         }
 
                         BrowseList {
-                            onClicked: keyRoot.forceActiveFocus()   // Folders
+                            onClicked: keyRoot.forceActiveFocus()   // Folders: names and paths, no table header
                             songRows: true
-                            table: true
-                            columns: settingsStore.songColumns
-                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             id: folderList
                             model: library.folder
                             Connections {

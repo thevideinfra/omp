@@ -366,7 +366,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? implicitHeight : 0
                 options: root.kind === "album" ? [["title", "Title"], ["artist", "Artist"], ["length", "Length"], ["added", "Added"]]
-                                               : [["title", "Name"], ["length", "Length"], ["added", "Added"]]
+                                               : [["title", "Name"], ["added", "Added"]]
                 sortKey: root.kind === "album" ? library.albumSort : library.artistSort
                 descending: root.kind === "album" ? library.albumDescending : library.artistDescending
                 onSortRequested: (key) => root.sortBy(key)
@@ -541,7 +541,7 @@ Item {
                 // As wide as the pane (so dragging the divider resizes it), but never more
                 // than half its height, so the songs stay in view.
                 readonly property real side: Math.max(S.sp(120), Math.min(rightPane.width - S.sp(16), rightPane.height * 0.5))
-                visible: artSource !== ""
+                visible: root.kind !== "playlist" && root.allTracks.length > 0   // with no art, a placeholder keeps the layout
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: visible ? side : 0
                 Layout.preferredHeight: visible ? side : 0
@@ -551,6 +551,20 @@ Item {
                 sourceSize.height: 1200
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
+                Rectangle {   // no cover: a quiet placeholder of the same size
+                    anchors.fill: parent
+                    visible: bigCover.artSource === "" || bigCover.status !== Image.Ready
+                    z: -1
+                    color: Qt.alpha(theme.foreground, 0.06)
+                    radius: S.sp(8)
+                    TabIcon {
+                        anchors.centerIn: parent
+                        width: parent.width * 0.3
+                        height: width
+                        kind: "albums"
+                        ink: Qt.alpha(theme.foreground, 0.3)
+                    }
+                }
             }
 
             ListView {

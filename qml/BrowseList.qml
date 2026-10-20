@@ -178,11 +178,30 @@ ListView {
         color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
                : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
 
+        // A row that stands for music (a song, an album) always has an art slot, so the text lines
+        // up; without a cover it shows a quiet placeholder.
+        readonly property bool hasSlot: cover !== ""
+        Rectangle {
+            x: S.sp(8)
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.artSize
+            height: root.artSize
+            visible: hasSlot && art.status !== Image.Ready
+            radius: S.sp(4)
+            color: Qt.alpha(theme.foreground, 0.06)
+            TabIcon {
+                anchors.centerIn: parent
+                width: parent.width * 0.5
+                height: width
+                kind: "albums"
+                ink: Qt.alpha(theme.foreground, 0.3)
+            }
+        }
         Image {
             id: art
             x: S.sp(8)
             anchors.verticalCenter: parent.verticalCenter
-            width: artSource !== "" ? root.artSize : 0
+            width: hasSlot ? root.artSize : 0
             height: root.artSize
             source: artSource
             sourceSize.width: root.artSize * 2

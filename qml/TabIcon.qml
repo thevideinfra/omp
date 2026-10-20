@@ -60,6 +60,12 @@ Canvas {
             line(9, 5.5, 17.5, 5.5); line(9, 10.5, 17.5, 10.5); line(9, 15.5, 17.5, 15.5)
             line(2.5, 10.5, 6, 10.5); line(2.5, 15.5, 6, 15.5)
             break
+        case "server":
+            ctx.beginPath(); ctx.roundedRect ? ctx.roundedRect(3, 3.5, 14, 5.5, 1.5, 1.5) : ctx.rect(3, 3.5, 14, 5.5); ctx.stroke()
+            ctx.beginPath(); ctx.roundedRect ? ctx.roundedRect(3, 11, 14, 5.5, 1.5, 1.5) : ctx.rect(3, 11, 14, 5.5); ctx.stroke()
+            circle(6, 6.25, 0.9, true)
+            circle(6, 13.75, 0.9, true)
+            break
         case "settings":
             circle(10, 10, 2.8, false)
             circle(10, 10, 6, false)

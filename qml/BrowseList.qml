@@ -37,6 +37,9 @@ ListView {
         })
         return out
     }
+    // Something shown after the last row (the Libraries tab puts the server there).
+    property Component footerComponent
+    footer: footerComponent
     signal sortRequested(string key)
     signal columnsRequested(real x, real y)   // right-click on the header, with the window position
     signal activated(int row)

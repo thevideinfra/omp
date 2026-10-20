@@ -385,6 +385,7 @@ ApplicationWindow {
                             songRows: true
                             id: folderList
                             model: library.folder
+                            footerComponent: serverCard
                             Connections {
                                 target: library
                                 function onFolderPathChanged() { folderList.currentIndex = 0 }
@@ -583,6 +584,63 @@ ApplicationWindow {
         id: addFolderDialog
         title: qsTr("Add a music folder")
         onAccepted: { settingsStore.addFolder(selectedFolder.toString()); keyRoot.forceActiveFocus() }
+    }
+    // The Subsonic server, listed with the music folders for status only: greyed out when it is not connected.
+    Component {
+        id: serverCard
+        Item {
+            id: card
+            readonly property bool shown: library.folderPath === "" && settingsStore.serverUrl !== ""
+            readonly property string link: subsonic.state
+            readonly property bool live: link === "connected" || link === "syncing"
+            readonly property string host: settingsStore.serverUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")
+            width: folderList.width
+            height: shown ? S.sp(64) : 0
+            visible: shown
+            opacity: live ? 1 : 0.5
+            Rectangle {
+                anchors.fill: parent
+                anchors.topMargin: S.sp(8)
+                color: Qt.alpha(theme.foreground, 0.045)
+                Rectangle { width: 3; height: parent.height; color: card.live ? theme.accent : Qt.alpha(theme.foreground, 0.3) }
+                TabIcon {
+                    id: cardIcon
+                    x: S.sp(16)
+                    anchors.verticalCenter: parent.verticalCenter
+                    kind: "server"
+                    ink: card.live ? theme.accent : theme.foreground
+                }
+                Column {
+                    anchors { left: cardIcon.right; leftMargin: S.sp(12); right: pill.left; rightMargin: S.sp(10); verticalCenter: parent.verticalCenter }
+                    UiText { width: parent.width; text: qsTr("Subsonic server  ·  ") + card.host; elide: Text.ElideRight }
+                    UiText {
+                        width: parent.width
+                        text: card.link === "off" ? qsTr("Switched off in Settings") : subsonic.status
+                        color: theme.dimForeground
+                        px: 12
+                        elide: Text.ElideRight
+                    }
+                }
+                Rectangle {
+                    id: pill
+                    anchors { right: parent.right; rightMargin: S.sp(12); verticalCenter: parent.verticalCenter }
+                    width: pillText.implicitWidth + S.sp(16)
+                    height: pillText.implicitHeight + S.sp(6)
+                    radius: height / 2
+                    color: "transparent"
+                    border.width: 1
+                    border.color: card.live ? Qt.alpha(theme.accent, 0.6) : Qt.alpha(theme.foreground, 0.3)
+                    UiText {
+                        id: pillText
+                        anchors.centerIn: parent
+                        text: card.link === "connected" ? qsTr("connected") : card.link === "syncing" ? qsTr("syncing")
+                              : card.link === "offline" ? qsTr("offline") : qsTr("off")
+                        color: card.live ? theme.accent : theme.dimForeground
+                        px: 11
+                    }
+                }
+            }
+        }
     }
     PlaylistPicker { id: picker }
     ColumnMenu { id: columnMenu; onClosed: keyRoot.forceActiveFocus() }

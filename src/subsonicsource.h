@@ -18,6 +18,8 @@ class SubsonicSource : public QObject
     Q_OBJECT
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(bool syncing READ syncing NOTIFY statusChanged)
+    // "off" (not set up or switched off), "syncing", "connected" or "offline".
+    Q_PROPERTY(QString state READ state NOTIFY statusChanged)
 
 public:
     SubsonicSource(Settings &settings, Library &library, Playlists &playlists, Secrets &secrets,
@@ -25,6 +27,7 @@ public:
 
     QString status() const { return m_status; }
     bool syncing() const { return m_syncing; }
+    QString state() const { return m_state; }
 
     void start();
     // Follows what the player plays, to scrobble server songs.
@@ -47,7 +50,7 @@ signals:
 
 private:
     QString account() const;
-    void setStatus(const QString &status, bool syncing = false);
+    void setStatus(const QString &status, bool syncing = false, const QString &state = QString());
     void onSettingsChanged();
     void fetchWith(const QString &password);
     void publishLists(const QVariantList &serverPlaylists);
@@ -59,6 +62,7 @@ private:
     SubsonicClient &m_client;
     QVariantList m_serverPlaylists;   // what the last sync fetched
     ScrobbleTracker m_scrobbles;
+    QString m_state = QStringLiteral("off");
     QString m_status;
     bool m_syncing = false;
     QString m_signature;   // enabled|url|user: a change means the password and library are stale

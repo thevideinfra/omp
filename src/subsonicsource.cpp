@@ -23,7 +23,8 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
         m_library.setRemoteTracks(tracks);
         m_library.writeRemoteCache();
         setStatus(tracks.isEmpty() ? tr("Connected, but the server has no songs (has it scanned its music folder?)")
-                                   : tr("Connected: %1 songs").arg(tracks.size()));
+                                   : tr("Connected: %1 songs").arg(tracks.size()),
+                  false, QStringLiteral("connected"));
         m_client.fetchPlaylists();   // the playlists follow the songs
     });
     connect(&m_client, &SubsonicClient::playlistsFetched, this, [this](const QVariantList &lists) {
@@ -34,7 +35,7 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
         publishLists(m_serverPlaylists);   // at least Favorites, and the playlists of the last sync
     });
     connect(&m_client, &SubsonicClient::libraryFailed, this, [this](const QString &message) {
-        setStatus(tr("Server offline: %1").arg(message));   // the cached songs stay
+        setStatus(tr("Server offline: %1").arg(message), false, QStringLiteral("offline"));   // the cached songs stay
     });
     m_library.setCoverFetcher([this](const QString &coverId, const QString &dest) {
         if (!m_client.configured())
@@ -65,12 +66,14 @@ QString SubsonicSource::account() const
     return m_settings.serverUser() + QLatin1Char('@') + m_settings.serverUrl();
 }
 
-void SubsonicSource::setStatus(const QString &status, bool syncing)
+void SubsonicSource::setStatus(const QString &status, bool syncing, const QString &state)
 {
-    if (status == m_status && syncing == m_syncing)
+    const QString newState = !state.isEmpty() ? state : syncing ? QStringLiteral("syncing") : QStringLiteral("off");
+    if (status == m_status && syncing == m_syncing && newState == m_state)
         return;
     m_status = status;
     m_syncing = syncing;
+    m_state = newState;
     emit statusChanged();
 }
 
@@ -101,7 +104,7 @@ void SubsonicSource::toggleStar(const QString &path)
             return;
         m_library.setStarred(path, !now);   // the server refused: put it back
         publishLists(m_serverPlaylists);
-        setStatus(tr("Could not %1 the song: %2").arg(now ? tr("star") : tr("unstar"), err));
+        setStatus(tr("Could not %1 the song: %2").arg(now ? tr("star") : tr("unstar"), err), false, m_state);
     });
 }
 
@@ -137,7 +140,7 @@ void SubsonicSource::sync()
         disconnect(*conn);
         delete conn;
         if (!found) {
-            setStatus(tr("Server password not found in the keyring: save the server again"));
+            setStatus(tr("Server password not found in the keyring: save the server again"), false, QStringLiteral("offline"));
             return;
         }
         m_password = password;

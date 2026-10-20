@@ -182,9 +182,11 @@ private slots:
         Playlists playlists(dir.filePath("pl"));
         SubsonicSource source(settings, library, playlists, secrets, client);
 
+        QCOMPARE(source.state(), QString("off"));                 // nothing configured yet
         source.saveServer(fake.url(), "amy", "sesame", true);
         QTRY_COMPARE(library.songs()->rowCount(), 5);
         QVERIFY(source.status().startsWith("Connected"));
+        QCOMPARE(source.state(), QString("connected"));
         QVERIFY(QFileInfo::exists(dir.filePath("subsonic.jsonl")));
         QVERIFY(settings.serverEnabled());
         settings.save();
@@ -425,6 +427,7 @@ private slots:
         source.start();
         QCOMPARE(fresh.songs()->rowCount(), 1);
         QTRY_VERIFY_WITH_TIMEOUT(source.status().startsWith("Server offline"), 5000);
+        QCOMPARE(source.state(), QString("offline"));
         QCOMPARE(fresh.songs()->rowCount(), 1);                  // still there
         QVERIFY(!source.syncing());
     }
@@ -446,6 +449,7 @@ private slots:
 
         QSignalSpy cleared(&secrets, &Secrets::cleared);
         source.remove();
+        QCOMPARE(source.state(), QString("off"));
         QCOMPARE(library.songs()->rowCount(), 0);
         QVERIFY(!settings.serverEnabled());
         QCOMPARE(settings.serverUrl(), QString());

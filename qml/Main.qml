@@ -457,6 +457,7 @@ ApplicationWindow {
                             onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             model: player.queue
                             playingRow: player.currentIndex
+                            followPlaying: true
                             onActivated: (row) => player.jumpTo(row)
                             onMenuRequested: (row) => picker.openFor([player.queue.get(row)])
                             onContextRequested: (row, x, y) => win.showContext([player.queue.get(row)], x, y, false, "", row)

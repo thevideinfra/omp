@@ -167,6 +167,30 @@ private slots:
         QCOMPARE(moved.count(), 1);
     }
 
+    void theSelectionFollowsThePlayingRowAndOnlyThePlayingRowIsTinted()
+    {
+        model->setRows({{{"title", "A"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/a.flac"}},
+                        {{"title", "B"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/b.flac"}},
+                        {{"title", "C"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/c.flac"}},
+                        {{"title", "D"}, {"subtitle", "x — y"}, {"meta", "1:00"}, {"cover", "/m/d.flac"}}});
+        list->setProperty("reorderable", false);
+        list->setProperty("followPlaying", true);
+        list->setProperty("playingRow", 2);
+        QCOMPARE(list->property("currentIndex").toInt(), 2);          // the highlight starts on the playing song
+
+        list->setProperty("currentIndex", 0);                          // a single click elsewhere...
+        QTest::qWait(60);
+        const auto rowColor = [&](int i) { return window->grabWindow().pixelColor(5, 30 + i * 52 + 26); };
+        const QColor playing = rowColor(2), clicked = rowColor(0);
+        QVERIFY2(playing.blue() > playing.red() + 8, qPrintable(playing.name()));     // the playing row has the accent tint
+        QVERIFY2(qAbs(clicked.blue() - clicked.red()) < 8, qPrintable(clicked.name())); // the clicked one is only a neutral highlight
+
+        list->setProperty("playingRow", 3);                            // the next song starts: the highlight moves with it
+        QCOMPARE(list->property("currentIndex").toInt(), 3);
+        list->setProperty("followPlaying", false);
+        list->setProperty("playingRow", -1);
+    }
+
     void removeSelectedAsksToRemoveTheCurrentRowWhenRemovable()
     {
         QSignalSpy removed(list, SIGNAL(removeRequested(int)));

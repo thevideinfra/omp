@@ -119,7 +119,7 @@ The **Libraries** tab (the old Folders tab) shows your music folders and what is
 
 ## Playlists
 
-Playlists are `.m3u` files (one path per line) in `~/.local/share/omp/playlists/`. The **Playlists** tab lists them with their songs on the right; Enter or double-click plays one, and **New playlist**, **Rename** and **Delete** (click twice) manage them. Add songs from anywhere with right-click or `m` on a song, album or artist, which opens a picker with your playlists and a field for a new one. The Queue tab has **Save as playlist**. Delete removes the selected song from the open playlist. Songs that are no longer in the library are skipped when a playlist is shown but stay in the file.
+Playlists are `.m3u` files (one path per line) in `~/.local/share/omp/playlists/`. The **Playlists** tab lists them with their songs on the right; Enter or double-click plays one, and **New playlist**, **Rename** and **Delete** (click twice) manage them. Add songs from anywhere with right-click or `m` on a song, album or artist, which opens a picker with your playlists and a field for a new one. The Queue tab has **Save as playlist**. In the Queue the accent highlight is always the song that is playing and moves with it; a row you click or select with the keys gets only a quiet highlight and an outline. Delete removes the selected song from the open playlist. Songs that are no longer in the library are skipped when a playlist is shown but stay in the file.
 
 ## Shuffle, repeat and equalizer
 

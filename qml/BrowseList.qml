@@ -44,6 +44,15 @@ ListView {
     // A list whose rows can be taken out (Delete) or dragged to another place (the Queue).
     property bool removable: false
     property bool reorderable: false
+    // A list of what is playing (the Queue): the selection starts on the playing row and moves with it.
+    property bool followPlaying: false
+    onPlayingRowChanged: {
+        if (followPlaying && playingRow >= 0) {
+            currentIndex = playingRow
+            positionViewAtIndex(playingRow, ListView.Contain)
+        }
+    }
+    onFollowPlayingChanged: if (followPlaying && playingRow >= 0) currentIndex = playingRow
     property int dragFrom: -1
     property int dropAt: -1
     signal removeRequested(int row)
@@ -212,9 +221,15 @@ ListView {
         width: ListView.view.width
         height: root.table ? Math.max(S.sp(52), root.artSize + S.sp(12))
                            : Math.max(S.sp(60), root.artSize + S.sp(18), textColumn.implicitHeight + S.sp(14))
-        color: ListView.isCurrentItem ? Qt.alpha(theme.accent, 0.12)
+        // In a list that shows what is playing, only that row takes the accent tint; a clicked row is a
+        // quiet selection, so the highlight always says what is playing.
+        readonly property bool playingNow: root.playingRow >= 0 && index === root.playingRow
+        color: playingNow ? Qt.alpha(theme.accent, 0.16)
+               : ListView.isCurrentItem ? (root.playingRow >= 0 ? Qt.alpha(theme.foreground, 0.1) : Qt.alpha(theme.accent, 0.12))
                : rowArea.containsMouse ? Qt.alpha(theme.foreground, 0.09)   // hover, like the left panel
                : index % 2 === 1 ? Qt.alpha(theme.foreground, 0.045) : "transparent"   // alternating rows
+        border.width: ListView.isCurrentItem && root.playingRow >= 0 && !playingNow ? 1 : 0   // a selected row that is not the playing one
+        border.color: Qt.alpha(theme.accent, 0.4)
 
         // A row that stands for music (a song, an album) always has an art slot, so the text lines
         // up; without a cover it shows a quiet placeholder.

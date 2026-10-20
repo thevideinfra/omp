@@ -421,6 +421,31 @@ private slots:
         QCOMPARE(library.songs()->rowCount(), 0);
     }
 
+    void aCoverThatIsNotAnImageIsNotKept()
+    {
+        QTemporaryDir dir;
+        qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
+        FakeSubsonic fake;
+        fake.setBinary("getCoverArt", QByteArray("\x00\x00\rIHDR broken png without its signature"), "image/png");
+        Settings settings(dir.filePath("config.toml"));
+        Library library({"/m"}, "/nonexistent-scanner", dir.filePath("index.jsonl"));
+        Playlists playlists(dir.filePath("pl"));
+        Secrets secrets(writeFake(dir.path()));
+        SubsonicClient client;
+        client.setServer(fake.url(), "amy", "sesame");
+        SubsonicSource source(settings, library, playlists, secrets, client);
+        Track a;
+        a.path = "subsonic:1"; a.title = "One"; a.artist = a.albumArtist = "Amy"; a.album = "Beta"; a.coverId = "al-1";
+        library.setRemoteTracks({a});
+        QSignalSpy changed(&library, &Library::coversChanged);
+        QCOMPARE(library.coverFor("subsonic:1"), QString());
+        QTRY_COMPARE(fake.count("getCoverArt"), 1);
+        QTest::qWait(300);
+        QCOMPARE(changed.count(), 0);                             // nothing was announced
+        QCOMPARE(library.coverFor("subsonic:1"), QString());      // and no broken file is shown
+        QVERIFY(QDir(dir.filePath("covers")).entryList({"remote-*.jpg"}).isEmpty());
+    }
+
     void aDeadServerKeepsTheCachedSongs()
     {
         QTemporaryDir dir;

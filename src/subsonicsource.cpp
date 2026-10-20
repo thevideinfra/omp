@@ -3,8 +3,10 @@
 #include "player.h"
 
 #include <QDebug>
+#include <QBuffer>
 #include <QDir>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QSaveFile>
 
 SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &playlists,
@@ -45,6 +47,11 @@ SubsonicSource::SubsonicSource(Settings &settings, Library &library, Playlists &
             return false;   // asked again once the server settings are in
         m_client.download(m_client.coverUrl(coverId, 600), [this, coverId, dest](bool ok, const QByteArray &bytes) {
             if (!ok || bytes.isEmpty() || !QDir().mkpath(QFileInfo(dest).absolutePath()))
+                return;
+            QByteArray copy = bytes;
+            QBuffer buffer(&copy);
+            buffer.open(QIODevice::ReadOnly);
+            if (!QImageReader(&buffer).canRead())   // a server error page or a damaged image is not a cover
                 return;
             QSaveFile f(dest);
             if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size() && f.commit())

@@ -68,6 +68,8 @@ public:
 
     Q_INVOKABLE void playTracks(const QVariantList &tracks, int startIndex = 0);
     Q_INVOKABLE void enqueue(const QVariantMap &track);
+    // Queues these songs right after the one playing (plays them when nothing is).
+    Q_INVOKABLE void playNext(const QVariantList &tracks);
     Q_INVOKABLE void enqueueTracks(const QVariantList &tracks);
     Q_INVOKABLE void togglePause();
     Q_INVOKABLE void next();

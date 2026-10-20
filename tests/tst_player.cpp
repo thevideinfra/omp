@@ -119,6 +119,40 @@ private slots:
         QCOMPARE(p.queue()->get(1).value("path").toString(), QString("subsonic:1"));
     }
 
+    void playNextInsertsAfterTheCurrentSongInOrder()
+    {
+        QTemporaryDir dir;
+        const QString a = writeWav(dir.filePath("a.wav"), 5.0);
+        const QString b = writeWav(dir.filePath("b.wav"), 5.0);
+        const QString c = writeWav(dir.filePath("c.wav"), 5.0);
+        const QString x = writeWav(dir.filePath("x.wav"), 5.0);
+        const QString y = writeWav(dir.filePath("y.wav"), 5.0);
+        Player p("mpv", {"--ao=null"}, dir.filePath("mpv.sock"));
+        p.start();
+        QTRY_VERIFY_WITH_TIMEOUT(p.ready(), 5000);
+
+        p.playNext({row(x, "X")});                                  // nothing playing: it just plays
+        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);
+        QCOMPARE(p.queue()->rowCount(), 1);
+
+        p.playTracks({row(a, "A"), row(b, "B"), row(c, "C")}, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("A"), 3000);
+        p.playNext({row(x, "X"), row(y, "Y")});
+        QCOMPARE(p.queue()->rowCount(), 5);
+        QStringList order;
+        for (int i = 0; i < 5; ++i)
+            order << p.queue()->get(i).value("title").toString();
+        QCOMPARE(order, QStringList({"A", "X", "Y", "B", "C"}));
+        QCOMPARE(p.currentIndex(), 0);                              // the song playing is not disturbed
+
+        p.next();
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("X"), 3000);   // mpv agrees
+        p.next();
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("Y"), 3000);
+        p.next();
+        QTRY_COMPARE_WITH_TIMEOUT(p.current().value("title").toString(), QString("B"), 3000);
+    }
+
     void enqueueAndClear()
     {
         QTemporaryDir dir;

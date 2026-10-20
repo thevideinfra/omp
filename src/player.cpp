@@ -220,6 +220,32 @@ void Player::enqueue(const QVariantMap &track)
     emit currentChanged();
 }
 
+void Player::playNext(const QVariantList &tracks)
+{
+    if (tracks.isEmpty())
+        return;
+    if (m_idle || m_index < 0 || m_index >= m_queue.rowCount()) {
+        playTracks(tracks, 0);
+        return;
+    }
+    QVector<QVariantMap> rows = m_queue.rows();
+    int seq = 0;
+    for (const QVariantMap &r : std::as_const(rows))
+        seq = qMax(seq, r.value(QStringLiteral("seq"), -1).toInt() + 1);
+    for (int i = 0; i < tracks.size(); ++i) {
+        QVariantMap row = tracks.at(i).toMap();
+        row.insert(QStringLiteral("seq"), seq + i);
+        rows.insert(m_index + 1 + i, row);
+    }
+    m_queue.setRows(rows);
+    // insert-next puts each song straight after the playing one, so go backwards to keep the order.
+    for (int i = tracks.size() - 1; i >= 0; --i) {
+        m_client.command({QStringLiteral("loadfile"), resolve(tracks.at(i).toMap().value("path").toString()),
+                          QStringLiteral("insert-next")});
+    }
+    emit currentChanged();
+}
+
 void Player::enqueueTracks(const QVariantList &tracks)
 {
     for (const QVariant &t : tracks)

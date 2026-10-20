@@ -283,14 +283,15 @@ Item {
             function onLayoutReset() { panes.userSized = false; panes.applyLayout(true) }
         }
 
+        // A gutter between the columns: a darker band with a line down its middle that lights up on hover.
         handle: Rectangle {
-            implicitWidth: S.sp(7)
-            color: "transparent"
+            implicitWidth: S.sp(14)
+            color: theme.sunken
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: 1
+                width: SplitHandle.pressed || SplitHandle.hovered ? 2 : 1
                 height: parent.height
-                color: SplitHandle.pressed || SplitHandle.hovered ? Qt.alpha(theme.accent, 0.6) : Qt.alpha(theme.foreground, 0.12)
+                color: SplitHandle.pressed || SplitHandle.hovered ? Qt.alpha(theme.accent, 0.7) : Qt.alpha(theme.foreground, 0.2)
             }
         }
 

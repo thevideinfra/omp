@@ -38,19 +38,19 @@ private slots:
         QTest::qWait(300);                              // the canvas paints after the first frame
 
         const QImage img = window.grabWindow();
-        // The logo is 955 x 592 on its grid, so in a 400 box it is 400 x 248 and starts at y = 76.
-        const double k = 400.0 / 955.0;
-        const auto at = [&](double x, double y) { return img.pixelColor(int(x * k), int(76 + y * k)); };
-        const QColor stroke = at(40, 300);               // the thick left bar of the first letter
+        // The logo is 226 x 112 on its grid, so in a 400 box it is 400 x 198 and starts at y = 101.
+        const double k = 400.0 / 226.0;
+        const auto at = [&](double x, double y) { return img.pixelColor(int(x * k), int(101 + y * k)); };
+        const QColor stroke = at(98, 60);                // the left stem of the M
         QVERIFY2(stroke.red() > 240 && stroke.green() < 20 && stroke.blue() < 20, qPrintable(stroke.name()));
-        const QColor gap = at(500, 560);                 // empty space under the middle of the M
+        const QColor gap = at(122, 70);                  // empty space under the V of the M
         QVERIFY2(gap.red() < 20, qPrintable(gap.name()));
         QVERIFY(img.pixelColor(200, 20).red() < 20);     // nothing above the centred mark
-        QVERIFY(img.pixelColor(200, 390).red() < 20);    // or below it
+        QVERIFY(img.pixelColor(200, 380).red() < 20);    // or below it
 
         logo->setProperty("ink", QColor("#00ff00"));     // a theme change recolours it
         QTest::qWait(300);
-        const QColor green = window.grabWindow().pixelColor(int(40 * k), int(76 + 300 * k));
+        const QColor green = window.grabWindow().pixelColor(int(98 * k), int(101 + 60 * k));
         QVERIFY2(green.green() > 240 && green.red() < 20, qPrintable(green.name()));
     }
 };

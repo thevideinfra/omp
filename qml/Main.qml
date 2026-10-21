@@ -166,18 +166,28 @@ ApplicationWindow {
                     clip: true
                     Behavior on Layout.preferredWidth { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
-                    // Room for a logo; the name stands in until there is one.
+                    // The badge with the wordmark under it; collapsed, only the badge.
                     Item {
                         id: logoArea
                         objectName: "logoArea"
                         x: S.sp(8)
                         y: S.sp(8)
                         width: parent.width - S.sp(16)
-                        height: S.sp(72)
-                        LogoMark {   // the OMP logo, in the theme's accent colour
-                            anchors.centerIn: parent
-                            width: parent.width
-                            height: parent.height
+                        height: rail.collapsed ? S.sp(48) : S.sp(88)
+                        LogoMark {   // the badge, in the theme's accent colour
+                            id: badgeMark
+                            badge: true
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(parent.width, S.sp(48))
+                            height: S.sp(48)
+                            ink: theme.accent
+                        }
+                        LogoMark {   // the wordmark under it
+                            visible: !rail.collapsed
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: badgeMark.height + S.sp(6)
+                            width: Math.min(parent.width, S.sp(80))
+                            height: S.sp(34)
                             ink: theme.accent
                         }
                     }

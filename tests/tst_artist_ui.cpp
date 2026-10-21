@@ -26,7 +26,7 @@ signals:
     void currentChanged();
 };
 
-static Track mk(const QString &path, const QString &title, const QString &album)
+static Track mk(const QString &path, const QString &title, const QString &album, int year = 0)
 {
     Track t;
     t.path = path;
@@ -35,6 +35,7 @@ static Track mk(const QString &path, const QString &title, const QString &album)
     t.albumArtist = "Amy";
     t.album = album;
     t.duration = 60;
+    t.year = year;
     return t;
 }
 
@@ -63,8 +64,8 @@ private slots:
         look = new LookScope(settings, false, this);
         theme = new Theme(dir.filePath("none.toml"), this);
         library = new Library({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
-        library->setTracks({mk("/m/b1.flac", "B one", "Beta"), mk("/m/b2.flac", "B two", "Beta"),
-                            mk("/m/g1.flac", "G one", "Gamma")});
+        library->setTracks({mk("/m/b1.flac", "B one", "Beta", 2020), mk("/m/b2.flac", "B two", "Beta", 2020),
+                            mk("/m/g1.flac", "G one", "Gamma", 2010)});
         playlists = new Playlists(dir.filePath("pl"), this);
 
         engine = new QQmlEngine(this);
@@ -190,6 +191,25 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(tab, "sortBy", Q_ARG(QVariant, QString("title"))));   // put it back
     }
 
+    void theAlbumsColumnSortsByNameAndYear()
+    {
+        const auto first = [&] { return tab->property("albumGroups").toList().at(0).toMap().value("title").toString(); };
+        QCOMPARE(first(), QString("Beta"));                                     // name, ascending, to begin with
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("year"))));
+        QCOMPARE(first(), QString("Gamma"));                                    // 2010 before 2020
+        QCOMPARE(tab->property("albumIndex").toInt(), 0);                       // the first album is open again
+        QCOMPARE(title(0), QString("G one"));
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("year"))));
+        QCOMPARE(first(), QString("Beta"));                                     // the same header again: newest first
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("title"))));
+        QCOMPARE(first(), QString("Beta"));
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("title"))));
+        QCOMPARE(first(), QString("Gamma"));                                    // name, descending
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("year"))));
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("title"))));
+        QCOMPARE(first(), QString("Beta"));                                     // a new key starts ascending
+    }
+
     void withoutTheAlbumsColumnTheArtistShowsAllItsAlbumsAndSongs()
     {
         settings->set("artistAlbumsColumn", false);
@@ -228,8 +248,8 @@ private slots:
     {
         QVERIFY(QMetaObject::invokeMethod(tab, "selectAlbum", Q_ARG(QVariant, 1)));
         QSignalSpy spy(library, &Library::indexChanged);
-        library->setTracks({mk("/m/b1.flac", "B one", "Beta"), mk("/m/b2.flac", "B two", "Beta"),
-                            mk("/m/g1.flac", "G one", "Gamma")});
+        library->setTracks({mk("/m/b1.flac", "B one", "Beta", 2020), mk("/m/b2.flac", "B two", "Beta", 2020),
+                            mk("/m/g1.flac", "G one", "Gamma", 2010)});
         QTRY_COMPARE(tab->property("albumIndex").toInt(), 0);   // back on the first album
         QCOMPARE(rows().size(), 2);
     }

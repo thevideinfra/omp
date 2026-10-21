@@ -18,6 +18,8 @@ Item {
     onAlbumsColumnChanged: { if (kind === "artist") { rebuildDetail(); panes.userSized = false; panes.applyLayout(false) } }
     property int albumIndex: 0         // artists: the open album
     property var albumGroups: []       // artists: [{ title, artist, tracks }]
+    property string albumSortKey: "title"   // artists: how the albums column is ordered ("title" or "year")
+    property bool albumSortDescending: false
     property var artistTracks: []
     readonly property alias detailIndex: detail.currentIndex
     property string openTitle: ""
@@ -37,10 +39,16 @@ Item {
     property var rows: []
     property var allTracks: []
 
-    // "Artist  ·  year" for an album: the earliest year any of its songs carries.
-    function albumSubtitle(group) {
+    // The year of an album: the earliest year any of its songs carries, 0 when none does.
+    function albumYear(group) {
         let year = 0
         group.tracks.forEach(t => { if ((t.year ?? 0) > 0 && (year === 0 || t.year < year)) year = t.year })
+        return year
+    }
+
+    // "Artist  ·  year" for an album: the earliest year any of its songs carries.
+    function albumSubtitle(group) {
+        const year = albumYear(group)
         return year > 0 ? group.artist + "  ·  " + year : group.artist
     }
 
@@ -248,12 +256,41 @@ Item {
                 if (a !== album) { groups.push({ title: t.album, artist: t.artist, tracks: [] }); album = a }
                 groups[groups.length - 1].tracks.push(t)
             })
-            albumGroups = groups
-            albumModel.clear()
-            groups.forEach(g => albumModel.append({ key: g.title, title: g.title, subtitle: albumSubtitle(g),
-                meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path }))
+            albumGroups = sortedAlbums(groups)
+            fillAlbumModel()
             mid.currentIndex = 0
         }
+        rebuildDetail()
+    }
+
+    // The albums in the chosen order. Albums with no year go last, whichever way it runs.
+    function sortedAlbums(groups) {
+        const sign = albumSortDescending ? -1 : 1
+        return groups.map((g, i) => ({ g: g, i: i, year: albumYear(g) })).sort((a, b) => {
+            if (albumSortKey === "year" && a.year !== b.year) {
+                if (a.year === 0) return 1
+                if (b.year === 0) return -1
+                return sign * (a.year - b.year)
+            }
+            const c = a.g.title.localeCompare(b.g.title, undefined, { sensitivity: "base", numeric: true })
+            return c !== 0 ? (albumSortKey === "year" ? c : sign * c) : a.i - b.i
+        }).map(e => e.g)
+    }
+
+    function fillAlbumModel() {
+        albumModel.clear()
+        albumGroups.forEach(g => albumModel.append({ key: g.title, title: g.title, subtitle: albumSubtitle(g),
+            meta: qsTr("%1 tracks").arg(g.tracks.length), cover: g.tracks[0].path }))
+    }
+
+    // A click on a sort choice of the albums column: the same one again turns it round.
+    function sortAlbums(key) {
+        if (albumSortKey === key) albumSortDescending = !albumSortDescending
+        else { albumSortKey = key; albumSortDescending = false }
+        albumGroups = sortedAlbums(albumGroups)
+        fillAlbumModel()
+        albumIndex = 0
+        mid.currentIndex = 0
         rebuildDetail()
     }
 
@@ -475,6 +512,14 @@ Item {
             spacing: 0
 
             PaneHeader { text: qsTr("Albums"); count: mid.count }
+
+            SortHeader {
+                Layout.fillWidth: true
+                options: [["title", "Name"], ["year", "Year"]]
+                sortKey: root.albumSortKey
+                descending: root.albumSortDescending
+                onSortRequested: (key) => root.sortAlbums(key)
+            }
 
             BrowseList {
                 id: mid

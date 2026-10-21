@@ -124,12 +124,14 @@ private slots:
             s.set("saveSort", true);
             s.set("sortSongs", "length,desc");
             s.set("sortArtists", "added,asc");
+            s.set("sortArtistAlbums", "year,desc");
         }
         Settings again(f);
         QVERIFY(again.saveSort());
         QCOMPARE(again.sortSongs(), QString("length,desc"));
         QCOMPARE(again.sortArtists(), QString("added,asc"));
         QCOMPARE(again.sortAlbums(), QString());
+        QCOMPARE(again.sortArtistAlbums(), QString("year,desc"));
     }
 
     void railAndTagOptionsDefaultAndPersist()

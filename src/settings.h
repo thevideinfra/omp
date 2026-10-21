@@ -16,6 +16,7 @@ class Settings : public QObject
     Q_PROPERTY(bool showAccent READ showAccent NOTIFY changed)
     Q_PROPERTY(bool saveLayout READ saveLayout NOTIFY changed)
     Q_PROPERTY(bool saveSort READ saveSort NOTIFY changed)
+    Q_PROPERTY(QString sortArtistAlbums READ sortArtistAlbums NOTIFY changed)
     Q_PROPERTY(QStringList songColumns READ songColumns NOTIFY changed)
     Q_PROPERTY(QStringList hiddenTabs READ hiddenTabs NOTIFY changed)
     Q_PROPERTY(bool artistAlbumsColumn READ artistAlbumsColumn NOTIFY changed)
@@ -80,6 +81,8 @@ public:
     QString sortSongs() const { return m_values.value("sortSongs").toString(); }
     QString sortAlbums() const { return m_values.value("sortAlbums").toString(); }
     QString sortArtists() const { return m_values.value("sortArtists").toString(); }
+    // The sort of the albums column in the Artists tab, "year,desc" (empty: name, ascending).
+    QString sortArtistAlbums() const { return m_values.value("sortArtistAlbums").toString(); }
     bool saveLayout() const { return m_values.value("saveLayout").toBool(); }
     bool showAccent() const { return m_values.value("showAccent").toBool(); }
     bool panelShowAccent() const { return m_values.value("panelShowAccent").toBool(); }

@@ -70,6 +70,7 @@ const QVector<Key> &keys()
         {"sortSongs", "sort_songs", Type::String, QString(), {}},
         {"sortAlbums", "sort_albums", Type::String, QString(), {}},
         {"sortArtists", "sort_artists", Type::String, QString(), {}},
+        {"sortArtistAlbums", "sort_artist_albums", Type::String, QString(), {}},
         {"layoutAlbum", "layout_album", Type::String, QString(), {}},
         {"layoutArtist", "layout_artist", Type::String, QString(), {}},
         {"layoutPlaylist", "layout_playlist", Type::String, QString(), {}},

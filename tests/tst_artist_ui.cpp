@@ -53,6 +53,7 @@ class TstArtistUi : public QObject
     QQmlEngine *engine = nullptr;
     QQuickWindow *window = nullptr;
     QQuickItem *tab = nullptr;
+    QQmlContext *ctx = nullptr;
 
     QVariantList rows() const { return tab->property("rows").toList(); }
     QString title(int i) const { return rows().at(i).toMap().value("title").toString(); }
@@ -69,7 +70,7 @@ private slots:
         playlists = new Playlists(dir.filePath("pl"), this);
 
         engine = new QQmlEngine(this);
-        auto *ctx = new QQmlContext(engine->rootContext(), engine);
+        ctx = new QQmlContext(engine->rootContext(), engine);
         ctx->setContextProperty("settingsStore", settings);
         ctx->setContextProperty("theme", theme);
         ctx->setContextProperty("ui", look);
@@ -208,6 +209,31 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("year"))));
         QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("title"))));
         QCOMPARE(first(), QString("Beta"));                                     // a new key starts ascending
+    }
+
+    void theAlbumsSortIsRememberedOnlyWithRememberSortOrder()
+    {
+        QVERIFY(settings->sortArtistAlbums().isEmpty());
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("year"))));   // off: not stored
+        QVERIFY(settings->sortArtistAlbums().isEmpty());
+        settings->set("saveSort", true);
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("year"))));   // the same again: descending
+        QCOMPARE(settings->sortArtistAlbums(), QString("year,desc"));
+
+        QQmlComponent comp(engine, QUrl::fromLocalFile(QStringLiteral(OMA_QML_DIR "/DrillList.qml")));
+        QQuickItem *again = nullptr;
+        {
+            QQmlContext *c = new QQmlContext(ctx, engine);
+            again = qobject_cast<QQuickItem *>(comp.createWithInitialProperties({{"kind", "artist"}}, c));
+            QVERIFY2(again, qPrintable(comp.errorString()));
+        }
+        QCOMPARE(again->property("albumSortKey").toString(), QString("year"));   // a new tab starts the way it was left
+        QVERIFY(again->property("albumSortDescending").toBool());
+        delete again;
+
+        settings->set("saveSort", false);
+        QVERIFY(QMetaObject::invokeMethod(tab, "sortAlbums", Q_ARG(QVariant, QString("title"))));   // put it back
+        settings->set("sortArtistAlbums", QString());
     }
 
     void withoutTheAlbumsColumnTheArtistShowsAllItsAlbumsAndSongs()

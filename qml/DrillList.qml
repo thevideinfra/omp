@@ -263,6 +263,16 @@ Item {
         rebuildDetail()
     }
 
+    // With "remember sort order" on, the albums column comes back the way it was left.
+    Component.onCompleted: {
+        if (kind !== "artist" || !settingsStore.saveSort) return
+        const parts = settingsStore.sortArtistAlbums.split(",")
+        if (parts[0] === "title" || parts[0] === "year") {
+            albumSortKey = parts[0]
+            albumSortDescending = parts[1] === "desc"
+        }
+    }
+
     // The albums in the chosen order. Albums with no year go last, whichever way it runs.
     function sortedAlbums(groups) {
         const sign = albumSortDescending ? -1 : 1
@@ -287,6 +297,8 @@ Item {
     function sortAlbums(key) {
         if (albumSortKey === key) albumSortDescending = !albumSortDescending
         else { albumSortKey = key; albumSortDescending = false }
+        if (settingsStore.saveSort)
+            settingsStore.set("sortArtistAlbums", albumSortKey + "," + (albumSortDescending ? "desc" : "asc"))
         albumGroups = sortedAlbums(albumGroups)
         fillAlbumModel()
         albumIndex = 0

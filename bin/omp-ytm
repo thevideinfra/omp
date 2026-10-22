@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Reads a YouTube Music account for OMP, through ytmusicapi.
+
+    omp-ytm login   stdin: a pasted "Copy as cURL" (or the raw request headers); prints the login (JSON)
+    omp-ytm check   stdin: the login; prints {"ok": true, "name": ...}
+    omp-ytm sync    stdin: the login; prints JSON lines: progress, tracks and playlists
+
+Errors go to stderr as one JSON line {"code": "auth" | "missing" | "other", "error": ...}; the exit code
+is 2 for a login that no longer works, 3 for a missing module, 1 for anything else.
+"""
+import json
+import re
+import shlex
+import sys
+
+AUTH, MISSING, OTHER = 2, 3, 1
+
+
+def fail(code, exit_code, message):
+    print(json.dumps({"code": code, "error": message}), file=sys.stderr)
+    sys.exit(exit_code)
+
+
+def headers_from_paste(text):
+    """The header lines of a pasted cURL command, or the text itself when it is not one."""
+    text = text.replace("\\\n", " ")
+    if not text.lstrip().startswith("curl"):
+        return text
+    lines = []
+    args = shlex.split(text)
+    i = 0
+    while i < len(args):
+        if args[i] in ("-H", "--header") and i + 1 < len(args):
+            lines.append(args[i + 1])
+            i += 1
+        elif args[i] in ("-b", "--cookie") and i + 1 < len(args):
+            lines.append("cookie: " + args[i + 1])
+            i += 1
+        i += 1
+    return "\n".join(lines)
+
+
+def bigger(url):
+    """A larger picture for a Google thumbnail (=w60-h60-... becomes =w544-h544-...)."""
+    return re.sub(r"=w\d+-h\d+", "=w544-h544", url) if "=w" in url else url
+
+
+def track(raw, album=None, year=0, number=0):
+    video = raw.get("videoId")
+    if not video or raw.get("isAvailable") is False:
+        return None
+    artists = [a["name"] for a in (raw.get("artists") or []) if a.get("name")]
+    album_name = album or (raw.get("album") or {}).get("name") or "YouTube Music"
+    thumbs = raw.get("thumbnails") or []
+    out = {
+        "kind": "track",
+        "path": "ytm:" + video,
+        "title": raw.get("title") or video,
+        "artist": ", ".join(artists) or "Unknown",
+        "album_artist": artists[0] if artists else "Unknown",
+        "album": album_name,
+        "track": number,
+        "disc": 0,
+        "duration": raw.get("duration_seconds") or 0,
+        "size": 0,
+        "mtime": 0,
+    }
+    if year or raw.get("year"):
+        out["year"] = int(year or raw.get("year"))
+    if thumbs:
+        out["cover_id"] = bigger(thumbs[-1]["url"])
+    return out
+
+
+def emit(obj):
+    print(json.dumps(obj), flush=True)
+
+
+def sync(api):
+    seen = set()
+
+    def add(raw, **kw):
+        t = track(raw, **kw)
+        if t and t["path"] not in seen:
+            seen.add(t["path"])
+            emit(t)
+        return t["path"] if t else None
+
+    liked = api.get_liked_songs(limit=None).get("tracks", [])
+    for raw in liked:
+        add(raw)
+    for raw in api.get_library_songs(limit=None):
+        add(raw)
+    albums = api.get_library_albums(limit=None)
+    playlists = [p for p in api.get_library_playlists(limit=None) if p.get("playlistId") not in ("SE",)]
+    total = len(albums) + len(playlists)
+    done = 0
+    for a in albums:
+        try:
+            full = api.get_album(a["browseId"])
+        except Exception:
+            full = None   # one album that will not open does not stop the rest
+        for n, raw in enumerate((full or {}).get("tracks") or [], 1):
+            raw.setdefault("album", {"name": full.get("title")})
+            add(raw, album=full.get("title"), year=full.get("year") or 0, number=raw.get("trackNumber") or n)
+        done += 1
+        emit({"kind": "progress", "done": done, "total": total})
+    for p in playlists:
+        pid = p.get("playlistId")
+        try:
+            tracks = liked if pid == "LM" else api.get_playlist(pid, limit=None).get("tracks", [])
+        except Exception:
+            tracks = []
+        paths = [x for x in (add(raw) for raw in tracks) if x]
+        emit({"kind": "playlist", "id": pid, "name": p.get("title") or pid, "paths": paths})
+        done += 1
+        emit({"kind": "progress", "done": done, "total": total})
+
+
+def main():
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
+    stdin = sys.stdin.read()
+    try:
+        from ytmusicapi import YTMusic
+        from ytmusicapi.auth.browser import setup_browser
+        from ytmusicapi.exceptions import YTMusicServerError, YTMusicUserError
+    except ImportError as e:
+        fail("missing", MISSING, "python-ytmusicapi is not installed (%s)" % e)
+    try:
+        if command == "login":
+            print(setup_browser(None, headers_from_paste(stdin)))
+        elif command in ("check", "sync"):
+            api = YTMusic(stdin.strip())
+            if command == "check":
+                emit({"ok": True, "name": api.get_account_info().get("accountName", "")})
+            else:
+                sync(api)
+        else:
+            fail("other", OTHER, "unknown command %r" % command)
+    except (YTMusicUserError, YTMusicServerError) as e:
+        message = str(e)
+        auth = isinstance(e, YTMusicUserError) or re.search(r"\b(401|403)\b|unauthor|sign in|logged", message, re.I)
+        fail("auth" if auth else "other", AUTH if auth else OTHER, message)
+    except Exception as e:  # network, an unexpected answer
+        message = "%s: %s" % (type(e).__name__, e)
+        # A login that has gone stale is answered with a "sign in" page, which ytmusicapi cannot read.
+        if "signInEndpoint" in message or "Sign in to" in message:
+            fail("auth", AUTH, "YouTube Music says you are signed out")
+        fail("other", OTHER, message[:300])
+
+
+if __name__ == "__main__":
+    main()

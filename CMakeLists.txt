@@ -87,11 +87,12 @@ qt_add_resources(omp icons
 )
 
 configure_file(bin/omp-scan ${CMAKE_BINARY_DIR}/omp-scan COPYONLY)
+configure_file(bin/omp-ytm ${CMAKE_BINARY_DIR}/omp-ytm COPYONLY)
 
 # cmake --install build --prefix ~/.local
 include(GNUInstallDirs)
 install(TARGETS omp RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(PROGRAMS bin/omp-scan DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
+install(PROGRAMS bin/omp-scan bin/omp-ytm DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
 install(FILES data/omp.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES resources/omp-icon.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omp.svg)       # the launcher icon

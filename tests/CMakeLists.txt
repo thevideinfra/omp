@@ -62,5 +62,6 @@ target_compile_definitions(tst_logo PRIVATE OMA_QML_DIR="${CMAKE_SOURCE_DIR}/qml
 add_test(NAME tst_logo COMMAND tst_logo)
 set_tests_properties(tst_logo PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 add_test(NAME test_scan COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_scan.py)
+add_test(NAME test_ytm COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_ytm.py)
 add_test(NAME test_sigterm COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_sigterm.sh $<TARGET_FILE:omp>)
 set_tests_properties(test_sigterm PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)

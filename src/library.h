@@ -54,6 +54,11 @@ public:
     void setRemoteTracks(QVector<Track> tracks) { setRemoteTracks(QStringLiteral("s1"), std::move(tracks)); }
     // Leaves server songs out of the lists when the same song is in a local folder (they stay findable by path).
     void setHideRemoteDuplicates(bool hide);
+    // Sources (by id, like "ytm") whose songs stay out of the lists because they have a tab of their own;
+    // a playlist can still find them by path.
+    void setSeparateSources(const QStringList &serverIds);
+    // All the songs of one source, in the order it gave them (for its own tab).
+    Q_INVOKABLE QVariantList remoteTracksOf(const QString &serverId) const;
     void loadRemoteCache(const QString &serverId = QStringLiteral("s1"));
     // The server songs marked as favorites, in title order.
     QStringList starredRemotePaths(const QString &serverId = QString()) const;   // of one server, or of all
@@ -167,6 +172,7 @@ private:
     QVector<Track> m_tracks;   // both, what the lists are built from
     QVector<Track> m_hidden;   // server songs left out because the same song is local
     bool m_hideDuplicates = false;
+    QStringList m_separate;   // sources kept out of the lists
     QHash<QString, QVector<Track>> m_byAlbum;    // album key -> tracks
     QHash<QString, Track> m_byPath;
     QHash<QString, QVector<Track>> m_byArtist;   // album artist -> tracks

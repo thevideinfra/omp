@@ -73,6 +73,17 @@ private slots:
         QVERIFY(!Track::isRemotePath("/music/subsonic:x"));
     }
 
+    void youtubeMusicPathsAreRemoteSongsOfTheYtmSource()
+    {
+        QCOMPARE(Track::remotePath("ytm", "lKVZKG7CcMU"), QString("ytm:lKVZKG7CcMU"));
+        QVERIFY(Track::isRemotePath("ytm:lKVZKG7CcMU"));
+        QCOMPARE(Track::serverOf("ytm:lKVZKG7CcMU"), QString("ytm"));
+        QCOMPARE(Track::songIdOf("ytm:lKVZKG7CcMU"), QString("lKVZKG7CcMU"));
+        QCOMPARE(Track::songIdOf("ytm:-xFur30vvVc"), QString("-xFur30vvVc"));
+        QCOMPARE(Track::normalized("ytm:lKVZKG7CcMU"), QString("ytm:lKVZKG7CcMU"));
+        QVERIFY(!Track::isRemotePath("/music/ytm:x"));
+    }
+
     void fillsDefaults()
     {
         bool ok = false;

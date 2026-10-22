@@ -613,6 +613,22 @@ void Library::setHideRemoteDuplicates(bool hide)
     combine();
 }
 
+void Library::setSeparateSources(const QStringList &serverIds)
+{
+    if (serverIds == m_separate)
+        return;
+    m_separate = serverIds;
+    combine();
+}
+
+QVariantList Library::remoteTracksOf(const QString &serverId) const
+{
+    QVariantList out;
+    for (const Track &t : m_remote.value(serverId))
+        out << t.toMap();
+    return out;
+}
+
 void Library::combine()
 {
     m_tracks = m_local;
@@ -622,10 +638,11 @@ void Library::combine()
     if (m_hideDuplicates)
         for (const Track &t : std::as_const(m_local))
             localLengths[fold(t.artist) + QChar(0x1f) + fold(t.title) + QChar(0x1f) + fold(t.album)].append(t.duration);
-    for (const QVector<Track> &list : std::as_const(m_remote)) {
-        for (const Track &t : list) {
-            bool duplicate = false;
-            if (m_hideDuplicates) {
+    for (auto source = m_remote.cbegin(); source != m_remote.cend(); ++source) {
+        const bool own = m_separate.contains(source.key());
+        for (const Track &t : source.value()) {
+            bool duplicate = own;
+            if (m_hideDuplicates && !own) {
                 for (double len : localLengths.value(fold(t.artist) + QChar(0x1f) + fold(t.title) + QChar(0x1f) + fold(t.album))) {
                     if (len <= 0 || t.duration <= 0 || qAbs(len - t.duration) <= 2.0) {
                         duplicate = true;

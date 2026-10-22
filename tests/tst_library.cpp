@@ -572,6 +572,25 @@ private slots:
         QCOMPARE(lib.songs()->rowCount(), 6);                               // and it comes back
     }
 
+    void aSeparateSourceStaysOutOfTheListsButItsSongsCanBeFoundAndListed()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks({mk("/m/a.flac", "Alpha", "Amy", "Beta", 1)});
+        lib.setRemoteTracks("ytm", {mk("ytm:aaa", "Yours", "Zed", "Gamma", 1), mk("ytm:bbb", "Also", "Zed", "Gamma", 2)});
+        QCOMPARE(lib.songs()->rowCount(), 3);                                  // merged to begin with
+
+        lib.setSeparateSources({"ytm"});
+        QCOMPARE(lib.songs()->rowCount(), 1);                                  // only the local song is left
+        QCOMPARE(lib.tracksForPaths({"ytm:aaa"}).size(), 1);                   // a playlist still finds its songs
+        const QVariantList own = lib.remoteTracksOf("ytm");
+        QCOMPARE(own.size(), 2);                                               // and the own tab lists them
+        QCOMPARE(own.at(0).toMap().value("path").toString(), QString("ytm:aaa"));
+        QVERIFY(lib.remoteTracksOf("s1").isEmpty());
+
+        lib.setSeparateSources({});
+        QCOMPARE(lib.songs()->rowCount(), 3);                                  // and they come back
+    }
+
     void serverSongsSurviveARestartThroughTheirOwnCache()
     {
         QTemporaryDir state;

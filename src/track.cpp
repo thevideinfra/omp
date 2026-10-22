@@ -94,6 +94,8 @@ QString Track::formatTime(double seconds)
 
 QString Track::remotePath(const QString &serverId, const QString &songId)
 {
+    if (serverId == QLatin1String("ytm"))
+        return QStringLiteral("ytm:") + songId;
     return QStringLiteral("subsonic:") + serverId + QLatin1Char('/') + songId;
 }
 
@@ -101,6 +103,8 @@ QString Track::serverOf(const QString &path)
 {
     if (!isRemotePath(path))
         return {};
+    if (isYoutubePath(path))
+        return QStringLiteral("ytm");
     const int slash = path.indexOf(QLatin1Char('/'));
     return slash < 0 ? QStringLiteral("s1") : path.mid(9, slash - 9);
 }
@@ -109,6 +113,8 @@ QString Track::songIdOf(const QString &path)
 {
     if (!isRemotePath(path))
         return {};
+    if (isYoutubePath(path))
+        return path.mid(4);
     const int slash = path.indexOf(QLatin1Char('/'));
     return slash < 0 ? path.mid(9) : path.mid(slash + 1);
 }

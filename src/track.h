@@ -23,8 +23,13 @@ struct Track
     bool isRemote() const { return isRemotePath(path); }
 
     // A server song's path is "subsonic:<server id>/<song id>". Before there were several servers it
-    // was "subsonic:<song id>"; those belong to the first server, "s1".
-    static bool isRemotePath(const QString &path) { return path.startsWith(QLatin1String("subsonic:")); }
+    // was "subsonic:<song id>"; those belong to the first server, "s1". A YouTube Music song is
+    // "ytm:<video id>" and belongs to the source "ytm".
+    static bool isRemotePath(const QString &path)
+    {
+        return path.startsWith(QLatin1String("subsonic:")) || path.startsWith(QLatin1String("ytm:"));
+    }
+    static bool isYoutubePath(const QString &path) { return path.startsWith(QLatin1String("ytm:")); }
     static QString remotePath(const QString &serverId, const QString &songId);
     static QString serverOf(const QString &path);      // "" for a local path
     static QString songIdOf(const QString &path);

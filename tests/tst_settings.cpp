@@ -249,9 +249,12 @@ private slots:
         {
             Settings s(f);
             QVERIFY(!s.hideServerDuplicates());
+            QVERIFY(!s.ytmSeparateTab());
             s.set("hideServerDuplicates", true);
+            s.set("ytmSeparateTab", true);
         }
         QVERIFY(Settings(f).hideServerDuplicates());
+        QVERIFY(Settings(f).ytmSeparateTab());
     }
 
     void scales()

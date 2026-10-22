@@ -34,6 +34,8 @@ public:
     void start();
     // Follows what the player plays, to scrobble server songs.
     void attach(Player &player);
+    // Downloads a cover for one server; false when that server is not known or not set up yet.
+    bool fetchCover(const QString &serverId, const QString &coverId, const QString &dest);
     // The stream address of a server song's path, or an empty string.
     QString streamUrl(const QString &path) const;
 

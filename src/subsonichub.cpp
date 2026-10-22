@@ -19,9 +19,14 @@ SubsonicHub::SubsonicHub(Servers &servers, Library &library, Playlists &playlist
     connect(&m_servers, &Servers::changed, this, &SubsonicHub::onServersChanged);
     // A server's cover is asked for by its id: hand the request to that server's source.
     m_library.setCoverFetcher([this](const QString &serverId, const QString &coverId, const QString &dest) {
-        SubsonicSource *s = m_sources.value(serverId);
-        return s && s->fetchCover(coverId, dest);
+        return fetchCover(serverId, coverId, dest);
     });
+}
+
+bool SubsonicHub::fetchCover(const QString &serverId, const QString &coverId, const QString &dest)
+{
+    SubsonicSource *s = m_sources.value(serverId);
+    return s && s->fetchCover(coverId, dest);
 }
 
 QString SubsonicHub::softwareName(const QString &type)

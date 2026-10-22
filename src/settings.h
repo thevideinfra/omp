@@ -24,6 +24,7 @@ class Settings : public QObject
     Q_PROPERTY(int replayGainPreamp READ replayGainPreamp NOTIFY changed)
     Q_PROPERTY(bool gapless READ gapless NOTIFY changed)
     Q_PROPERTY(bool hideServerDuplicates READ hideServerDuplicates NOTIFY changed)
+    Q_PROPERTY(bool ytmSeparateTab READ ytmSeparateTab NOTIFY changed)
     Q_PROPERTY(bool railCollapsed READ railCollapsed NOTIFY changed)
     Q_PROPERTY(bool showSourceTags READ showSourceTags NOTIFY changed)
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
@@ -76,6 +77,8 @@ public:
     int replayGainPreamp() const { return m_values.value("replayGainPreamp").toInt(); }      // dB, -15..15
     // Leave out a server song when the same one (artist, title, album, about the same length) is in a local folder.
     bool hideServerDuplicates() const { return m_values.value("hideServerDuplicates").toBool(); }
+    // YouTube Music songs get a tab of their own instead of joining the Songs, Albums and Artists lists.
+    bool ytmSeparateTab() const { return m_values.value("ytmSeparateTab").toBool(); }
     bool gapless() const { return m_values.value("gapless").toBool(); }
     bool saveSort() const { return m_values.value("saveSort").toBool(); }
     QString sortSongs() const { return m_values.value("sortSongs").toString(); }

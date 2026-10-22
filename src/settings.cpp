@@ -59,6 +59,7 @@ const QVector<Key> &keys()
         {"replayGainPreamp", "replay_gain_preamp", Type::Int, 0, {}, 15, -15},
         {"gapless", "gapless", Type::Bool, true, {}},
         {"hideServerDuplicates", "hide_server_duplicates", Type::Bool, false, {}},
+        {"ytmSeparateTab", "ytm_separate_tab", Type::Bool, false, {}},
         {"hiddenTabs", "hidden_tabs", Type::String, QString(), {}},
         {"songColumns", "song_columns", Type::String, QString("title,artist,album,year,time"), {}},
         {"railCollapsed", "rail_collapsed", Type::Bool, false, {}},

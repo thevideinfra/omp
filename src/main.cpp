@@ -26,6 +26,7 @@
 #include "settings.h"
 #include "servers.h"
 #include "subsonichub.h"
+#include "ytmsource.h"
 #include "shell.h"
 #include "theme.h"
 
@@ -119,10 +120,15 @@ int main(int argc, char *argv[])
                                          QCoreApplication::applicationDirPath() + "/omp-scan"),
                     Paths::stateDir() + QStringLiteral("/index.jsonl"));
 
+    const auto ownTabs = [&] {
+        library.setSeparateSources(settings.ytmSeparateTab() ? QStringList{QString::fromLatin1(YtmSource::kId)} : QStringList());
+    };
     library.setHideRemoteDuplicates(settings.hideServerDuplicates());
+    ownTabs();
     QObject::connect(&settings, &Settings::changed, &library, [&] {
         library.setRoots(settings.folders());
         library.setHideRemoteDuplicates(settings.hideServerDuplicates());
+        ownTabs();
     });
 
     // The sort choices come back from the config only when "remember sort order" is on.
@@ -149,9 +155,17 @@ int main(int argc, char *argv[])
     Servers servers;
     servers.migrateFrom(settings);   // the one server of the old settings becomes the first server
     SubsonicHub subsonic(servers, library, playlists, secrets);
+    YtmSource ytm(library, playlists, secrets,
+                  qEnvironmentVariable("OMP_YTM", QCoreApplication::applicationDirPath() + "/omp-ytm"));
+    library.setCoverFetcher([&](const QString &serverId, const QString &coverId, const QString &dest) {
+        return serverId == QLatin1String(YtmSource::kId) ? ytm.fetchCover(coverId, dest)
+                                                         : subsonic.fetchCover(serverId, coverId, dest);
+    });
     player.setPathResolver([&](const QString &path) {
         if (!Track::isRemotePath(path))
             return path;
+        if (Track::isYoutubePath(path))
+            return YtmSource::streamUrl(path);
         const QString url = subsonic.streamUrl(path);
         return url.isEmpty() ? path : url;
     });
@@ -170,6 +184,7 @@ int main(int argc, char *argv[])
     ctx->setContextProperty("playlists", &playlists);
     ctx->setContextProperty("autostart", &autostart);
     ctx->setContextProperty("subsonic", &subsonic);
+    ctx->setContextProperty("ytm", &ytm);
     ctx->setContextProperty("shell", &shell);
 
     engine.loadFromModule("Omamusic", "Main");
@@ -194,6 +209,7 @@ int main(int argc, char *argv[])
     player.start();
     library.start();
     subsonic.start();
+    ytm.start();
     subsonic.attach(player);
     shell.handleVerb(verb);
     return app.exec();

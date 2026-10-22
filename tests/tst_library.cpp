@@ -586,9 +586,12 @@ private slots:
         QCOMPARE(own.size(), 2);                                               // and the own tab lists them
         QCOMPARE(own.at(0).toMap().value("path").toString(), QString("ytm:aaa"));
         QVERIFY(lib.remoteTracksOf("s1").isEmpty());
+        QCOMPARE(lib.separateSongs()->rowCount(), 2);
+        QCOMPARE(lib.separateSongs()->get(1).value("title").toString(), QString("Also"));
 
         lib.setSeparateSources({});
         QCOMPARE(lib.songs()->rowCount(), 3);                                  // and they come back
+        QCOMPARE(lib.separateSongs()->rowCount(), 0);
     }
 
     void serverSongsSurviveARestartThroughTheirOwnCache()

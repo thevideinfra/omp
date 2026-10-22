@@ -55,6 +55,7 @@ qt_add_qml_module(omp
         qml/EqualizerPopup.qml
         qml/LibraryForm.qml
         qml/ServerForm.qml
+        qml/YtmForm.qml
         qml/ChipButton.qml
         qml/TabIcon.qml
         qml/SongMenu.qml

@@ -60,6 +60,10 @@ Canvas {
             line(9, 5.5, 17.5, 5.5); line(9, 10.5, 17.5, 10.5); line(9, 15.5, 17.5, 15.5)
             line(2.5, 10.5, 6, 10.5); line(2.5, 15.5, 6, 15.5)
             break
+        case "youtube music":
+            ctx.beginPath(); ctx.roundedRect ? ctx.roundedRect(2.5, 4, 15, 12, 3, 3) : ctx.rect(2.5, 4, 15, 12); ctx.stroke()
+            triangle(8.3, 7.3, 8.3, 12.7, 12.6, 10)
+            break
         case "server":
             ctx.beginPath(); ctx.roundedRect ? ctx.roundedRect(3, 3.5, 14, 5.5, 1.5, 1.5) : ctx.rect(3, 3.5, 14, 5.5); ctx.stroke()
             ctx.beginPath(); ctx.roundedRect ? ctx.roundedRect(3, 11, 14, 5.5, 1.5, 1.5) : ctx.rect(3, 11, 14, 5.5); ctx.stroke()

@@ -711,7 +711,7 @@ Item {
                     readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
                     readonly property string songPath: root.rowPath(index)
                     readonly property string source: songPath === "" || !settingsStore.showSourceTags ? ""
-                                                     : songPath.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
+                                                     : songPath.indexOf("ytm:") === 0 ? "YT" : songPath.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
                     readonly property bool favorite: { library.starredRevision; return songPath !== "" && library.isStarred(songPath) }
 
                     width: ListView.view.width

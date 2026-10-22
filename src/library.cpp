@@ -103,6 +103,7 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     , m_artists({"key", "title", "subtitle", "meta", "cover", "initial"})
     , m_folder(folderRoles())
     , m_songs(Track::roleNames())
+    , m_separateSongs(Track::roleNames())
     , m_results(Track::roleNames())
 {
     for (QString &r : m_roots)
@@ -653,6 +654,11 @@ void Library::combine()
             (duplicate ? m_hidden : m_tracks).append(t);
         }
     }
+    QVector<QVariantMap> own;
+    for (const QString &id : std::as_const(m_separate))
+        for (const Track &t : m_remote.value(id))
+            own.append(t.toMap());
+    m_separateSongs.setRows(own);
     m_coverCache.clear();
     rebuildGroups();
     browse(m_folderPath);

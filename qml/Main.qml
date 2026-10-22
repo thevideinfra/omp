@@ -16,12 +16,14 @@ ApplicationWindow {
     visible: false
     color: theme.background
 
-    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "Libraries", "Queue", "Settings"]
+    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "YouTube Music", "Libraries", "Queue", "Settings"]
+    // YouTube Music has a tab only when the setting asks for one and there is a login.
+    function tabAvailable(name) { return name !== "YouTube Music" || (settingsStore.ytmSeparateTab && ytm.state !== "off") }
     function isTab(name) { return tabNames[tab] === name }
     readonly property bool drillTab: isTab("Albums") || isTab("Artists") || isTab("Playlists")   // list on the left, songs on the right
     property int tab: 0
     // The tabs the left panel shows (Settings always); Tab cycles through these.
-    readonly property var shownTabs: tabNames.map((n, i) => i).filter(i => tabNames[i] === "Settings" || settingsStore.hiddenTabs.indexOf(tabNames[i]) < 0)
+    readonly property var shownTabs: tabNames.map((n, i) => i).filter(i => tabAvailable(tabNames[i]) && (tabNames[i] === "Settings" || settingsStore.hiddenTabs.indexOf(tabNames[i]) < 0))
     function ensureShownTab() {
         if (shownTabs.indexOf(tab) < 0) tab = shownTabs[0]
     }
@@ -236,7 +238,7 @@ ApplicationWindow {
                         anchors.bottomMargin: S.sp(100)
                         spacing: S.sp(4)
                         Repeater {
-                            model: win.tabNames.filter(n => n !== "Settings" && settingsStore.hiddenTabs.indexOf(n) < 0)
+                            model: win.tabNames.filter(n => n !== "Settings" && win.tabAvailable(n) && settingsStore.hiddenTabs.indexOf(n) < 0)
                             delegate: RailRow {
                                 required property string modelData
                                 width: parent.width
@@ -418,6 +420,19 @@ ApplicationWindow {
                             onPickRequested: (tracks) => picker.openFor(tracks)
                             onContextRequested: (tracks, x, y, canRemove) => win.showContext(tracks, x, y, canRemove)
                             onNewPlaylistRequested: picker.openNew([])
+                        }
+
+                        BrowseList {   // YouTube Music, when it has a tab of its own
+                            onClicked: keyRoot.forceActiveFocus()
+                            songRows: true
+                            table: true
+                            columns: settingsStore.songColumns
+                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
+                            model: library.separateSongs
+                            onActivated: (row) => player.playTracks([library.separateSongs.get(row)], 0)
+                            onEnqueued: (row) => player.enqueue(library.separateSongs.get(row))
+                            onMenuRequested: (row) => picker.openFor([library.separateSongs.get(row)])
+                            onContextRequested: (row, x, y) => win.showContext([library.separateSongs.get(row)], x, y, false)
                         }
 
                         BrowseList {
@@ -651,6 +666,41 @@ ApplicationWindow {
             width: folderList.width
             height: shown ? implicitHeight : 0
             visible: shown
+            Item {   // the YouTube Music account, when there is a login
+                id: ytmCard
+                readonly property bool live: ytm.state === "connected" || ytm.state === "syncing"
+                visible: ytm.state !== "off"
+                width: folderList.width
+                height: visible ? S.sp(64) : 0
+                opacity: live ? 1 : 0.5
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.topMargin: S.sp(8)
+                    color: Qt.alpha(theme.foreground, 0.045)
+                    Rectangle { width: 3; height: parent.height; color: ytmCard.live ? theme.accent : Qt.alpha(theme.foreground, 0.3) }
+                    Rectangle {
+                        id: ytmIcon
+                        x: S.sp(8)
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: folderList.artSize
+                        height: folderList.artSize
+                        radius: S.sp(4)
+                        color: Qt.alpha(theme.foreground, 0.06)
+                        TabIcon {
+                            anchors.centerIn: parent
+                            width: parent.width * 0.5
+                            height: width
+                            kind: "youtube music"
+                            ink: ytmCard.live ? theme.accent : Qt.alpha(theme.foreground, 0.55)
+                        }
+                    }
+                    Column {
+                        anchors { left: ytmIcon.right; leftMargin: S.sp(10); right: parent.right; rightMargin: S.sp(12); verticalCenter: parent.verticalCenter }
+                        UiText { width: parent.width; text: "YouTube Music"; elide: Text.ElideRight }
+                        UiText { width: parent.width; text: ytm.status; color: theme.dimForeground; px: 12; elide: Text.ElideRight }
+                    }
+                }
+            }
             Repeater {
                 model: subsonic.servers
                 Item {

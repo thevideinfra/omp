@@ -182,7 +182,7 @@ ListView {
         required property string cover   // a track path; the art file is looked up lazily
         readonly property string artSource: { library.coverRevision; return cover !== "" ? library.coverFor(cover) : "" }
         readonly property string source: !root.showSource || !settingsStore.showSourceTags || cover === "" ? ""
-                                         : cover.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
+                                         : cover.indexOf("ytm:") === 0 ? "YT" : cover.indexOf("subsonic:") === 0 ? qsTr("server") : qsTr("local")
         readonly property bool favorite: { library.starredRevision; return root.songRows && cover !== "" && library.isStarred(cover) }
 
         readonly property var info: root.table && cover !== "" ? library.trackInfo(cover) : ({})

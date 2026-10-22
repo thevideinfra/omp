@@ -27,6 +27,7 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *albums READ albums CONSTANT)
     Q_PROPERTY(RowsModel *artists READ artists CONSTANT)
     Q_PROPERTY(RowsModel *folder READ folder CONSTANT)
+    Q_PROPERTY(RowsModel *separateSongs READ separateSongs CONSTANT)
     Q_PROPERTY(RowsModel *songs READ songs CONSTANT)
     Q_PROPERTY(RowsModel *results READ results CONSTANT)
     Q_PROPERTY(QString folderPath READ folderPath NOTIFY folderPathChanged)
@@ -92,6 +93,8 @@ public:
     RowsModel *artists() { return &m_artists; }
     RowsModel *folder() { return &m_folder; }
     RowsModel *songs() { return &m_songs; }
+    // The songs of the sources that have a tab of their own, in the order the source gave them.
+    RowsModel *separateSongs() { return &m_separateSongs; }
     RowsModel *results() { return &m_results; }
     QString folderPath() const { return m_folderPath; }
     // Treats every folder as reachable without scanning (for tests).
@@ -193,6 +196,7 @@ private:
     RowsModel m_artists;
     RowsModel m_folder;
     RowsModel m_songs;
+    RowsModel m_separateSongs;
     RowsModel m_results;
     QString m_folderPath;
     QString m_query;

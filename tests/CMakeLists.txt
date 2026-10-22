@@ -28,6 +28,7 @@ oma_test(tst_servers)
 oma_test(tst_scrobble)
 oma_test(tst_subsonic)
 target_sources(tst_subsonic PRIVATE fakesubsonic.h)   # moc for the fake server
+oma_test(tst_ytm)
 oma_test(tst_subsonichub)
 target_sources(tst_subsonichub PRIVATE fakesubsonic.h)
 target_link_libraries(tst_mpris PRIVATE Qt6::DBus)

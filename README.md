@@ -150,6 +150,10 @@ Settings > Library > Subsonic servers lists your servers (Navidrome, Airsonic, S
 - An older single-server setup is carried over as the first server (its settings, cache and keyring password).
 - Not included: offline downloads.
 
+## YouTube Music
+
+Optional, and unofficial. Install `python-ytmusicapi` and `yt-dlp`. In Settings > Library > YouTube Music, log in by pasting a request copied from music.youtube.com in your browser (F12 > Network, filter "browse", right-click a request > Copy > Copy as cURL). The pasted headers are turned into a login by the `omp-ytm` helper and kept in the system keyring through `secret-tool`; they are not written to a file. Your liked songs, library songs, saved albums and playlists then join the library with a **YT** tag (cached in `subsonic-ytm.jsonl` in the state folder, shown at once on the next start, refreshed in the background; Refresh does it by hand). The playlists are read-only. A song plays from `https://music.youtube.com/watch?v=<id>` through mpv and `yt-dlp`, which YouTube's terms of service do not allow and which can break when YouTube changes. There is no ReplayGain, scrobbling or starring for these songs, and gapless is unreliable. The login can stop working (the card then says "Login expired"; paste a fresh one). "YouTube Music in its own tab" keeps its songs out of Songs, Albums and Artists and gives them a tab of their own (a table of songs; its playlists stay in Playlists).
+
 ## Hyprland panel rule
 
 Put this in your Hyprland Lua config (tested on Hyprland 0.56.2; opens the panel centered under the mouse cursor, i.e. under the tray icon you clicked, just below the bar):

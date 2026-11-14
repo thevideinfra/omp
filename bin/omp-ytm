@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Reads a YouTube Music account for OMP, through ytmusicapi.
 
-    omp-ytm login   stdin: a pasted "Copy as cURL" (or the raw request headers); prints the login (JSON)
-    omp-ytm check   stdin: the login; prints {"ok": true, "name": ...}
-    omp-ytm sync    stdin: the login; prints JSON lines: progress, tracks and playlists
+    omp-ytm login     stdin: a pasted "Copy as cURL" (or the raw request headers); prints the login (JSON)
+    omp-ytm browsers  prints the browser profiles that could hold a login: [{"label", "spec"}]
+    omp-ytm check     stdin: the login; prints {"ok": true, "name": ...}
+    omp-ytm sync      stdin: the login; prints JSON lines: progress, tracks and playlists
+
+The login is either the JSON of `login` or a browser spec, "browser:<browser>:<profile folder>" (as printed
+by `browsers`): the cookies are then read from that browser's profile on every run, so they stay fresh.
 
 Errors go to stderr as one JSON line {"code": "auth" | "missing" | "other", "error": ...}; the exit code
 is 2 for a login that no longer works, 3 for a missing module, 1 for anything else.
 """
 import json
+import os
 import re
 import shlex
 import sys
@@ -38,6 +43,61 @@ def headers_from_paste(text):
             i += 1
         i += 1
     return "\n".join(lines)
+
+
+BROWSERS = [  # (label, yt-dlp name, folder under ~/.config, "*" when every folder inside is a browser)
+    ("Brave", "brave", "BraveSoftware/*"),
+    ("Chromium", "chromium", "chromium"),
+    ("Chrome", "chrome", "google-chrome"),
+    ("Edge", "edge", "microsoft-edge"),
+    ("Vivaldi", "vivaldi", "vivaldi"),
+]
+
+
+def find_browsers(home):
+    """The browser profiles (with a cookie file) that could hold a YouTube Music login."""
+    import glob
+    out = []
+    for label, name, folder in BROWSERS:
+        for base in sorted(glob.glob(os.path.join(home, ".config", folder))):
+            kind = os.path.basename(base).replace("-", " ") if "*" in folder else label
+            for profile in sorted(os.listdir(base)) if os.path.isdir(base) else []:
+                path = os.path.join(base, profile)
+                if not (profile == "Default" or profile.startswith("Profile ")):
+                    continue
+                if os.path.exists(os.path.join(path, "Cookies")) or os.path.exists(os.path.join(path, "Network", "Cookies")):
+                    out.append({"label": kind + ("" if profile == "Default" else " (%s)" % profile),
+                                "spec": "browser:%s:%s" % (name, path)})
+    for path in sorted(glob.glob(os.path.join(home, ".mozilla", "firefox", "*.default*"))):
+        if os.path.exists(os.path.join(path, "cookies.sqlite")):
+            out.append({"label": "Firefox", "spec": "browser:firefox:" + path})
+    return out
+
+
+def headers_from_browser(spec):
+    """Request headers for music.youtube.com made from the cookies of a browser profile."""
+    try:
+        from yt_dlp.cookies import extract_cookies_from_browser
+    except ImportError as e:
+        fail("missing", MISSING, "yt-dlp is not installed (%s)" % e)
+    _, name, profile = (spec.split(":", 2) + ["", ""])[:3]
+    try:
+        jar = extract_cookies_from_browser(name, profile or None)
+    except Exception as e:   # no such profile, a locked keyring, an unreadable file
+        fail("other", OTHER, "cannot read the cookies of %s: %s" % (name, str(e)[:200]))
+    cookies = {c.name: c.value for c in jar if c.domain.endswith(("youtube.com", "google.com"))}
+    if "__Secure-3PAPISID" not in cookies and "SAPISID" not in cookies:
+        fail("auth", AUTH, "not signed in to YouTube in that browser: open music.youtube.com there and sign in")
+    return "\n".join([
+        "cookie: " + "; ".join("%s=%s" % kv for kv in cookies.items()),
+        "user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0",
+        "accept: */*",
+        "accept-language: en-US,en;q=0.5",
+        "content-type: application/json",
+        "x-goog-authuser: 0",
+        "x-origin: https://music.youtube.com",
+        "origin: https://music.youtube.com",
+    ])
 
 
 def bigger(url):
@@ -119,6 +179,9 @@ def sync(api):
 
 def main():
     command = sys.argv[1] if len(sys.argv) > 1 else ""
+    if command == "browsers":   # needs no module, so it works before ytmusicapi is installed
+        print(json.dumps(find_browsers(os.path.expanduser("~"))))
+        return
     stdin = sys.stdin.read()
     try:
         from ytmusicapi import YTMusic
@@ -130,7 +193,10 @@ def main():
         if command == "login":
             print(setup_browser(None, headers_from_paste(stdin)))
         elif command in ("check", "sync"):
-            api = YTMusic(stdin.strip())
+            login = stdin.strip()
+            if login.startswith("browser:"):
+                login = setup_browser(None, headers_from_browser(login))
+            api = YTMusic(login)
             if command == "check":
                 emit({"ok": True, "name": api.get_account_info().get("accountName", "")})
             else:

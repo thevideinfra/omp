@@ -18,6 +18,8 @@ class YtmSource : public QObject
     Q_PROPERTY(QString state READ state NOTIFY changed)
     Q_PROPERTY(QString status READ status NOTIFY changed)
     Q_PROPERTY(bool syncing READ syncing NOTIFY changed)
+    // The browser profiles a login can be taken from: label and spec ("browser:<browser>:<folder>").
+    Q_PROPERTY(QVariantList browsers READ browsers NOTIFY browsersChanged)
 
 public:
     static constexpr const char *kId = "ytm";
@@ -36,6 +38,11 @@ public:
     // Downloads a cover (its id is the picture's address) to a file; false when it is not an address.
     bool fetchCover(const QString &coverId, const QString &dest);
 
+    QVariantList browsers() const { return m_browsers; }
+    // Looks for the browsers on this computer (the answer arrives as `browsers`).
+    Q_INVOKABLE void findBrowsers();
+    // Logs in with the cookies of a browser profile (a spec from `browsers`), read again on every sync.
+    Q_INVOKABLE void loginWithBrowser(const QString &spec);
     // Takes pasted request headers (a "Copy as cURL" from music.youtube.com), keeps the login and syncs.
     Q_INVOKABLE void login(const QString &pasted);
     // Forgets the login, the songs, the cache and the playlists.
@@ -44,6 +51,7 @@ public:
 
 signals:
     void changed();
+    void browsersChanged();
 
 private:
     struct Result
@@ -64,7 +72,9 @@ private:
     Playlists &m_playlists;
     Secrets &m_secrets;
     QString m_helper;
-    QString m_loginJson;       // what the keyring holds
+    QString m_loginJson;       // what the keyring holds: the pasted login, or a browser spec
+    bool m_unsaved = false;    // a login not yet proven by a sync, so not yet in the keyring
+    QVariantList m_browsers;
     QString m_state = QStringLiteral("off");
     QString m_status;
     bool m_running = false;

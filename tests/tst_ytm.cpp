@@ -130,6 +130,64 @@ private slots:
         QVERIFY(!QFileInfo::exists(dir.path() + "/seen") || QFile::remove(dir.path() + "/seen"));
     }
 
+    void theBrowsersOfThisComputerAreListed()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        QSignalSpy spy(&e.source, &YtmSource::browsersChanged);
+        e.source.findBrowsers();
+        QTRY_COMPARE(spy.count(), 1);
+        const QVariantList b = e.source.browsers();
+        QCOMPARE(b.size(), 2);
+        QCOMPARE(b.at(0).toMap().value("label").toString(), QString("Brave Origin"));
+        QCOMPARE(b.at(0).toMap().value("spec").toString(), QString("browser:brave:/p/Default"));
+    }
+
+    void aBrowserLoginIsKeptOnceASyncHasWorkedAndTheHelperGetsTheSpecEveryTime()
+    {
+        {
+            Env e(dir.path(), dir.path() + "/omp-ytm");
+            e.source.loginWithBrowser("browser:brave:/p/Default");
+            QTRY_COMPARE(e.source.state(), QString("connected"));
+            QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);
+        }
+        QFile::remove(dir.path() + "/seen");
+        Env again(dir.path(), dir.path() + "/omp-ytm");                        // the next run: the spec comes from the keyring
+        again.source.start();
+        QTRY_COMPARE(again.source.state(), QString("connected"));
+        QFile seen(dir.path() + "/seen");
+        QVERIFY(seen.open(QIODevice::ReadOnly));
+        QVERIFY(seen.readAll().contains("browser:brave:/p/Default"));
+        again.source.loginWithBrowser("not a spec");                           // only specs from the list are taken
+        QCOMPARE(again.source.state(), QString("connected"));
+    }
+
+    void aBrowserThatIsNotSignedInIsNotKept()
+    {
+        qputenv("FAKE_YTM_MODE", "auth");
+        {
+            Env e(dir.path(), dir.path() + "/omp-ytm");
+            e.source.loginWithBrowser("browser:brave:/p/Default");
+            QTRY_COMPARE(e.source.state(), QString("off"));
+            QCOMPARE(e.source.status(), QString("signed out"));                // the helper's own words
+        }
+        qputenv("FAKE_YTM_MODE", "ok");
+        Env again(dir.path(), dir.path() + "/omp-ytm");                        // nothing was kept
+        again.source.start();
+        QTRY_COMPARE(again.source.state(), QString("off"));
+    }
+
+    void anExpiredBrowserLoginSaysWhatToDo()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.loginWithBrowser("browser:brave:/p/Default");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        qputenv("FAKE_YTM_MODE", "auth");
+        e.source.sync();
+        QTRY_COMPARE(e.source.state(), QString("expired"));
+        QVERIFY(e.source.status().contains("sign in"));
+        QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);                   // the cached songs stay
+    }
+
     void aSongPlaysFromItsWatchAddress()
     {
         QCOMPARE(YtmSource::streamUrl("ytm:lKVZKG7CcMU"), QString("https://music.youtube.com/watch?v=lKVZKG7CcMU"));

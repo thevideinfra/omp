@@ -13,6 +13,7 @@ inline QString writeHelper(const QString &dir)
         return {};
     f.write(R"SH(#!/bin/sh
 cmd="$1"
+[ "$cmd" = browsers ] && { echo '[{"label":"Brave Origin","spec":"browser:brave:/p/Default"},{"label":"Firefox","spec":"browser:firefox:/p/ff"}]'; exit 0; }
 input=$(cat)
 case "$cmd" in
   login)

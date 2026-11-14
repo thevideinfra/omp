@@ -3,11 +3,15 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "Scale.js" as S
 
-// YouTube Music: log in with the request headers of a signed-in browser, then its songs and playlists
-// join the library. The login is kept in the system keyring.
+// YouTube Music: log in with a browser that is already signed in to it (its cookies are read again on
+// every sync, so they stay fresh), or with a pasted request. Then its songs and playlists join the library.
+// What is kept in the system keyring is the browser's name, or the pasted login.
 ColumnLayout {
     id: root
     spacing: S.sp(10)
+
+    property bool pasting: false
+    Component.onCompleted: ytm.findBrowsers()
 
     readonly property bool signedIn: ytm.state === "connected" || ytm.state === "syncing" || ytm.state === "offline" || ytm.state === "expired"
 
@@ -27,8 +31,9 @@ ColumnLayout {
             UiText {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: ytm.state === "off" ? qsTr("Not logged in") : ytm.status
-                color: ytm.state === "connected" ? theme.foreground : ytm.state === "syncing" ? theme.dimForeground : theme.danger
+                text: ytm.status !== "" ? ytm.status : qsTr("Not logged in")
+                color: ytm.state === "connected" ? theme.foreground
+                       : ytm.state === "syncing" || ytm.status === "" ? theme.dimForeground : theme.danger
             }
             Row {
                 spacing: S.sp(8)
@@ -38,19 +43,49 @@ ColumnLayout {
         }
     }
 
+    readonly property bool needsLogin: !signedIn || ytm.state === "expired"
+
     UiText {
-        visible: !root.signedIn || ytm.state === "expired"
+        visible: root.needsLogin
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
         color: theme.dimForeground
         px: 12
-        text: qsTr("To log in: open music.youtube.com in your browser while signed in, press F12, open the Network tab and type \"browse\" in the filter. "
+        text: ytm.browsers.length > 0
+              ? qsTr("Sign in to music.youtube.com in a browser first, then pick it here. OMP reads that browser's YouTube cookies each time it syncs.")
+              : qsTr("No browser with a cookie file was found. Paste a request instead.")
+    }
+
+    Flow {
+        visible: root.needsLogin
+        Layout.fillWidth: true
+        Layout.preferredHeight: implicitHeight
+        spacing: S.sp(8)
+        Repeater {
+            model: ytm.browsers
+            ChipButton {
+                required property var modelData
+                text: modelData.label
+                enabled: ytm.state !== "syncing"
+                onClicked: ytm.loginWithBrowser(modelData.spec)
+            }
+        }
+        ChipButton { text: root.pasting ? qsTr("Hide pasting") : qsTr("Paste a request instead"); onClicked: root.pasting = !root.pasting }
+    }
+
+    UiText {
+        visible: root.needsLogin && root.pasting
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        color: theme.dimForeground
+        px: 12
+        text: qsTr("In your browser on music.youtube.com press F12, open the Network tab and type \"browse\" in the filter. "
                    + "Click around in the page so a request shows up, right-click it, choose Copy > Copy as cURL, and paste it here.")
     }
 
     TextArea {
         id: paste
-        visible: !root.signedIn || ytm.state === "expired"
+        visible: root.needsLogin && root.pasting
         Layout.fillWidth: true
         Layout.preferredHeight: S.sp(80)
         wrapMode: TextArea.WrapAnywhere

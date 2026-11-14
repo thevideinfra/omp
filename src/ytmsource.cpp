@@ -98,6 +98,26 @@ void YtmSource::runHelper(const QString &command, const QByteArray &input,
     p->closeWriteChannel();
 }
 
+void YtmSource::findBrowsers()
+{
+    runHelper(QStringLiteral("browsers"), {}, nullptr, [this](const Result &r) {
+        m_browsers.clear();
+        if (r.exitCode == 0)
+            for (const QJsonValue &v : QJsonDocument::fromJson(r.out).array())
+                m_browsers << v.toObject().toVariantMap();
+        emit browsersChanged();
+    });
+}
+
+void YtmSource::loginWithBrowser(const QString &spec)
+{
+    if (!spec.startsWith(QLatin1String("browser:")) || m_running)
+        return;
+    m_loginJson = spec;
+    m_unsaved = true;   // kept in the keyring once a sync has worked
+    sync();
+}
+
 void YtmSource::login(const QString &pasted)
 {
     if (pasted.trimmed().isEmpty())
@@ -110,7 +130,7 @@ void YtmSource::login(const QString &pasted)
             return;
         }
         m_loginJson = QString::fromUtf8(r.out).trimmed();
-        m_secrets.store(kAccount, m_loginJson);
+        m_unsaved = true;
         sync();
     });
 }
@@ -148,12 +168,24 @@ void YtmSource::sync()
     runHelper(QStringLiteral("sync"), m_loginJson.toUtf8(), onLine, [this, tracks, lists](const Result &r) {
         m_running = false;
         if (r.exitCode == 0) {
+            if (m_unsaved)
+                m_secrets.store(kAccount, m_loginJson);
+            m_unsaved = false;
             finishSync(*tracks, *lists);
+            return;
+        }
+        if (m_unsaved) {   // a login that has never worked is dropped, not kept for later
+            m_unsaved = false;
+            m_loginJson.clear();
+            setState(r.errorCode == QLatin1String("missing") ? QStringLiteral("missing") : QStringLiteral("off"),
+                     r.error.isEmpty() ? tr("That login does not work") : r.error);
             return;
         }
         // The cached songs stay in every case.
         if (r.errorCode == QLatin1String("auth"))
-            setState(QStringLiteral("expired"), tr("Login expired: paste fresh request headers"));
+            setState(QStringLiteral("expired"), m_loginJson.startsWith(QLatin1String("browser:"))
+                                                    ? tr("Not signed in: open music.youtube.com in that browser and sign in")
+                                                    : tr("Login expired: log in again"));
         else if (r.errorCode == QLatin1String("missing"))
             setState(QStringLiteral("missing"), r.error);
         else

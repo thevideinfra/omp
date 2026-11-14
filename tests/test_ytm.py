@@ -11,12 +11,15 @@ YTM = Path(__file__).resolve().parent.parent / "bin" / "omp-ytm"
 # A stand-in for ytmusicapi: enough of its shape for the helper, with fixed answers.
 STUB = {
     "ytmusicapi/__init__.py": '''
+import os
 from ytmusicapi.exceptions import YTMusicUserError
 
 class YTMusic:
     def __init__(self, auth=None):
         if "signedout" in (auth or ""):
             raise KeyError("Unable to find path on {'messageRenderer': {'button': {'signInEndpoint': {'hack': True}}}}")
+        if "x=y" in (auth or "") or ("SID=s" not in (auth or "") and "browser" in os.environ.get("OMP_TEST_MODE", "")):
+            raise YTMusicUserError("wrong cookies")
         if "bad" in (auth or ""):
             raise YTMusicUserError("Please provide authentication before using this function")
     def get_account_info(self):
@@ -45,6 +48,16 @@ class YTMusic:
         return {"tracks": [{"videoId": "ddd", "title": "Only In Playlist", "artists": [{"name": "Vic"}], "album": None},
                            {"videoId": "bbb", "title": "Library Two", "artists": [{"name": "Zed"}]}]}
 ''',
+    "yt_dlp/__init__.py": "",
+    "yt_dlp/cookies.py": '''
+import json, os
+from types import SimpleNamespace
+
+def extract_cookies_from_browser(browser, profile=None, *args, **kw):
+    if browser == "nosuch":
+        raise ValueError("could not find nosuch cookies database")
+    return [SimpleNamespace(**c) for c in json.loads(os.environ["OMP_TEST_COOKIES"])]
+''',
     "ytmusicapi/exceptions.py": '''
 class YTMusicError(Exception): pass
 class YTMusicUserError(YTMusicError): pass
@@ -68,8 +81,16 @@ def setup_browser(filepath=None, headers_raw=None):
 }
 
 
-def run(cmd, stdin, stub_dir):
-    env = dict(os.environ, PYTHONPATH=str(stub_dir))
+COOKIES = json.dumps([
+    {"domain": ".youtube.com", "name": "__Secure-3PAPISID", "value": "p"},
+    {"domain": ".google.com", "name": "SID", "value": "s"},
+    {"domain": ".other.com", "name": "x", "value": "y"},
+])
+
+
+def run(cmd, stdin, stub_dir, **extra):
+    env = dict(os.environ, PYTHONPATH=str(stub_dir), OMP_TEST_COOKIES=COOKIES)
+    env.update(extra)
     return subprocess.run([sys.executable, str(YTM), cmd], input=stdin, capture_output=True, text=True, env=env)
 
 
@@ -126,6 +147,38 @@ class OmpYtm(unittest.TestCase):
         r = run("sync", '{"cookie": "signedout"}', self.tmp.name)
         self.assertEqual(r.returncode, 2)
         self.assertEqual(json.loads(r.stderr)["code"], "auth")
+
+    def test_a_browser_login_reads_the_cookies_fresh_and_only_youtube_and_google_ones(self):
+        r = run("sync", "browser:brave:/home/ks/.config/BraveSoftware/Brave-Origin/Default", self.tmp.name, OMP_TEST_MODE="browser")
+        self.assertEqual(r.returncode, 0, r.stderr)                              # the stub refuses cookies of other sites
+        self.assertEqual(json.loads(run("check", "browser:brave:/x", self.tmp.name, OMP_TEST_MODE="browser").stdout), {"ok": True, "name": "Amy"})
+
+    def test_a_browser_that_is_not_signed_in_counts_as_an_expired_login(self):
+        only_other = json.dumps([{"domain": ".other.com", "name": "x", "value": "y"}])
+        r = run("sync", "browser:brave:/x", self.tmp.name, OMP_TEST_COOKIES=only_other)
+        self.assertEqual(r.returncode, 2)
+        self.assertEqual(json.loads(r.stderr)["code"], "auth")
+        bad = run("sync", "browser:nosuch:/x", self.tmp.name)
+        self.assertEqual(bad.returncode, 1)
+        self.assertIn("cannot read the cookies of nosuch", json.loads(bad.stderr)["error"])
+
+    def test_browsers_lists_the_profiles_that_have_cookies(self):
+        with tempfile.TemporaryDirectory() as home:
+            for rel in ("BraveSoftware/Brave-Origin/Default/Cookies", "BraveSoftware/Brave-Browser/Profile 1/Network/Cookies",
+                        "google-chrome/Default/Network/Cookies"):
+                f = Path(home, ".config", rel)
+                f.parent.mkdir(parents=True)
+                f.write_text("")
+            Path(home, ".config", "chromium", "Default").mkdir(parents=True)             # no cookie file: skipped
+            f = Path(home, ".mozilla", "firefox", "abc.default-release", "cookies.sqlite")
+            f.parent.mkdir(parents=True)
+            f.write_text("")
+            r = run("browsers", "", self.tmp.name, HOME=home)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            found = {o["label"]: o["spec"] for o in json.loads(r.stdout)}
+            self.assertEqual(sorted(found), ["Brave Browser (Profile 1)", "Brave Origin", "Chrome", "Firefox"])
+            self.assertEqual(found["Brave Origin"], "browser:brave:%s/.config/BraveSoftware/Brave-Origin/Default" % home)
+            self.assertTrue(found["Firefox"].startswith("browser:firefox:") and found["Firefox"].endswith("abc.default-release"))
 
     def test_login_turns_a_pasted_curl_into_the_login(self):
         paste = "curl 'https://music.youtube.com/youtubei/v1/browse' \\\n  -H 'x-goog-authuser: 0' \\\n  -b 'SID=abc; HSID=def' \\\n  -H 'origin: https://music.youtube.com'"

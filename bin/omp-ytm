@@ -99,6 +99,8 @@ def headers_from_browser(spec):
         "x-goog-authuser: 0",
         "x-origin: https://music.youtube.com",
         "origin: https://music.youtube.com",
+        # ytmusicapi takes headers without this for OAuth; it replaces the value on every request
+        "authorization: SAPISIDHASH placeholder",
     ])
 
 

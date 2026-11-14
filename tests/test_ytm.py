@@ -18,6 +18,9 @@ class YTMusic:
     def __init__(self, auth=None):
         if "signedout" in (auth or ""):
             raise KeyError("Unable to find path on {'messageRenderer': {'button': {'signInEndpoint': {'hack': True}}}}")
+        if "browser" in os.environ.get("OMP_TEST_MODE", "") and "authorization" not in (auth or ""):
+            # what the real library says when the headers lack "authorization": it takes them for OAuth
+            raise YTMusicUserError("oauth JSON provided via auth argument, but oauth_credentials not provided")
         if "x=y" in (auth or "") or ("SID=s" not in (auth or "") and "browser" in os.environ.get("OMP_TEST_MODE", "")):
             raise YTMusicUserError("wrong cookies")
         if "bad" in (auth or ""):

@@ -360,9 +360,8 @@ void Library::setSongDescending(bool on)
 }
 
 // Every key falls back to title, then artist, then album order, so equal keys stay stable.
-void Library::rebuildSongs()
+static void sortSongList(QVector<Track> &songs, const QString &key, bool descending)
 {
-    QVector<Track> songs = m_tracks;
     const auto byTitle = [](const Track &a, const Track &b) {
         if (ciLess(a.title, b.title))
             return true;
@@ -374,7 +373,6 @@ void Library::rebuildSongs()
             return false;
         return trackLess(a, b);
     };
-    const QString key = m_songSort;
     const auto less = [&](const Track &a, const Track &b) {
         if (key == QLatin1String("artist")
             && QString::compare(a.artist, b.artist, Qt::CaseInsensitive) != 0)
@@ -406,13 +404,55 @@ void Library::rebuildSongs()
         return byTitle(a, b);
     };
     std::sort(songs.begin(), songs.end(), less);
-    if (m_songDescending)
+    if (descending)
         std::reverse(songs.begin(), songs.end());
+}
+
+void Library::rebuildSongs()
+{
+    QVector<Track> songs = m_tracks;
+    sortSongList(songs, m_songSort, m_songDescending);
     QVector<QVariantMap> rows;
     rows.reserve(songs.size());
     for (const Track &t : std::as_const(songs))
         rows.append(t.toMap());
     m_songs.setRows(rows);
+}
+
+// The songs of the sources with a tab of their own: the order the source gave them until a sort is chosen.
+void Library::rebuildSeparate()
+{
+    QVector<Track> songs;
+    for (const QString &id : std::as_const(m_separate))
+        songs += m_remote.value(id);
+    if (!m_separateSort.isEmpty())
+        sortSongList(songs, m_separateSort, m_separateDescending);
+    else if (m_separateDescending)
+        std::reverse(songs.begin(), songs.end());
+    QVector<QVariantMap> rows;
+    rows.reserve(songs.size());
+    for (const Track &t : std::as_const(songs))
+        rows.append(t.toMap());
+    m_separateSongs.setRows(rows);
+}
+
+void Library::setSeparateSort(const QString &key)
+{
+    static const QStringList keys{"", "title", "artist", "album", "albumartist", "year", "track", "length", "size", "format", "added", "favorite"};
+    if (!keys.contains(key) || key == m_separateSort)
+        return;
+    m_separateSort = key;
+    rebuildSeparate();
+    emit separateSortChanged();
+}
+
+void Library::setSeparateDescending(bool on)
+{
+    if (on == m_separateDescending)
+        return;
+    m_separateDescending = on;
+    rebuildSeparate();
+    emit separateSortChanged();
 }
 
 void Library::drainScanOutput(bool flush)
@@ -654,11 +694,7 @@ void Library::combine()
             (duplicate ? m_hidden : m_tracks).append(t);
         }
     }
-    QVector<QVariantMap> own;
-    for (const QString &id : std::as_const(m_separate))
-        for (const Track &t : m_remote.value(id))
-            own.append(t.toMap());
-    m_separateSongs.setRows(own);
+    rebuildSeparate();
     m_coverCache.clear();
     rebuildGroups();
     browse(m_folderPath);

@@ -47,6 +47,16 @@ ApplicationWindow {
         }
     }
 
+    // The same for the YouTube Music tab, which starts in the order YouTube gave the songs.
+    function sortSeparateBy(key) {
+        if (library.separateSort === key) {
+            library.separateDescending = !library.separateDescending
+        } else {
+            library.separateSort = key
+            library.separateDescending = false
+        }
+    }
+
     // Opens a tab with this row selected.
     function goTo(tabName, tabItem, key) {
         searchField.text = ""
@@ -428,6 +438,10 @@ ApplicationWindow {
                             table: true
                             columns: settingsStore.songColumns
                             onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
+                            sortable: true
+                            sortKey: library.separateSort
+                            sortDescending: library.separateDescending
+                            onSortRequested: (key) => win.sortSeparateBy(key)
                             model: library.separateSongs
                             onActivated: (row) => player.playTracks([library.separateSongs.get(row)], 0)
                             onEnqueued: (row) => player.enqueue(library.separateSongs.get(row))

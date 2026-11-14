@@ -28,6 +28,9 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *artists READ artists CONSTANT)
     Q_PROPERTY(RowsModel *folder READ folder CONSTANT)
     Q_PROPERTY(RowsModel *separateSongs READ separateSongs CONSTANT)
+    // How the own-tab songs are ordered: "" is the order the source gave them.
+    Q_PROPERTY(QString separateSort READ separateSort WRITE setSeparateSort NOTIFY separateSortChanged)
+    Q_PROPERTY(bool separateDescending READ separateDescending WRITE setSeparateDescending NOTIFY separateSortChanged)
     Q_PROPERTY(RowsModel *songs READ songs CONSTANT)
     Q_PROPERTY(RowsModel *results READ results CONSTANT)
     Q_PROPERTY(QString folderPath READ folderPath NOTIFY folderPathChanged)
@@ -102,6 +105,10 @@ public:
     // A tab's sort as "key,asc" or "key,desc" (tab: "songs", "albums" or "artists"), for storing.
     QString sortState(const QString &tab) const;
     void restoreSortState(const QString &tab, const QString &state);
+    QString separateSort() const { return m_separateSort; }
+    void setSeparateSort(const QString &key);
+    bool separateDescending() const { return m_separateDescending; }
+    void setSeparateDescending(bool on);
     QString songSort() const { return m_songSort; }
     void setSongSort(const QString &key);
     bool songDescending() const { return m_songDescending; }
@@ -143,6 +150,7 @@ signals:
     void coversChanged();
     void offlineChanged();
     void songSortChanged();
+    void separateSortChanged();
     void starredChanged();
     void albumSortChanged();
     void artistSortChanged();
@@ -156,6 +164,7 @@ private:
     bool isOnline(const QString &path) const;
     void finishScan();
     void rebuildSongs();
+    void rebuildSeparate();
     void combine();
     QString remoteCacheFile(const QString &serverId) const;
     void rebuildAlbums();
@@ -176,6 +185,8 @@ private:
     QVector<Track> m_hidden;   // server songs left out because the same song is local
     bool m_hideDuplicates = false;
     QStringList m_separate;   // sources kept out of the lists
+    QString m_separateSort;
+    bool m_separateDescending = false;
     QHash<QString, QVector<Track>> m_byAlbum;    // album key -> tracks
     QHash<QString, Track> m_byPath;
     QHash<QString, QVector<Track>> m_byArtist;   // album artist -> tracks

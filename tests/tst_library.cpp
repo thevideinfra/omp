@@ -589,8 +589,31 @@ private slots:
         QCOMPARE(lib.separateSongs()->rowCount(), 2);
         QCOMPARE(lib.separateSongs()->get(1).value("title").toString(), QString("Also"));
 
+        // The own tab keeps the source's order until a sort is chosen, then sorts like Songs does.
+        lib.setRemoteTracks("ytm", {mk("ytm:c", "Charlie", "Yan", "Omega", 1), mk("ytm:a", "Alpha", "Zed", "Gamma", 2),
+                                    mk("ytm:b", "Bravo", "Amy", "Beta", 3)});
+        const auto order = [&] {
+            QStringList t;
+            for (int i = 0; i < lib.separateSongs()->rowCount(); ++i)
+                t << lib.separateSongs()->get(i).value("title").toString();
+            return t;
+        };
+        QCOMPARE(order(), (QStringList{"Charlie", "Alpha", "Bravo"}));
+        lib.setSeparateSort("title");
+        QCOMPARE(order(), (QStringList{"Alpha", "Bravo", "Charlie"}));
+        lib.setSeparateSort("artist");
+        QCOMPARE(order(), (QStringList{"Bravo", "Charlie", "Alpha"}));          // Amy, Yan, Zed
+        lib.setSeparateSort("album");
+        QCOMPARE(order(), (QStringList{"Bravo", "Alpha", "Charlie"}));          // Beta, Gamma, Omega
+        lib.setSeparateDescending(true);
+        QCOMPARE(order(), (QStringList{"Charlie", "Alpha", "Bravo"}));
+        QCOMPARE(lib.songs()->rowCount(), 1);                                  // Songs has its own sort and does not change
+        lib.setSeparateSort("");
+        lib.setSeparateDescending(false);
+        QCOMPARE(order(), (QStringList{"Charlie", "Alpha", "Bravo"}));
+
         lib.setSeparateSources({});
-        QCOMPARE(lib.songs()->rowCount(), 3);                                  // and they come back
+        QCOMPARE(lib.songs()->rowCount(), 4);                                  // and they come back
         QCOMPARE(lib.separateSongs()->rowCount(), 0);
     }
 

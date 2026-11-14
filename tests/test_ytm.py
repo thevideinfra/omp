@@ -54,6 +54,9 @@ import json, os
 from types import SimpleNamespace
 
 def extract_cookies_from_browser(browser, profile=None, *args, **kw):
+    # yt-dlp guesses the keyring from the desktop; on Hyprland it guesses a plain-text one and cannot read Brave's cookies
+    if browser != "firefox" and kw.get("keyring") != "GNOMEKEYRING":
+        return []
     if browser == "nosuch":
         raise ValueError("could not find nosuch cookies database")
     return [SimpleNamespace(**c) for c in json.loads(os.environ["OMP_TEST_COOKIES"])]

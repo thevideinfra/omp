@@ -82,7 +82,9 @@ def headers_from_browser(spec):
         fail("missing", MISSING, "yt-dlp is not installed (%s)" % e)
     _, name, profile = (spec.split(":", 2) + ["", ""])[:3]
     try:
-        jar = extract_cookies_from_browser(name, profile or None)
+        # Chromium-based browsers keep their cookie key in the Secret Service keyring; yt-dlp would guess the
+        # keyring from the desktop and, on one it does not know (Hyprland), could not decrypt the cookies.
+        jar = extract_cookies_from_browser(name, profile or None, keyring=None if name == "firefox" else "GNOMEKEYRING")
     except Exception as e:   # no such profile, a locked keyring, an unreadable file
         fail("other", OTHER, "cannot read the cookies of %s: %s" % (name, str(e)[:200]))
     cookies = {c.name: c.value for c in jar if c.domain.endswith(("youtube.com", "google.com"))}

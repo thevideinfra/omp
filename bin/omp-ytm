@@ -87,7 +87,18 @@ def headers_from_browser(spec):
         jar = extract_cookies_from_browser(name, profile or None, keyring=None if name == "firefox" else "GNOMEKEYRING")
     except Exception as e:   # no such profile, a locked keyring, an unreadable file
         fail("other", OTHER, "cannot read the cookies of %s: %s" % (name, str(e)[:200]))
-    cookies = {c.name: c.value for c in jar if c.domain.endswith(("youtube.com", "google.com"))}
+    # Only what a browser sends to music.youtube.com: Google keeps copies of the login cookies on google.com
+    # with other values, and merging those in makes YouTube see a signed-out user. The most specific wins.
+    host = "music.youtube.com"
+    chosen = {}
+    for c in jar:
+        domain = c.domain.lstrip(".")
+        if domain.count(".") < 1 or not (host == domain or host.endswith("." + domain)):
+            continue
+        rank = (len(domain), len(getattr(c, "path", "/") or "/"))
+        if c.name not in chosen or rank > chosen[c.name][0]:
+            chosen[c.name] = (rank, c.value)
+    cookies = {name: value for name, (_, value) in chosen.items()}
     if "__Secure-3PAPISID" not in cookies and "SAPISID" not in cookies:
         fail("auth", AUTH, "not signed in to YouTube in that browser: open music.youtube.com there and sign in")
     return "\n".join([

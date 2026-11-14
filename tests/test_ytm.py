@@ -21,7 +21,9 @@ class YTMusic:
         if "browser" in os.environ.get("OMP_TEST_MODE", "") and "authorization" not in (auth or ""):
             # what the real library says when the headers lack "authorization": it takes them for OAuth
             raise YTMusicUserError("oauth JSON provided via auth argument, but oauth_credentials not provided")
-        if "x=y" in (auth or "") or ("SID=s" not in (auth or "") and "browser" in os.environ.get("OMP_TEST_MODE", "")):
+        if "browser" in os.environ.get("OMP_TEST_MODE", "") and ("SID=g" in auth or "gp" in auth or "SID=s" in auth or "SID=m" not in auth or "__Secure-3PAPISID=p" not in auth):
+            raise YTMusicUserError("wrong cookies")
+        if "x=y" in (auth or ""):
             raise YTMusicUserError("wrong cookies")
         if "bad" in (auth or ""):
             raise YTMusicUserError("Please provide authentication before using this function")
@@ -89,7 +91,10 @@ def setup_browser(filepath=None, headers_raw=None):
 
 COOKIES = json.dumps([
     {"domain": ".youtube.com", "name": "__Secure-3PAPISID", "value": "p"},
-    {"domain": ".google.com", "name": "SID", "value": "s"},
+    {"domain": ".youtube.com", "name": "SID", "value": "s"},
+    {"domain": ".google.com", "name": "SID", "value": "g"},          # the same name, another value: not for music.youtube.com
+    {"domain": ".google.com", "name": "__Secure-3PAPISID", "value": "gp"},
+    {"domain": "music.youtube.com", "name": "SID", "value": "m"},   # a more specific cookie wins over .youtube.com's
     {"domain": ".other.com", "name": "x", "value": "y"},
 ])
 
@@ -164,6 +169,8 @@ class OmpYtm(unittest.TestCase):
         r = run("sync", "browser:brave:/x", self.tmp.name, OMP_TEST_COOKIES=only_other)
         self.assertEqual(r.returncode, 2)
         self.assertEqual(json.loads(r.stderr)["code"], "auth")
+        only_google = json.dumps([{"domain": ".google.com", "name": "__Secure-3PAPISID", "value": "gp"}])   # YouTube never saw the login
+        self.assertEqual(run("sync", "browser:brave:/x", self.tmp.name, OMP_TEST_COOKIES=only_google).returncode, 2)
         bad = run("sync", "browser:nosuch:/x", self.tmp.name)
         self.assertEqual(bad.returncode, 1)
         self.assertIn("cannot read the cookies of nosuch", json.loads(bad.stderr)["error"])

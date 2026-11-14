@@ -2,7 +2,7 @@
 Type=Application
 Name=OMP
 Comment=Omarchy Music Player
-Exec=omp
+Exec=@BINARY@
 Icon=omp
 Terminal=false
 Categories=AudioVideo;Audio;Player;

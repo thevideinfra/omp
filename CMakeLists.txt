@@ -95,7 +95,14 @@ configure_file(bin/omp-ytm ${CMAKE_BINARY_DIR}/omp-ytm COPYONLY)
 include(GNUInstallDirs)
 install(TARGETS omp RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(PROGRAMS bin/omp-scan bin/omp-ytm DESTINATION ${CMAKE_INSTALL_BINDIR})   # found beside the binary
-install(FILES data/omp.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+# Exec= is the full path of the installed binary (known only at install time): another omp, a coding
+# agent from mise, can come first on PATH and would be launched instead.
+install(CODE "
+    file(READ \"${CMAKE_SOURCE_DIR}/data/omp.desktop.in\" omp_desktop)
+    string(REPLACE \"@BINARY@\" \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/omp\" omp_desktop \"\${omp_desktop}\")
+    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/applications\")
+    file(WRITE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/applications/omp.desktop\" \"\${omp_desktop}\")
+")
 install(FILES resources/omp-icon.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME omp.svg)       # the launcher icon
 install(FILES resources/omp-symbolic.svg

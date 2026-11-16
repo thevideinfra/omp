@@ -60,6 +60,7 @@ qt_add_qml_module(omp
         qml/YtmCover.qml
         qml/YtmGrid.qml
         qml/YtmHeaderPage.qml
+        qml/YtmHome.qml
         qml/YtmShelf.qml
         qml/YtmForm.qml
         qml/ChipButton.qml

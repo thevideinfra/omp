@@ -1,6 +1,7 @@
 #include "ytmsource.h"
 
 #include <QBuffer>
+#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
@@ -23,6 +24,7 @@ YtmSource::YtmSource(Library &library, Playlists &playlists, Secrets &secrets, c
     : QObject(parent)
     , m_searchSongs(Track::roleNames())
     , m_searchAlbums({"key", "title", "subtitle", "meta", "cover"})
+    , m_history(Track::roleNames())
     , m_library(library)
     , m_playlists(playlists)
     , m_secrets(secrets)
@@ -204,6 +206,7 @@ void YtmSource::finishSync(const QVector<Track> &tracks, const QList<PlaylistDat
     publish();
     setState(QStringLiteral("connected"), tracks.isEmpty() ? tr("Connected, but the account has no songs")
                                                           : tr("Connected: %1 songs").arg(tracks.size()));
+    refreshHistory(true);   // the Home page's "Listen again" follows
 }
 
 void YtmSource::publish()
@@ -421,6 +424,34 @@ bool YtmSource::canShowMore() const
            && qMax(m_searchSongs.rowCount(), m_searchAlbums.rowCount()) >= m_lastLimit;
 }
 
+void YtmSource::refreshHistory(bool force)
+{
+    constexpr qint64 kFreshMs = 10 * 60 * 1000;
+    if (m_loginJson.isEmpty() || m_historyBusy)
+        return;
+    if (!force && m_historyAt > 0 && QDateTime::currentMSecsSinceEpoch() - m_historyAt < kFreshMs)
+        return;
+    m_historyBusy = true;
+    auto tracks = std::make_shared<QVector<Track>>();
+    const auto onLine = [tracks](const QByteArray &line) {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(line, &ok);
+        if (ok)
+            tracks->append(t);
+    };
+    runHelper(QStringLiteral("history"), {}, m_loginJson.toUtf8(), onLine, [this, tracks](const Result &r) {
+        m_historyBusy = false;
+        if (r.exitCode != 0)
+            return;   // what was there stays; the Home page just keeps its last row
+        m_historyAt = QDateTime::currentMSecsSinceEpoch();
+        m_library.setTransientTracks(QStringLiteral("history"), *tracks);
+        QVector<QVariantMap> rows;
+        for (const Track &t : std::as_const(*tracks))
+            rows.append(t.toMap());
+        m_history.setRows(rows);
+    });
+}
+
 void YtmSource::search(const QString &query, int limit)
 {
     const QString q = query.trimmed();
@@ -528,6 +559,9 @@ void YtmSource::logout()
     m_library.removeRemoteCache(id);
     m_data.clear();
     publish();
+    m_history.setRows({});
+    m_library.setTransientTracks(QStringLiteral("history"), {});
+    m_historyAt = 0;
     setState(QStringLiteral("off"), QString());
 }
 

@@ -3,12 +3,12 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "Scale.js" as S
 
-// The YouTube Music area. A top bar chooses Library or Search; Library has Songs (a table) and Artists, Albums
+// The YouTube Music area. A top bar chooses Home (rows of cards), Library or Search; Library has Songs (a table) and Artists, Albums
 // and Playlists (grids of cards). Opening a card shows its page (an album, a playlist or an artist) with a
 // Back button. The search box above the window filters the Library views by title, artist and album.
 Item {
     id: root
-    property string section: "Library"   // Library or Search
+    property string section: "Home"      // Home, Library or Search
     property string view: "Songs"        // in Library: Songs, Artists, Albums or Playlists
     property var pages: []               // the pages opened, one on top of the other; the last one shows
     readonly property var page: pages.length > 0 ? pages[pages.length - 1] : null
@@ -72,6 +72,7 @@ Item {
     // The list the keyboard works on (the same calls as the other tabs).
     readonly property var current: root.page ? pageView.list
                                    : root.section === "Search" ? foundSongs
+                                   : root.section === "Home" ? home
                                    : stack.children[stack.currentIndex]
 
     // Where an album's menu was asked for: the songs arrive a moment later.
@@ -105,7 +106,7 @@ Item {
             ChipButton { visible: root.page !== null; text: "‹  " + qsTr("Back"); onClicked: { root.back(); root.clicked() } }
             Segmented {
                 visible: root.page === null
-                options: ["Library", "Search"]
+                options: ["Home", "Library", "Search"]
                 selected: root.section
                 onPicked: (value) => { root.section = value; root.clicked() }
             }
@@ -149,7 +150,7 @@ Item {
                 id: stack
                 visible: root.page === null
                 anchors.fill: parent
-                currentIndex: root.section === "Search" ? 4 : ["Songs", "Artists", "Albums", "Playlists"].indexOf(root.view)
+                currentIndex: root.section === "Search" ? 5 : root.section === "Home" ? 4 : ["Songs", "Artists", "Albums", "Playlists"].indexOf(root.view)
 
                 BrowseList {   // the songs, in the order YouTube gives them until a header is clicked
                     onClicked: root.clicked()
@@ -197,6 +198,17 @@ Item {
                     onQueued: (row) => player.enqueueTracks(root.playlistSongs(row))
                     onMenuRequested: (row) => root.pickRequested(root.playlistSongs(row))
                     onContextRequested: (row, x, y) => root.contextRequested(root.playlistSongs(row), x, y, false)
+                }
+
+                YtmHome {
+                    id: home
+                    onSongsPlayed: (tracks, start) => player.playTracks(tracks, start)
+                    onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)
+                    onAlbumOpened: (key, title, subtitle, cover) => root.openAlbum(key, title, subtitle, cover)
+                    onArtistOpened: (key, title, cover) => root.openArtist(key, title, cover)
+                    onPlaylistOpened: (row) => { const l = playlists.listOf("ytm").get(row); root.openPlaylist(l.key, l.title, l.playlistId, !l.readOnly, root.playlistSongs(row)[0]?.path ?? "") }
+                    onSeeAll: (view) => { root.view = view; root.section = "Library" }
+                    onVisibleChanged: if (visible) ytm.refreshHistory()
                 }
 
             ColumnLayout {   // songs and albums from all of YouTube Music, not only your library

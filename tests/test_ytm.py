@@ -54,6 +54,12 @@ class YTMusic:
         return [{"browseId": "MPREb_g", "title": "Gamma", "artists": [{"name": "Zed"}], "year": "2019", "type": "Album",
                  "thumbnails": [{"url": "https://lh3.googleusercontent.com/a=w60-h60-l90-rj"}]},
                 {"browseId": "MPREb_s", "title": "Tiny", "artists": [{"name": "Yan"}], "year": None, "type": "Single", "thumbnails": []}]
+    def get_history(self):
+        return [{"videoId": "h1", "title": "Heard Today", "artists": [{"name": "Zed"}], "album": {"name": "Gamma", "id": "MPREb_g"},
+                 "duration_seconds": 201, "played": "Today", "thumbnails": [{"url": "https://lh3.googleusercontent.com/h=w60-h60-l90-rj"}]},
+                {"videoId": "h2", "title": "Heard Yesterday", "artists": [{"name": "Yan"}], "album": None, "played": "Yesterday"},
+                {"videoId": "h1", "title": "Heard Today", "artists": [{"name": "Zed"}], "played": "Yesterday"},
+                {"videoId": None, "title": "Gone", "artists": []}]
     def _log(self, name, *args):
         if os.environ.get("OMP_TEST_LOG"):
             with open(os.environ["OMP_TEST_LOG"], "a") as f:
@@ -236,6 +242,15 @@ class OmpYtm(unittest.TestCase):
             self.assertEqual(sorted(found), ["Brave Browser (Profile 1)", "Brave Origin", "Chrome", "Firefox"])
             self.assertEqual(found["Brave Origin"], "browser:brave:%s/.config/BraveSoftware/Brave-Origin/Default" % home)
             self.assertTrue(found["Firefox"].startswith("browser:firefox:") and found["Firefox"].endswith("abc.default-release"))
+
+    def test_history_lists_what_was_played_most_recent_first_without_repeats(self):
+        r = subprocess.run([sys.executable, str(YTM), "history"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = [json.loads(l) for l in r.stdout.splitlines()]
+        self.assertEqual([t["path"] for t in out], ["ytm:h1", "ytm:h2"])            # a repeat and an unavailable song are dropped
+        self.assertEqual((out[0]["title"], out[0]["album"], out[0]["album_id"]), ("Heard Today", "Gamma", "MPREb_g"))
+        self.assertIn("=w544-h544", out[0]["cover_id"])
 
     def test_the_songs_in_liked_music_are_marked_liked(self):
         tracks = {o["path"]: o for o in self.sync() if o["kind"] == "track"}

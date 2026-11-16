@@ -25,6 +25,8 @@ class YtmSource : public QObject
     // The last search: song rows (the library's song roles) and album rows (key, title, subtitle, meta, cover).
     Q_PROPERTY(RowsModel *searchSongs READ searchSongs CONSTANT)
     Q_PROPERTY(RowsModel *searchAlbums READ searchAlbums CONSTANT)
+    // The songs played lately on YouTube Music, most recent first (the Home page's "Listen again").
+    Q_PROPERTY(RowsModel *history READ history CONSTANT)
     Q_PROPERTY(bool searching READ searching NOTIFY searchChanged)
     Q_PROPERTY(QString searchStatus READ searchStatus NOTIFY searchChanged)
     // The last search came back as full as asked for, and a bigger one is allowed.
@@ -53,6 +55,9 @@ public:
     QVariantList browsers() const { return m_browsers; }
     RowsModel *searchSongs() { return &m_searchSongs; }
     RowsModel *searchAlbums() { return &m_searchAlbums; }
+    RowsModel *history() { return &m_history; }
+    // Reads the play history unless it was read in the last ten minutes (or `force`); needs a login.
+    Q_INVOKABLE void refreshHistory(bool force = false);
     bool searching() const { return m_searching; }
     QString searchStatus() const { return m_searchStatus; }
     bool canShowMore() const;
@@ -125,6 +130,9 @@ private:
     QVariantList m_browsers;
     RowsModel m_searchSongs;
     RowsModel m_searchAlbums;
+    RowsModel m_history;
+    qint64 m_historyAt = 0;     // when it was read, in ms since the epoch
+    bool m_historyBusy = false;
     bool m_searching = false;
     QString m_searchStatus;
     static constexpr int kMostResults = 120;

@@ -10,9 +10,11 @@ ColumnLayout {
     property bool round: false
     property string icon: "albums"
     readonly property real cardWidth: S.sp(160)
+    property bool showSeeAll: false   // a "See all" chip next to the arrows
     signal opened(int row)
     signal played(int row)
     signal contextRequested(int row, real x, real y)
+    signal seeAll()
 
     spacing: S.sp(4)
 
@@ -21,6 +23,7 @@ ColumnLayout {
         Layout.leftMargin: S.sp(12)
         Layout.rightMargin: S.sp(8)
         UiText { text: root.heading; font.bold: true; px: 16; Layout.fillWidth: true }
+        ChipButton { visible: root.showSeeAll; text: qsTr("See all"); onClicked: root.seeAll() }
         ChipButton { text: "‹"; enabled: !row.atXBeginning; onClicked: row.scrollBy(-row.width * 0.8) }
         ChipButton { text: "›"; enabled: !row.atXEnd; onClicked: row.scrollBy(row.width * 0.8) }
     }
@@ -28,7 +31,7 @@ ColumnLayout {
     ListView {
         id: row
         Layout.fillWidth: true
-        Layout.preferredHeight: S.sp(260)
+        Layout.preferredHeight: root.cardWidth + S.sp(58)
         orientation: ListView.Horizontal
         clip: true
         spacing: 0

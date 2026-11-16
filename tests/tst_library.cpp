@@ -634,6 +634,23 @@ private slots:
         QCOMPARE(lib.tracksForPaths({"ytm:s1"}).size(), 0);
     }
 
+    void theLikedSongsOfAnOwnSourceComeInItsOrderUpToALimit()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        Track a = mk("ytm:a", "Alpha", "Zed", "Gamma", 1), b = mk("ytm:b", "Bravo", "Zed", "Gamma", 2);
+        Track c = mk("ytm:c", "Charlie", "Yan", "Omega", 1), d = mk("ytm:d", "Delta", "Yan", "Omega", 2);
+        a.starred = c.starred = d.starred = true;
+        lib.setRemoteTracks("ytm", {a, b, c, d});
+        QVariantList liked = lib.separateLiked("ytm", 10);
+        QCOMPARE(liked.size(), 3);
+        QCOMPARE(liked.at(0).toMap().value("title").toString(), QString("Alpha"));        // the order the source gave them
+        QCOMPARE(liked.at(1).toMap().value("title").toString(), QString("Charlie"));
+        QCOMPARE(lib.separateLiked("ytm", 2).size(), 2);                                  // a limit
+        lib.setStarred("ytm:a", false);
+        QCOMPARE(lib.separateLiked("ytm", 10).size(), 2);                                 // follows the hearts
+        QVERIFY(lib.separateLiked("s1", 10).isEmpty());
+    }
+
     void theOwnTabFiltersByTitleArtistAndAlbumAndKeepsItsAlbumsAndAlbumPlay()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

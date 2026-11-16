@@ -111,6 +111,8 @@ public:
     void setTransientTracks(const QString &group, QVector<Track> tracks);
     // Only the songs and albums whose title, artist or album hold every word of the text.
     Q_INVOKABLE void setSeparateFilter(const QString &text);
+    // The songs of one source that are marked as favorites (liked), in the order the source gave them, up to `limit`.
+    Q_INVOKABLE QVariantList separateLiked(const QString &serverId, int limit) const;
     // The songs of the same album as this one (any source), in track order; empty for an unknown path.
     Q_INVOKABLE QVariantList albumTracksOf(const QString &path) const;
     RowsModel *results() { return &m_results; }

@@ -536,6 +536,18 @@ void Library::setSeparateFilter(const QString &text)
     rebuildSeparate();
 }
 
+QVariantList Library::separateLiked(const QString &serverId, int limit) const
+{
+    QVariantList out;
+    for (const Track &t : m_remote.value(serverId)) {
+        if (out.size() >= limit)
+            break;
+        if (t.starred)
+            out << t.toMap();
+    }
+    return out;
+}
+
 QVariantList Library::separateAlbumTracks(const QString &key) const
 {
     return toList(m_sepByAlbum.value(key));

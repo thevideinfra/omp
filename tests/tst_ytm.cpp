@@ -418,6 +418,35 @@ private slots:
         QTRY_VERIFY(e.source.message().contains("library"));
     }
 
+    void whatWasPlayedLatelyIsFetchedOnceInAWhileAndTheSongsAreKnownByPath()
+    {
+        const auto calls = [&] {
+            QFile f(dir.path() + "/history-calls");
+            return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()).count('\n') : 0;
+        };
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.refreshHistory();                                                             // no login: nothing happens
+        QTest::qWait(100);
+        QCOMPARE(calls(), 0);
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        QTRY_COMPARE(e.source.history()->rowCount(), 2);                                       // fetched after the first sync
+        QCOMPARE(calls(), 1);
+        QCOMPARE(e.source.history()->get(0).value("title").toString(), QString("Heard Today"));
+        QCOMPARE(e.source.history()->get(0).value("path").toString(), QString("ytm:h1"));
+        QCOMPARE(e.library.tracksForPaths({"ytm:h1"}).size(), 1);                              // its cover and queue entry resolve
+        QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);                                   // the library is untouched
+        e.source.refreshHistory();                                                             // fresh: not asked again
+        QTest::qWait(150);
+        QCOMPARE(calls(), 1);
+        e.source.refreshHistory(true);                                                         // unless forced
+        QTRY_COMPARE(calls(), 2);
+        qputenv("FAKE_YTM_MODE", "crash");
+        e.source.refreshHistory(true);
+        QTest::qWait(250);
+        QCOMPARE(e.source.history()->rowCount(), 2);                                           // a failure keeps what was there
+    }
+
     void aSongPlaysFromItsWatchAddress()
     {
         QCOMPARE(YtmSource::streamUrl("ytm:lKVZKG7CcMU"), QString("https://music.youtube.com/watch?v=lKVZKG7CcMU"));

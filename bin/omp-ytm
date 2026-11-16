@@ -6,6 +6,7 @@
     omp-ytm check     stdin: the login; prints {"ok": true, "name": ...}
     omp-ytm sync      stdin: the login; prints JSON lines: progress, tracks and playlists
     omp-ytm search Q [N]  stdin: the login; prints JSON lines: up to N (default 40) tracks and albums that match Q
+    omp-ytm history   stdin: the login; prints the songs played lately (most recent first, each once)
     omp-ytm album ID  stdin: the login; prints the tracks of the album with that browse id
     omp-ytm playlist-create TITLE [VIDEO...] | playlist-add ID VIDEO... | playlist-remove ID VIDEO/SETID...
     omp-ytm playlist-rename ID TITLE | playlist-delete ID | like VIDEO... | unlike VIDEO... | like-album BROWSE_ID
@@ -170,6 +171,17 @@ def album_tracks(api, browse_id):
     return out
 
 
+def history(api, limit=30):
+    seen = set()
+    for raw in api.get_history():
+        t = track(raw)
+        if t and t["path"] not in seen:
+            seen.add(t["path"])
+            emit(t)
+            if len(seen) >= limit:
+                break
+
+
 def search(api, query, limit=40):
     if not query.strip():
         fail("other", OTHER, "nothing to search for")
@@ -314,7 +326,7 @@ def main():
     try:
         if command == "login":
             print(setup_browser(None, headers_from_paste(stdin)))
-        elif command in ("check", "sync", "search", "album") + EDITS:
+        elif command in ("check", "sync", "search", "album", "history") + EDITS:
             login = stdin.strip()
             if login.startswith("browser:"):
                 login = setup_browser(None, headers_from_browser(login))
@@ -322,6 +334,8 @@ def main():
             argument = sys.argv[2] if len(sys.argv) > 2 else ""
             if command == "check":
                 emit({"ok": True, "name": api.get_account_info().get("accountName", "")})
+            elif command == "history":
+                history(api)
             elif command == "search":
                 extra = sys.argv[3] if len(sys.argv) > 3 else ""
                 search(api, argument, int(extra) if extra.isdigit() else 40)

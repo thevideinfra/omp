@@ -154,6 +154,15 @@ private slots:
         window->setColor(theme->background());
         window->resize(1100, 760);
         area->setSize(QSizeF(1100, 760));
+        QVector<QVariantMap> heard;
+        for (int i = 0; i < 8; ++i)
+            heard.append({{"title", QStringLiteral("Song %1 of %2").arg(1 + i % 4).arg(albums[(i * 3) % albums.size()])},
+                          {"subtitle", artists[i % artists.size()]}, {"cover", QStringLiteral("ytm:shot%1_1").arg((i * 3) % albums.size())},
+                          {"path", QStringLiteral("ytm:shot%1_1").arg((i * 3) % albums.size())}});
+        ytm->history()->setRows(heard);
+        area->setProperty("section", "Home");
+        shot("0-home");
+        area->setProperty("section", "Library");
         area->setProperty("view", "Songs");
         shot("1-songs");
         area->setProperty("view", "Artists");
@@ -182,11 +191,14 @@ private slots:
         area->setProperty("view", "Songs");
         library->setRemoteTracks("ytm", {});
         playlists->setServerLists("ytm", {});
+        ytm->history()->setRows({});
     }
 
     void itOpensOnTheLibraryAndHandsTheKeyboardTheListItShows()
     {
-        QCOMPARE(area->property("section").toString(), QString("Library"));
+        QCOMPARE(area->property("section").toString(), QString("Home"));                // it opens on the Home page
+        QVERIFY(area->property("current").value<QObject *>()->property("empty").isValid());
+        area->setProperty("section", "Library");
         QCOMPARE(area->property("view").toString(), QString("Songs"));
         QCOMPARE(library->separateSongs()->rowCount(), 3);
         const auto model = [&] { return area->property("current").value<QObject *>()->property("model").value<QObject *>(); };
@@ -201,6 +213,26 @@ private slots:
         area->setProperty("section", "Search");
         QTRY_COMPARE(model(), qobject_cast<QObject *>(ytm->searchSongs()));   // the keyboard works on the songs found
         area->setProperty("section", "Library");
+        area->setProperty("view", "Songs");
+    }
+
+    void theHomePageShowsRowsOnlyForWhatThereIsAndSeeAllGoesToTheLibrary()
+    {
+        area->setProperty("section", "Home");
+        QObject *home = area->property("current").value<QObject *>();
+        QVERIFY(home);
+        QVERIFY(!home->property("empty").toBool());                                       // the library has albums, artists and a playlist
+        ytm->history()->setRows({QVariantMap{{"title", "Heard"}, {"subtitle", "Zed — Gamma"}, {"cover", "ytm:a"}, {"path", "ytm:a"}}});
+        QCOMPARE(ytm->history()->rowCount(), 1);
+        QSignalSpy played(home, SIGNAL(songsPlayed(QVariant, int)));
+        const QVariant one = QVariantList{QVariantMap{{"path", "ytm:a"}}};
+        QVERIFY(QMetaObject::invokeMethod(home, "songsPlayed", Q_ARG(QVariant, one), Q_ARG(int, 0)));
+        QCOMPARE(played.count(), 1);
+        QCOMPARE(player.played.size(), 1);                                                // a song of a row is played
+        QVERIFY(QMetaObject::invokeMethod(home, "seeAll", Q_ARG(QString, QString("Albums"))));
+        QCOMPARE(area->property("section").toString(), QString("Library"));
+        QCOMPARE(area->property("view").toString(), QString("Albums"));
+        ytm->history()->setRows({});
         area->setProperty("view", "Songs");
     }
 

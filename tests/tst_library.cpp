@@ -634,9 +634,18 @@ private slots:
         QCOMPARE(lib.separateAlbumTracks(key).size(), 2);
         QCOMPARE(lib.separateAlbumTracks(key).at(0).toMap().value("title").toString(), QString("Bravo"));   // in track order
 
+        QCOMPARE(lib.separateArtists()->rowCount(), 2);                        // Yan, Zed
+        QCOMPARE(lib.separateArtists()->get(1).value("title").toString(), QString("Zed"));
+        QCOMPARE(lib.separateArtists()->get(1).value("subtitle").toString(), QString("1 albums"));
+        QCOMPARE(lib.separateArtists()->get(1).value("meta").toString(), QString("2 tracks"));
+        QCOMPARE(lib.separateArtistTracks("Zed").size(), 2);
+        QCOMPARE(lib.separateArtistTracks("Zed").at(0).toMap().value("title").toString(), QString("Bravo"));   // album, then track order
+
         lib.setSeparateFilter("gamma");                                         // by album
         QCOMPARE(lib.separateSongs()->rowCount(), 2);
         QCOMPARE(lib.separateAlbums()->rowCount(), 1);
+        QCOMPARE(lib.separateArtists()->rowCount(), 1);                        // and the artist whose album it is
+        QCOMPARE(lib.separateArtists()->get(0).value("title").toString(), QString("Zed"));
         lib.setSeparateFilter("yan omega");                                     // artist and album together
         QCOMPARE(lib.separateSongs()->rowCount(), 1);
         QCOMPARE(lib.separateAlbums()->get(0).value("title").toString(), QString("Omega"));

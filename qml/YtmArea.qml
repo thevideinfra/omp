@@ -2,11 +2,11 @@ import QtQuick
 import QtQuick.Layouts
 import "Scale.js" as S
 
-// The YouTube Music area: your library as songs, as albums and as playlists. The search box above
+// The YouTube Music area: your library as songs, as artists, as albums and as playlists. The search box above
 // the window filters the songs and albums by title, artist and album.
 Item {
     id: root
-    property string section: "Library"   // Library, Albums or Playlists
+    property string section: "Library"   // Library, Artists, Albums or Playlists
     signal clicked()
     signal columnsRequested(real x, real y)
     signal pickRequested(var tracks)
@@ -31,7 +31,7 @@ Item {
 
         Segmented {
             Layout.margins: S.sp(8)
-            options: ["Library", "Albums", "Playlists"]
+            options: ["Library", "Artists", "Albums", "Playlists"]
             selected: root.section
             onPicked: (value) => { root.section = value; root.clicked() }
         }
@@ -40,7 +40,7 @@ Item {
             id: stack
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: root.section === "Albums" ? 1 : root.section === "Playlists" ? 2 : 0
+            currentIndex: root.section === "Artists" ? 1 : root.section === "Albums" ? 2 : root.section === "Playlists" ? 3 : 0
 
             BrowseList {   // the songs, in the order YouTube gives them until a header is clicked
                 onClicked: root.clicked()
@@ -57,6 +57,15 @@ Item {
                 onEnqueued: (row) => player.enqueue(library.separateSongs.get(row))
                 onMenuRequested: (row) => root.pickRequested([library.separateSongs.get(row)])
                 onContextRequested: (row, x, y) => root.contextRequested([library.separateSongs.get(row)], x, y, false)
+            }
+
+            DrillList {
+                kind: "artist"
+                source: "ytm"
+                model: library.separateArtists
+                onClicked: root.clicked()
+                onPickRequested: (tracks) => root.pickRequested(tracks)
+                onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)
             }
 
             DrillList {

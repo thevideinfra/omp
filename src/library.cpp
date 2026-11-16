@@ -105,6 +105,7 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     , m_songs(Track::roleNames())
     , m_separateSongs(Track::roleNames())
     , m_separateAlbums({"key", "title", "subtitle", "meta", "cover"})
+    , m_separateArtists({"key", "title", "subtitle", "meta", "cover", "initial"})
     , m_results(Track::roleNames())
 {
     for (QString &r : m_roots)
@@ -475,6 +476,45 @@ void Library::rebuildSeparate()
                           {"cover", a.tracks.first().path}});
     }
     m_separateAlbums.setRows(albumRows);
+
+    // Artists, by the album artist; one that none of the words match (by name or by one of its albums) is left out.
+    m_sepByArtist.clear();
+    for (const Track &t : std::as_const(songs))
+        m_sepByArtist[t.albumArtist].append(t);
+    QStringList names = m_sepByArtist.keys();
+    std::sort(names.begin(), names.end(), [](const QString &a, const QString &b) { return ciLess(a, b); });
+    QVector<QVariantMap> artistRows;
+    for (const QString &name : std::as_const(names)) {
+        const QVector<Track> &tracks = m_sepByArtist[name];
+        QSet<QString> albumNames;
+        QString hay = name.toLower();
+        for (const Track &t : tracks) {
+            if (!albumNames.contains(fold(t.album))) {
+                albumNames.insert(fold(t.album));
+                hay += ' ' + t.album.toLower();
+            }
+        }
+        if (!terms.isEmpty() && !matches(hay))
+            continue;
+        artistRows.append({{"key", name},
+                           {"title", name},
+                           {"subtitle", QStringLiteral("%1 albums").arg(albumNames.size())},
+                           {"meta", QStringLiteral("%1 tracks").arg(tracks.size())},
+                           {"cover", std::min_element(tracks.cbegin(), tracks.cend(), trackLess)->path},
+                           {"initial", initialOf(name)}});
+    }
+    m_separateArtists.setRows(artistRows);
+}
+
+QVariantList Library::separateArtistTracks(const QString &key) const
+{
+    QVector<Track> tracks = m_sepByArtist.value(key);
+    std::sort(tracks.begin(), tracks.end(), [](const Track &a, const Track &b) {
+        if (a.album != b.album)
+            return ciLess(a.album, b.album);
+        return trackLess(a, b);
+    });
+    return toList(tracks);
 }
 
 void Library::setSeparateFilter(const QString &text)

@@ -10,7 +10,7 @@ import "Scale.js" as S
 Item {
     id: root
     property string kind: "album"
-    property string source: ""         // albums: "ytm" lists the albums of YouTube Music's own area
+    property string source: ""         // "ytm": the albums or artists of YouTube Music's own area
     property bool allowNew: true       // playlists: show the New playlist button
     property var model
     property bool rightFocus: false
@@ -235,7 +235,7 @@ Item {
         if (kind === "playlist") return library.tracksForPaths(playlists.paths(key))
         if (kind === "album")
             return source === "ytm" ? library.separateAlbumTracks(key) : library.albumTracks(key)
-        return library.artistTracks(key)
+        return source === "ytm" ? library.separateArtistTracks(key) : library.artistTracks(key)
     }
 
     function showRow(row) {
@@ -475,7 +475,7 @@ Item {
             }
 
             SortHeader {
-                visible: root.kind !== "playlist"
+                visible: root.kind !== "playlist" && root.source === ""   // the area's lists are by name
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? implicitHeight : 0
                 options: root.kind === "album" ? [["title", "Title"], ["artist", "Artist"], ["added", "Added"]]

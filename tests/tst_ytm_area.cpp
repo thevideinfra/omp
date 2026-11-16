@@ -106,6 +106,8 @@ private slots:
         const auto list = [&] { return area->property("current").value<QObject *>(); };
         QVERIFY(list());
         QCOMPARE(list()->property("model").value<QObject *>(), qobject_cast<QObject *>(library->separateSongs()));
+        area->setProperty("section", "Artists");
+        QTRY_COMPARE(list()->property("model").value<QObject *>(), qobject_cast<QObject *>(library->separateArtists()));
         area->setProperty("section", "Albums");
         QTRY_COMPARE(list()->property("model").value<QObject *>(), qobject_cast<QObject *>(library->separateAlbums()));
         area->setProperty("section", "Playlists");
@@ -133,6 +135,17 @@ private slots:
         QTRY_COMPARE(list->property("rows").toList().size(), 2);              // Gamma: Alpha, Bravo
         QCOMPARE(list->property("rows").toList().at(0).toMap().value("title").toString(), QString("Alpha"));
         QCOMPARE(list->property("allTracks").toList().size(), 2);
+        area->setProperty("section", "Library");
+    }
+
+    void anArtistOfTheAreaOpensOnItsFirstAlbumAndShowsItsSongs()
+    {
+        area->setProperty("section", "Artists");
+        auto *list = qobject_cast<QQuickItem *>(area->property("current").value<QObject *>());
+        QVERIFY(list);
+        QTRY_COMPARE(list->property("albumGroups").toList().size(), 1);        // Yan: Omega
+        QCOMPARE(list->property("rows").toList().at(0).toMap().value("title").toString(), QString("Charlie"));
+        QCOMPARE(list->property("source").toString(), QString("ytm"));
         area->setProperty("section", "Library");
     }
 

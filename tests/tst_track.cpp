@@ -95,6 +95,15 @@ private slots:
         QVERIFY(!QString::fromUtf8(Track::fromJsonLine(R"({"path":"/m/a.flac"})").toJsonLine()).contains("album_id"));   // not for others
     }
 
+    void aYoutubeMusicSongKeepsTheIdOfItsArtist()
+    {
+        const Track t = Track::fromJsonLine(R"({"path":"ytm:aaa","title":"T","artist_id":"UCzed"})");
+        QCOMPARE(t.artistId, QString("UCzed"));
+        QCOMPARE(Track::fromJsonLine(t.toJsonLine()).artistId, QString("UCzed"));
+        QCOMPARE(t.toMap().value("artistId").toString(), QString("UCzed"));
+        QVERIFY(!QString::fromUtf8(Track::fromJsonLine(R"({"path":"/m/a.flac"})").toJsonLine()).contains("artist_id"));
+    }
+
     void fillsDefaults()
     {
         bool ok = false;

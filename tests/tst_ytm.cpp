@@ -447,6 +447,64 @@ private slots:
         QCOMPARE(e.source.history()->rowCount(), 2);                                           // a failure keeps what was there
     }
 
+    void anArtistPageArrivesAsTopSongsAlbumsAndSingles()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        QSignalSpy spy(&e.source, &YtmSource::artistFetched);
+        e.source.fetchArtist("UCzed");
+        QTRY_COMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toString(), QString("UCzed"));
+        const QVariantMap page = spy.at(0).at(1).toMap();
+        QCOMPARE(page.value("name").toString(), QString("Zed"));
+        QCOMPARE(page.value("description").toString(), QString("Plays things."));
+        QCOMPARE(page.value("tracks").toList().size(), 2);
+        QCOMPARE(page.value("tracks").toList().at(0).toMap().value("artistId").toString(), QString("UCzed"));
+        const QVariantList albums = page.value("albums").toList(), singles = page.value("singles").toList();
+        QCOMPARE(albums.size(), 1);
+        QCOMPARE(singles.size(), 1);
+        QCOMPARE(albums.at(0).toMap().value("key").toString(), QString("MPREb_g"));
+        QCOMPARE(albums.at(0).toMap().value("subtitle").toString(), QString("2019"));
+        QCOMPARE(singles.at(0).toMap().value("meta").toString(), QString("Single"));
+        QVERIFY(!albums.at(0).toMap().value("cover").toString().isEmpty());
+        QCOMPARE(e.library.trackInfo(albums.at(0).toMap().value("cover").toString()).value("albumArtist").toString(), QString("Zed"));   // its picture resolves
+        QCOMPARE(e.library.tracksForPaths({"ytm:t1"}).size(), 1);
+        QFile f(dir.path() + "/artistid");
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll().trimmed(), QByteArray("UCzed"));
+        qputenv("FAKE_YTM_MODE", "crash");
+        e.source.fetchArtist("UCzed");
+        QTRY_COMPARE(spy.count(), 2);
+        QVERIFY(spy.at(1).at(1).toMap().isEmpty());                                        // a failure answers with nothing
+    }
+
+    void aRadioStartsFromASongAndComesBackForAPurpose()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        QSignalSpy spy(&e.source, &YtmSource::radioFetched);
+        e.source.startRadio("ytm:seed9");
+        QTRY_COMPARE(spy.count(), 1);
+        const QVariantList tracks = spy.at(0).at(0).toList();
+        QCOMPARE(tracks.size(), 2);
+        QCOMPARE(tracks.at(0).toMap().value("path").toString(), QString("ytm:seed9"));      // the song itself starts it
+        QFile f(dir.path() + "/radio");
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll().trimmed(), QByteArray("seed9 50"));
+        QCOMPARE(e.library.tracksForPaths({"ytm:r1"}).size(), 1);
+        QVERIFY(e.source.message().contains("Radio: 2 songs"));
+        e.source.startRadio("/m/local.flac");                                                // not a YouTube Music song: nothing
+        e.source.startRadio("ytm:album:MPREb_x");
+        QTest::qWait(150);
+        QCOMPARE(spy.count(), 1);
+        qputenv("FAKE_YTM_MODE", "crash");
+        e.source.startRadio("ytm:seed9");
+        QTRY_VERIFY(e.source.message().contains("boom"));
+        QCOMPARE(spy.count(), 1);                                                            // a failure plays nothing
+    }
+
     void aSongPlaysFromItsWatchAddress()
     {
         QCOMPARE(YtmSource::streamUrl("ytm:lKVZKG7CcMU"), QString("https://music.youtube.com/watch?v=lKVZKG7CcMU"));

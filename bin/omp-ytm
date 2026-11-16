@@ -6,6 +6,8 @@
     omp-ytm check     stdin: the login; prints {"ok": true, "name": ...}
     omp-ytm sync      stdin: the login; prints JSON lines: progress, tracks and playlists
     omp-ytm search Q [N]  stdin: the login; prints JSON lines: up to N (default 40) tracks and albums that match Q
+    omp-ytm artist ID stdin: the login; prints the artist, its top tracks, albums and singles (by channel id)
+    omp-ytm radio VIDEO [N]  stdin: the login; prints a radio: songs like that one, the song first
     omp-ytm history   stdin: the login; prints the songs played lately (most recent first, each once)
     omp-ytm album ID  stdin: the login; prints the tracks of the album with that browse id
     omp-ytm playlist-create TITLE [VIDEO...] | playlist-add ID VIDEO... | playlist-remove ID VIDEO/SETID...
@@ -126,13 +128,24 @@ def bigger(url):
     return re.sub(r"=w\d+-h\d+", "=w544-h544", url) if "=w" in url else url
 
 
+def seconds(text):
+    """Seconds of "3:21" or "1:05:02"; 0 when it is not a time."""
+    try:
+        total = 0
+        for part in str(text).split(":"):
+            total = total * 60 + int(part)
+        return total
+    except ValueError:
+        return 0
+
+
 def track(raw, album=None, year=0, number=0, album_id=None, liked=False):
     video = raw.get("videoId")
     if not video or raw.get("isAvailable") is False:
         return None
     artists = [a["name"] for a in (raw.get("artists") or []) if a.get("name")]
     album_name = album or (raw.get("album") or {}).get("name") or "YouTube Music"
-    thumbs = raw.get("thumbnails") or []
+    thumbs = raw.get("thumbnails") or raw.get("thumbnail") or []   # a watch playlist says "thumbnail"
     out = {
         "kind": "track",
         "path": "ytm:" + video,
@@ -142,7 +155,7 @@ def track(raw, album=None, year=0, number=0, album_id=None, liked=False):
         "album": album_name,
         "track": number,
         "disc": 0,
-        "duration": raw.get("duration_seconds") or 0,
+        "duration": raw.get("duration_seconds") or seconds(raw.get("length") or raw.get("duration")),
         "size": 0,
         "mtime": 0,
     }
@@ -152,6 +165,10 @@ def track(raw, album=None, year=0, number=0, album_id=None, liked=False):
         out["cover_id"] = bigger(thumbs[-1]["url"])
     if liked:
         out["starred"] = True
+    for a in raw.get("artists") or []:
+        if a.get("id"):
+            out["artist_id"] = a["id"]   # the first artist with one, to open its page
+            break
     album_id = (raw.get("album") or {}).get("id") or album_id
     if album_id:
         out["album_id"] = album_id
@@ -169,6 +186,37 @@ def album_tracks(api, browse_id):
         if t:
             out.append(t)
     return out
+
+
+def artist(api, channel_id):
+    page = api.get_artist(channel_id)
+    thumbs = page.get("thumbnails") or []
+    out = {"kind": "artist", "name": page.get("name") or "", "description": page.get("description") or ""}
+    if thumbs:
+        out["cover_id"] = bigger(thumbs[-1]["url"])
+    emit(out)
+    for raw in (page.get("songs") or {}).get("results") or []:
+        t = track(raw)
+        if t:
+            emit(t)
+    for section in ("albums", "singles"):
+        for raw in (page.get(section) or {}).get("results") or []:
+            if not raw.get("browseId"):
+                continue
+            item = {"kind": "album", "id": raw["browseId"], "title": raw.get("title") or "", "artist": page.get("name") or "",
+                    "year": int(raw.get("year") or 0) if str(raw.get("year") or "").isdigit() else 0,
+                    "type": raw.get("type") or ("Single" if section == "singles" else "Album"), "section": section}
+            thumbs = raw.get("thumbnails") or []
+            if thumbs:
+                item["cover_id"] = bigger(thumbs[-1]["url"])
+            emit(item)
+
+
+def radio(api, video_id, limit=40):
+    for raw in api.get_watch_playlist(videoId=video_id, limit=limit, radio=True).get("tracks") or []:
+        t = track(raw)
+        if t:
+            emit(t)
 
 
 def history(api, limit=30):
@@ -326,7 +374,7 @@ def main():
     try:
         if command == "login":
             print(setup_browser(None, headers_from_paste(stdin)))
-        elif command in ("check", "sync", "search", "album", "history") + EDITS:
+        elif command in ("check", "sync", "search", "album", "history", "artist", "radio") + EDITS:
             login = stdin.strip()
             if login.startswith("browser:"):
                 login = setup_browser(None, headers_from_browser(login))
@@ -336,6 +384,11 @@ def main():
                 emit({"ok": True, "name": api.get_account_info().get("accountName", "")})
             elif command == "history":
                 history(api)
+            elif command == "artist":
+                artist(api, argument)
+            elif command == "radio":
+                extra = sys.argv[3] if len(sys.argv) > 3 else ""
+                radio(api, argument, int(extra) if extra.isdigit() else 40)
             elif command == "search":
                 extra = sys.argv[3] if len(sys.argv) > 3 else ""
                 search(api, argument, int(extra) if extra.isdigit() else 40)

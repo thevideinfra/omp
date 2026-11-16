@@ -81,8 +81,9 @@ public:
     Q_INVOKABLE void toggleLike(const QString &path) { liked << path; }
     Q_INVOKABLE void likeAlbum(const QString &id) { albums << id; }
     Q_INVOKABLE void fetchAlbum(const QString &id, const QString &purpose) { fetched << id + "|" + purpose; }
+    Q_INVOKABLE void startRadio(const QString &path) { radios << path; }
     bool loggedIn = false;
-    QStringList liked, albums, fetched;
+    QStringList liked, albums, fetched, radios;
 signals:
     void changed();
 };
@@ -305,6 +306,23 @@ private slots:
         QVERIFY(!entry("favorite")->property("wanted").toBool());              // several songs: no heart
         menu->setProperty("tracks", QVariantList{song("ytm:album:MPREb_x")});  // a search album's stand-in is no song
         QVERIFY(!entry("favorite")->property("wanted").toBool());
+        ytm.loggedIn = false;
+        emit ytm.changed();
+    }
+
+    void aYoutubeMusicSongCanStartARadioWithALogin()
+    {
+        menu->setProperty("tracks", QVariantList{song("ytm:abc")});
+        QVERIFY(!entry("radio")->property("wanted").toBool());                 // not without a login
+        ytm.loggedIn = true;
+        emit ytm.changed();
+        QVERIFY(entry("radio")->property("wanted").toBool());
+        QVERIFY(QMetaObject::invokeMethod(entry("radio"), "triggered"));
+        QCOMPARE(ytm.radios, QStringList({"ytm:abc"}));
+        menu->setProperty("tracks", QVariantList{song("/m/a.flac")});          // only YouTube Music songs have one
+        QVERIFY(!entry("radio")->property("wanted").toBool());
+        menu->setProperty("tracks", QVariantList{song("ytm:a"), song("ytm:b")});
+        QVERIFY(!entry("radio")->property("wanted").toBool());
         ytm.loggedIn = false;
         emit ytm.changed();
     }

@@ -54,6 +54,19 @@ class YTMusic:
         return [{"browseId": "MPREb_g", "title": "Gamma", "artists": [{"name": "Zed"}], "year": "2019", "type": "Album",
                  "thumbnails": [{"url": "https://lh3.googleusercontent.com/a=w60-h60-l90-rj"}]},
                 {"browseId": "MPREb_s", "title": "Tiny", "artists": [{"name": "Yan"}], "year": None, "type": "Single", "thumbnails": []}]
+    def get_artist(self, channelId):
+        return {"name": "Zed", "description": "Plays things.", "thumbnails": [{"url": "https://lh3.googleusercontent.com/z=w60-h60-l90-rj"}],
+                "songs": {"browseId": "VLx", "results": [
+                    {"videoId": "t1", "title": "Top One", "artists": [{"name": "Zed", "id": "UCzed"}], "album": {"name": "Gamma", "id": "MPREb_g"},
+                     "thumbnails": [{"url": "https://lh3.googleusercontent.com/t=w60-h60-l90-rj"}]},
+                    {"videoId": "t2", "title": "Top Two", "artists": [{"name": "Zed", "id": "UCzed"}], "album": None}]},
+                "albums": {"results": [{"title": "Gamma", "type": "Album", "year": "2019", "browseId": "MPREb_g",
+                                        "thumbnails": [{"url": "https://lh3.googleusercontent.com/g=w60-h60-l90-rj"}]}]},
+                "singles": {"results": [{"title": "Tiny", "type": "Single", "year": "2021", "browseId": "MPREb_t", "thumbnails": []}]}}
+    def get_watch_playlist(self, videoId=None, playlistId=None, limit=25, radio=False, shuffle=False):
+        return {"tracks": [{"videoId": videoId, "title": "Seed", "artists": [{"name": "Zed", "id": "UCzed"}], "length": "3:21",
+                            "thumbnail": [{"url": "https://lh3.googleusercontent.com/r=w60-h60-l90-rj"}]},
+                           {"videoId": "r%d" % limit, "title": "Similar", "artists": [{"name": "Yan"}], "length": "1:05:02", "album": {"name": "Omega", "id": "MPREb_o"}}]}
     def get_history(self):
         return [{"videoId": "h1", "title": "Heard Today", "artists": [{"name": "Zed"}], "album": {"name": "Gamma", "id": "MPREb_g"},
                  "duration_seconds": 201, "played": "Today", "thumbnails": [{"url": "https://lh3.googleusercontent.com/h=w60-h60-l90-rj"}]},
@@ -242,6 +255,40 @@ class OmpYtm(unittest.TestCase):
             self.assertEqual(sorted(found), ["Brave Browser (Profile 1)", "Brave Origin", "Chrome", "Firefox"])
             self.assertEqual(found["Brave Origin"], "browser:brave:%s/.config/BraveSoftware/Brave-Origin/Default" % home)
             self.assertTrue(found["Firefox"].startswith("browser:firefox:") and found["Firefox"].endswith("abc.default-release"))
+
+    def test_an_artist_page_lists_top_songs_albums_and_singles(self):
+        r = subprocess.run([sys.executable, str(YTM), "artist", "UCzed"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = [json.loads(l) for l in r.stdout.splitlines()]
+        artist = [o for o in out if o["kind"] == "artist"][0]
+        self.assertEqual((artist["name"], artist["description"]), ("Zed", "Plays things."))
+        self.assertIn("=w544-h544", artist["cover_id"])
+        songs = [o for o in out if o["kind"] == "track"]
+        self.assertEqual([t["path"] for t in songs], ["ytm:t1", "ytm:t2"])
+        self.assertEqual(songs[0]["artist_id"], "UCzed")
+        albums = [o for o in out if o["kind"] == "album"]
+        self.assertEqual([(a["id"], a["section"], a["year"], a["type"]) for a in albums],
+                         [("MPREb_g", "albums", 2019, "Album"), ("MPREb_t", "singles", 2021, "Single")])
+        self.assertNotIn("cover_id", albums[1])
+
+    def test_a_radio_starts_from_a_song_with_lengths_read_from_text(self):
+        r = subprocess.run([sys.executable, str(YTM), "radio", "seed1", "30"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = [json.loads(l) for l in r.stdout.splitlines()]
+        self.assertEqual([t["path"] for t in out], ["ytm:seed1", "ytm:r30"])         # the seed first, then similar songs; 30 asked for
+        self.assertEqual(out[0]["duration"], 201)                                    # "3:21"
+        self.assertEqual(out[1]["duration"], 3902)                                   # "1:05:02"
+        self.assertIn("=w544-h544", out[0]["cover_id"])                              # the watch list calls it "thumbnail"
+        self.assertEqual(out[1]["album_id"], "MPREb_o")
+
+    def test_a_song_carries_the_id_of_its_artist(self):
+        sync = {o["path"]: o for o in self.sync() if o["kind"] == "track"}
+        self.assertNotIn("artist_id", sync["ytm:aaa"])                               # none in this stub's library songs
+        r = subprocess.run([sys.executable, str(YTM), "history"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(r.returncode, 0)
 
     def test_history_lists_what_was_played_most_recent_first_without_repeats(self):
         r = subprocess.run([sys.executable, str(YTM), "history"], input='{"cookie": "ok"}', capture_output=True, text=True,

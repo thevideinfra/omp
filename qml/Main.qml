@@ -797,6 +797,7 @@ ApplicationWindow {
     // "Play album" on a YouTube Music song: the album arrives from YouTube Music, or the library's own songs of it do.
     Connections {
         target: ytm
+        function onRadioFetched(tracks) { if (tracks.length > 0) player.playTracks(tracks, 0) }   // "Start radio"
         function onAlbumFetched(id, purpose, tracks) {
             if (!purpose.startsWith("playAlbum:")) return
             const own = tracks.length > 0 ? tracks : library.albumTracksOf(purpose.substring(10))

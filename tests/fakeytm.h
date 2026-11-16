@@ -18,6 +18,19 @@ input=$(cat)
 case "$cmd" in
   login)
     case "$input" in *curl*) printf '{"cookie": "c1"}\n' ;; *) echo '{"code":"other","error":"no cookie"}' >&2; exit 1 ;; esac ;;
+  artist)
+    case "$FAKE_YTM_MODE" in crash) echo boom >&2; exit 1 ;; esac
+    echo "$2" > "$FAKE_YTM_DIR/artistid"
+    echo '{"kind":"artist","name":"Zed","description":"Plays things.","cover_id":"https://x/z=w544-h544"}'
+    echo '{"kind":"track","path":"ytm:t1","title":"Top One","artist":"Zed","album_artist":"Zed","album":"Gamma","duration":200,"artist_id":"UCzed"}'
+    echo '{"kind":"track","path":"ytm:t2","title":"Top Two","artist":"Zed","album_artist":"Zed","album":"Gamma","duration":180,"artist_id":"UCzed"}'
+    echo '{"kind":"album","id":"MPREb_g","title":"Gamma","artist":"Zed","year":2019,"type":"Album","section":"albums","cover_id":"https://x/g=w544-h544"}'
+    printf '{"kind":"album","id":"MPREb_t","title":"Tiny","artist":"Zed","year":2021,"type":"Single","section":"singles"}' ;;
+  radio)
+    case "$FAKE_YTM_MODE" in crash) echo boom >&2; exit 1 ;; esac
+    echo "$2 $3" > "$FAKE_YTM_DIR/radio"
+    echo '{"kind":"track","path":"ytm:'"$2"'","title":"Seed","artist":"Zed","album_artist":"Zed","album":"Gamma","duration":201}'
+    printf '{"kind":"track","path":"ytm:r1","title":"Similar","artist":"Yan","album_artist":"Yan","album":"Omega","duration":100}' ;;
   history)
     case "$FAKE_YTM_MODE" in crash) echo boom >&2; exit 1 ;; esac
     echo called >> "$FAKE_YTM_DIR/history-calls"

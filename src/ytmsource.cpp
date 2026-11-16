@@ -550,6 +550,91 @@ void YtmSource::fetchAlbum(const QString &browseId, const QString &purpose)
     });
 }
 
+void YtmSource::fetchArtist(const QString &channelId)
+{
+    if (m_loginJson.isEmpty() || channelId.isEmpty()) {
+        emit artistFetched(channelId, {});
+        return;
+    }
+    struct Release { QString id, title, artist, type, cover, section; int year = 0; };
+    auto tracks = std::make_shared<QVector<Track>>();
+    auto releases = std::make_shared<QVector<Release>>();
+    auto head = std::make_shared<QJsonObject>();
+    const auto onLine = [tracks, releases, head](const QByteArray &line) {
+        const QJsonObject o = QJsonDocument::fromJson(line).object();
+        const QString kind = o.value("kind").toString();
+        if (kind == QLatin1String("track")) {
+            bool ok = false;
+            const Track t = Track::fromJsonLine(line, &ok);
+            if (ok)
+                tracks->append(t);
+        } else if (kind == QLatin1String("album")) {
+            releases->append({o.value("id").toString(), o.value("title").toString(), o.value("artist").toString(), o.value("type").toString(),
+                              o.value("cover_id").toString(), o.value("section").toString(), o.value("year").toInt()});
+        } else if (kind == QLatin1String("artist")) {
+            *head = o;
+        }
+    };
+    runHelper(QStringLiteral("artist"), {channelId}, m_loginJson.toUtf8(), onLine, [this, channelId, tracks, releases, head](const Result &r) {
+        if (r.exitCode != 0) {
+            setMessage(tr("Cannot read the artist: %1").arg(r.error));
+            emit artistFetched(channelId, {});
+            return;
+        }
+        QVector<Track> known = *tracks;
+        QVariantList albums, singles;
+        for (const Release &a : std::as_const(*releases)) {
+            Track stand;   // a picture for the card, through a stand-in song that is never listed
+            stand.path = QStringLiteral("ytm:album:") + a.id;
+            stand.title = stand.album = a.title;
+            stand.artist = stand.albumArtist = a.artist;
+            stand.year = a.year;
+            stand.coverId = a.cover;
+            known.append(stand);
+            const QVariantMap card{{"key", a.id}, {"title", a.title}, {"subtitle", a.year > 0 ? QString::number(a.year) : QString()},
+                                   {"meta", a.type}, {"cover", stand.path}};
+            (a.section == QLatin1String("singles") ? singles : albums) << card;
+        }
+        m_library.setTransientTracks(QStringLiteral("artist:") + channelId, known);
+        QVariantList songs;
+        for (const Track &t : std::as_const(*tracks))
+            songs << t.toMap();
+        emit artistFetched(channelId, {{"name", head->value("name").toString()}, {"description", head->value("description").toString()},
+                                       {"coverId", head->value("cover_id").toString()}, {"tracks", songs}, {"albums", albums}, {"singles", singles}});
+    });
+}
+
+void YtmSource::startRadio(const QString &path)
+{
+    const QStringList ids = videoIds({path});
+    if (ids.isEmpty())
+        return;
+    if (!loggedIn()) {
+        setMessage(tr("Log in first"));
+        return;
+    }
+    setMessage(tr("Starting a radio…"));
+    auto tracks = std::make_shared<QVector<Track>>();
+    const auto onLine = [tracks](const QByteArray &line) {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(line, &ok);
+        if (ok)
+            tracks->append(t);
+    };
+    runHelper(QStringLiteral("radio"), {ids.first(), QStringLiteral("50")}, m_loginJson.toUtf8(), onLine, [this, tracks](const Result &r) {
+        if (r.exitCode != 0 || tracks->isEmpty()) {
+            setMessage(tr("Cannot start the radio: %1").arg(r.error.isEmpty() ? tr("nothing came back") : r.error));
+            return;
+        }
+        m_library.setTransientTracks(QStringLiteral("radio"), *tracks);
+        QVariantList out;
+        for (const Track &t : std::as_const(*tracks))
+            out << t.toMap();
+        setMessage(tr("Radio: %1 songs").arg(tracks->size()));
+        emit radioFetched(out);
+    });
+}
+
 void YtmSource::logout()
 {
     const QString id = QString::fromLatin1(kId);

@@ -68,6 +68,7 @@ Menu {
     MenuEntry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
     MenuEntry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
     MenuEntry { objectName: "playAlbum"; wanted: root.single; text: qsTr("Play album"); onTriggered: root.playAlbum() }
+    MenuEntry { objectName: "radio"; wanted: root.youtubeSingle && ytm.loggedIn; text: qsTr("Start radio"); onTriggered: ytm.startRadio(root.tracks[0].path) }
     MenuEntry { objectName: "removeQueue"; wanted: root.queueRow >= 0; text: qsTr("Remove from queue"); onTriggered: root.removeFromQueue() }
     MenuEntry { objectName: "moveUp"; wanted: root.queueRow >= 0; enabled: root.queueRow > 0; text: qsTr("Move up"); onTriggered: root.moveInQueue(-1) }
     MenuEntry { objectName: "moveDown"; wanted: root.queueRow >= 0; enabled: root.queueRow < root.queueCount - 1; text: qsTr("Move down"); onTriggered: root.moveInQueue(1) }

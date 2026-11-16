@@ -179,6 +179,21 @@ private slots:
         const QVariantMap artist = library->separateArtists()->get(0);
         QVERIFY(QMetaObject::invokeMethod(area, "openArtist", Q_ARG(QVariant, artist.value("key")), Q_ARG(QVariant, artist.value("title")), Q_ARG(QVariant, artist.value("cover"))));
         shot("6-artist-page");
+        {   // YouTube's own page for the artist arrives
+            QVariantList cards, tops;
+            for (int i = 0; i < 5; ++i)
+                cards << QVariantMap{{"key", QStringLiteral("MP%1").arg(i)}, {"title", albums[i]}, {"subtitle", QString::number(2001 + i)},
+                                     {"meta", "Album"}, {"cover", QStringLiteral("ytm:shot%1_1").arg(i)}};
+            for (int i = 0; i < 6; ++i)
+                tops << QVariantMap{{"path", QStringLiteral("ytm:shot%1_%2").arg(i).arg(1 + i % 4)}, {"title", QStringLiteral("Top song %1").arg(i + 1)},
+                                    {"artist", artist.value("title")}, {"album", albums[i]}, {"duration", 200 + i * 11}, {"meta", "3:20"}};
+            QVariantMap pg = area->property("page").toMap();
+            QVERIFY(QMetaObject::invokeMethod(area, "push", Q_ARG(QVariant, QVariant(QVariantMap{{"kind", "artist"}, {"key", "x"}, {"title", artist.value("title")},
+                                                {"cover", artist.value("cover")}, {"artistId", "UCx"}, {"tracks", QVariantList{}}, {"albums", QVariantList{}}}))));
+            emit ytm->artistFetched("UCx", {{"name", "x"}, {"tracks", tops}, {"albums", cards}, {"singles", cards.mid(0, 2)}});
+            shot("6b-artist-youtube");
+            QVERIFY(QMetaObject::invokeMethod(area, "back"));
+        }
         QVERIFY(QMetaObject::invokeMethod(area, "back"));
         const QVariantMap list = playlists->listOf("ytm")->get(0);
         QVERIFY(QMetaObject::invokeMethod(area, "openPlaylist", Q_ARG(QVariant, list.value("key")), Q_ARG(QVariant, list.value("title")), Q_ARG(QVariant, list.value("playlistId")),
@@ -288,6 +303,37 @@ private slots:
         QCOMPARE(area->property("pages").toList().size(), 2);
         QVERIFY(QMetaObject::invokeMethod(area, "back"));
         QCOMPARE(area->property("page").toMap().value("kind").toString(), QString("artist"));
+        QVERIFY(QMetaObject::invokeMethod(area, "back"));
+        QCOMPARE(area->property("pages").toList().size(), 0);
+    }
+
+    void youtubesOwnArtistPageReplacesTheLibraryOnesWhenItArrivesAndItsAlbumsOpenFromYoutube()
+    {
+        const QVariant start = QVariantMap{{"kind", "artist"}, {"key", "Zed"}, {"title", "Zed"},
+                                           {"artistId", "UCzed"}, {"tracks", QVariantList{}}, {"albums", QVariantList{}}};
+        QVERIFY(QMetaObject::invokeMethod(area, "push", Q_ARG(QVariant, start)));
+        QCOMPARE(area->property("pages").toList().size(), 1);
+        const QVariantMap card{{"key", "MPREb_x"}, {"title", "Elsewhere"}, {"subtitle", "2020"}, {"meta", "Album"}, {"cover", "ytm:album:MPREb_x"}};
+        const QVariantMap top{{"path", "ytm:t1"}, {"title", "Top One"}, {"artist", "Zed"}, {"album", "Elsewhere"}, {"duration", 200}};
+        emit ytm->artistFetched("UCother", {{"name", "Someone"}, {"tracks", QVariantList{top}}, {"albums", QVariantList{card}}, {"singles", QVariantList{}}});
+        QVERIFY(!area->property("page").toMap().value("youtube").toBool());                  // another artist's answer is ignored
+        emit ytm->artistFetched("UCzed", {{"name", "Zed"}, {"tracks", QVariantList{top}}, {"albums", QVariantList{card}}, {"singles", QVariantList{card}}});
+        const QVariantMap page = area->property("page").toMap();
+        QVERIFY(page.value("youtube").toBool());
+        QVERIFY(page.value("top").toBool());                                                 // the songs are the top songs now
+        QCOMPARE(page.value("tracks").toList().size(), 1);
+        QCOMPARE(page.value("albums").toList().size(), 1);
+        QCOMPARE(page.value("singles").toList().size(), 1);
+        QCOMPARE(area->property("pages").toList().size(), 1);                                // replaced in place, not added
+        // an album of YouTube's shelf: its songs are read, then the page opens on top
+        QVERIFY(QMetaObject::invokeMethod(area, "openYoutubeAlbum", Q_ARG(QVariant, QString("MPREb_x")), Q_ARG(QVariant, QString("Elsewhere")),
+                                          Q_ARG(QVariant, QString("2020")), Q_ARG(QVariant, QString("ytm:album:MPREb_x"))));
+        QCOMPARE(area->property("pages").toList().size(), 1);                                // not before the songs arrive
+        emit ytm->albumFetched("MPREb_x", "open", QVariantList{top});
+        QCOMPARE(area->property("pages").toList().size(), 2);
+        QCOMPARE(area->property("page").toMap().value("kind").toString(), QString("album"));
+        QCOMPARE(area->property("page").toMap().value("albumId").toString(), QString("MPREb_x"));
+        QVERIFY(QMetaObject::invokeMethod(area, "back"));
         QVERIFY(QMetaObject::invokeMethod(area, "back"));
         QCOMPARE(area->property("pages").toList().size(), 0);
     }

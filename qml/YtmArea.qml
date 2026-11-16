@@ -48,6 +48,15 @@ Item {
                albumId: tracks.length > 0 ? (tracks[0].albumId ?? "") : "", meta: minutes(tracks), tracks: tracks })
     }
 
+    // An album that is not in the library (an artist's page, as YouTube has it): its songs are read first.
+    property var pendingAlbums: ({})
+    function openYoutubeAlbum(browseId, title, subtitle, cover) {
+        const wanted = pendingAlbums
+        wanted[browseId] = { title: title, subtitle: subtitle, cover: cover }
+        pendingAlbums = wanted
+        ytm.fetchAlbum(browseId, "open")
+    }
+
     function openArtist(key, title, cover) {
         const tracks = library.separateArtistTracks(key)
         const seen = {}, albums = []
@@ -59,8 +68,10 @@ Item {
             const year = Math.min(...group.map(x => (x.year ?? 0) > 0 ? x.year : 9999))
             albums.push({ key: k, title: t.album, subtitle: year < 9999 ? String(year) : "", cover: t.path })
         })
+        const artistId = tracks.length > 0 ? (tracks[0].artistId ?? "") : ""
         push({ kind: "artist", key: key, title: title, subtitle: qsTr("%1 albums").arg(albums.length), cover: cover,
-               meta: minutes(tracks), tracks: tracks, albums: albums })
+               meta: minutes(tracks), tracks: tracks, albums: albums, artistId: artistId })
+        if (artistId !== "" && ytm.loggedIn) ytm.fetchArtist(artistId)   // YouTube's own page for the artist follows
     }
 
     function openPlaylist(key, title, playlistId, editable, cover) {
@@ -80,7 +91,23 @@ Item {
     property real menuY: 0
     Connections {
         target: ytm
+        function onArtistFetched(channelId, data) {
+            // The artist page opened from the library gets YouTube's top songs, albums and singles when they arrive.
+            const top = root.page
+            if (!top || top.kind !== "artist" || top.artistId !== channelId || !data.name) return
+            const songs = data.tracks.length > 0 ? data.tracks : top.tracks
+            const enriched = Object.assign({}, top, { youtube: true, top: data.tracks.length > 0, tracks: songs, meta: root.minutes(songs),
+                                                      albums: data.albums, singles: data.singles, subtitle: qsTr("%1 albums").arg(data.albums.length) })
+            root.pages = root.pages.slice(0, -1).concat([enriched])
+        }
         function onAlbumFetched(id, purpose, tracks) {
+            if (purpose === "open") {
+                const info = root.pendingAlbums[id]
+                if (!info || tracks.length === 0) return
+                root.push({ kind: "album", key: id, title: info.title, subtitle: info.subtitle, cover: info.cover, albumId: id,
+                            meta: root.minutes(tracks), tracks: tracks })
+                return
+            }
             if (tracks.length === 0) return
             if (purpose === "play") player.playTracks(tracks, 0)
             else if (purpose === "queue") player.enqueueTracks(tracks)
@@ -139,7 +166,14 @@ Item {
                 onEnqueueRequested: (tracks) => player.enqueueTracks(tracks)
                 onPickRequested: (tracks) => root.pickRequested(tracks)
                 onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)
-                onAlbumOpened: (key, title, subtitle, cover) => root.openAlbum(key, title, subtitle, cover)
+                onAlbumOpened: (key, title, subtitle, cover) => root.page && root.page.youtube ? root.openYoutubeAlbum(key, title, subtitle, cover)
+                                                                                         : root.openAlbum(key, title, subtitle, cover)
+                onAlbumPlayRequested: (key) => root.page && root.page.youtube ? ytm.fetchAlbum(key, "play") : player.playTracks(library.separateAlbumTracks(key), 0)
+                onAlbumMenuRequested: (key, x, y) => {
+                    if (root.page && root.page.youtube) { root.menuX = x; root.menuY = y; ytm.fetchAlbum(key, "menu") }
+                    else root.contextRequested(library.separateAlbumTracks(key), x, y, false)
+                }
+                onRadioRequested: (path) => ytm.startRadio(path)
                 onLikeAlbumRequested: (id) => ytm.likeAlbum(id)
                 onRenameRequested: (name) => { ytm.renamePlaylist("ytm", root.page.playlistId, name); root.back() }
                 onDeleteRequested: { ytm.deletePlaylist("ytm", root.page.playlistId); root.back() }

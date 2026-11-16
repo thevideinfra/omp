@@ -81,6 +81,11 @@ public:
     // Reads the songs of an album from YouTube Music; they come back with `albumFetched` (empty on failure).
     // `purpose` is handed back untouched ("play", "queue", "menu"...).
     Q_INVOKABLE void fetchAlbum(const QString &browseId, const QString &purpose);
+    // Reads an artist's page (by channel id): { name, description, cover, tracks (top songs), albums, singles } where the
+    // albums and singles are card rows (key, title, subtitle, meta, cover). Empty on failure. Comes back with `artistFetched`.
+    Q_INVOKABLE void fetchArtist(const QString &channelId);
+    // A radio of songs like this one (a YouTube Music song's path); the songs come back with `radioFetched`, the song first.
+    Q_INVOKABLE void startRadio(const QString &path);
     // Looks for the browsers on this computer (the answer arrives as `browsers`).
     Q_INVOKABLE void findBrowsers();
     // Logs in with the cookies of a browser profile (a spec from `browsers`), read again on every sync.
@@ -97,6 +102,8 @@ signals:
     void searchChanged();
     void messageChanged();
     void albumFetched(const QString &browseId, const QString &purpose, const QVariantList &tracks);
+    void artistFetched(const QString &channelId, const QVariantMap &page);
+    void radioFetched(const QVariantList &tracks);
 
 private:
     struct Item { QString path, setId; };   // a song of a playlist, and YouTube's id for it in that playlist

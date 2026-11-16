@@ -617,6 +617,44 @@ private slots:
         QCOMPARE(lib.separateSongs()->rowCount(), 0);
     }
 
+    void theOwnTabFiltersByTitleArtistAndAlbumAndKeepsItsAlbumsAndAlbumPlay()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks({mk("/m/a.flac", "Local", "Amy", "Beta", 1)});
+        Track a = mk("ytm:a", "Alpha", "Zed", "Gamma", 2);  a.year = 2019;
+        Track b = mk("ytm:b", "Bravo", "Zed", "Gamma", 1);
+        Track c = mk("ytm:c", "Charlie", "Yan", "Omega", 1);
+        lib.setRemoteTracks("ytm", {a, b, c});
+        lib.setSeparateSources({"ytm"});
+        QCOMPARE(lib.separateAlbums()->rowCount(), 2);                         // Gamma and Omega, by title
+        QCOMPARE(lib.separateAlbums()->get(0).value("title").toString(), QString("Gamma"));
+        QCOMPARE(lib.separateAlbums()->get(0).value("meta").toString(), QString("2 tracks"));
+        QCOMPARE(lib.separateAlbums()->get(0).value("subtitle").toString(), QString("Zed  ·  2019"));
+        const QString key = lib.separateAlbums()->get(0).value("key").toString();
+        QCOMPARE(lib.separateAlbumTracks(key).size(), 2);
+        QCOMPARE(lib.separateAlbumTracks(key).at(0).toMap().value("title").toString(), QString("Bravo"));   // in track order
+
+        lib.setSeparateFilter("gamma");                                         // by album
+        QCOMPARE(lib.separateSongs()->rowCount(), 2);
+        QCOMPARE(lib.separateAlbums()->rowCount(), 1);
+        lib.setSeparateFilter("yan omega");                                     // artist and album together
+        QCOMPARE(lib.separateSongs()->rowCount(), 1);
+        QCOMPARE(lib.separateAlbums()->get(0).value("title").toString(), QString("Omega"));
+        lib.setSeparateFilter("zed brav");                                      // by artist and part of a title
+        QCOMPARE(lib.separateSongs()->rowCount(), 1);
+        lib.setSeparateFilter("nothing like it");
+        QCOMPARE(lib.separateSongs()->rowCount(), 0);
+        lib.setSeparateFilter("");
+        QCOMPARE(lib.separateSongs()->rowCount(), 3);
+
+        // "Play album": the songs of the same album as a song, wherever the song is listed.
+        const QVariantList album = lib.albumTracksOf("ytm:a");
+        QCOMPARE(album.size(), 2);
+        QCOMPARE(album.at(0).toMap().value("path").toString(), QString("ytm:b"));
+        QCOMPARE(lib.albumTracksOf("/m/a.flac").size(), 1);                     // a local song works too
+        QVERIFY(lib.albumTracksOf("/m/none.flac").isEmpty());
+    }
+
     void serverSongsSurviveARestartThroughTheirOwnCache()
     {
         QTemporaryDir state;

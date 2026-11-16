@@ -28,6 +28,7 @@ class Library : public QObject
     Q_PROPERTY(RowsModel *artists READ artists CONSTANT)
     Q_PROPERTY(RowsModel *folder READ folder CONSTANT)
     Q_PROPERTY(RowsModel *separateSongs READ separateSongs CONSTANT)
+    Q_PROPERTY(RowsModel *separateAlbums READ separateAlbums CONSTANT)
     // How the own-tab songs are ordered: "" is the order the source gave them.
     Q_PROPERTY(QString separateSort READ separateSort WRITE setSeparateSort NOTIFY separateSortChanged)
     Q_PROPERTY(bool separateDescending READ separateDescending WRITE setSeparateDescending NOTIFY separateSortChanged)
@@ -98,6 +99,13 @@ public:
     RowsModel *songs() { return &m_songs; }
     // The songs of the sources that have a tab of their own, in the order the source gave them.
     RowsModel *separateSongs() { return &m_separateSongs; }
+    // The albums of those sources (same rows as `albums`), and an album's songs by its key.
+    RowsModel *separateAlbums() { return &m_separateAlbums; }
+    Q_INVOKABLE QVariantList separateAlbumTracks(const QString &key) const;
+    // Only the songs and albums whose title, artist or album hold every word of the text.
+    Q_INVOKABLE void setSeparateFilter(const QString &text);
+    // The songs of the same album as this one (any source), in track order; empty for an unknown path.
+    Q_INVOKABLE QVariantList albumTracksOf(const QString &path) const;
     RowsModel *results() { return &m_results; }
     QString folderPath() const { return m_folderPath; }
     // Treats every folder as reachable without scanning (for tests).
@@ -208,6 +216,9 @@ private:
     RowsModel m_folder;
     RowsModel m_songs;
     RowsModel m_separateSongs;
+    RowsModel m_separateAlbums;
+    QHash<QString, QVector<Track>> m_sepByAlbum;   // those sources' songs by album, track order
+    QString m_separateFilter;
     RowsModel m_results;
     QString m_folderPath;
     QString m_query;

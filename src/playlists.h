@@ -23,6 +23,11 @@ public:
     static QString cleanName(const QString &name);
 
     RowsModel *list() { return &m_list; }
+    // The lists of one source alone (same rows as `list`), kept up to date; they stay even when the source is
+    // hidden from `list`.
+    Q_INVOKABLE RowsModel *listOf(const QString &serverId);
+    // Sources whose lists are left out of `list` (they have a tab of their own); their songs still know them.
+    void setHiddenSources(const QStringList &serverIds);
     Q_PROPERTY(int revision READ revision NOTIFY changed)
     int revision() const { return m_revision; }
     // The names of the playlists (local first, then the server's) that hold this song.
@@ -76,4 +81,6 @@ private:
     int m_revision = 0;
     QString m_dir;
     RowsModel m_list;
+    QStringList m_hidden;
+    QMap<QString, RowsModel *> m_sourceLists;
 };

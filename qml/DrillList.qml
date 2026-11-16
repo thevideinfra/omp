@@ -10,6 +10,8 @@ import "Scale.js" as S
 Item {
     id: root
     property string kind: "album"
+    property string source: ""         // albums: "ytm" lists the albums of YouTube Music's own area
+    property bool allowNew: true       // playlists: show the New playlist button
     property var model
     property bool rightFocus: false
     property bool midFocus: false      // artists: the albums column has the keyboard
@@ -231,7 +233,9 @@ Item {
     function tracksOf(row) {
         const key = model.get(row).key
         if (kind === "playlist") return library.tracksForPaths(playlists.paths(key))
-        return kind === "album" ? library.albumTracks(key) : library.artistTracks(key)
+        if (kind === "album")
+            return source === "ytm" ? library.separateAlbumTracks(key) : library.albumTracks(key)
+        return library.artistTracks(key)
     }
 
     function showRow(row) {
@@ -482,7 +486,7 @@ Item {
             }
 
             Rectangle {
-                visible: root.kind === "playlist"
+                visible: root.kind === "playlist" && root.allowNew
                 Layout.margins: visible ? S.sp(8) : 0
                 Layout.preferredWidth: newText.implicitWidth + S.sp(20)
                 Layout.preferredHeight: visible ? S.sp(30) : 0

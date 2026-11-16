@@ -250,11 +250,14 @@ private slots:
             Settings s(f);
             QVERIFY(!s.hideServerDuplicates());
             QVERIFY(!s.ytmSeparateTab());
+            QVERIFY(s.ytmPlaylistsInPlaylists());                    // on by default
+            s.set("ytmPlaylistsInPlaylists", false);
             s.set("hideServerDuplicates", true);
             s.set("ytmSeparateTab", true);
         }
         QVERIFY(Settings(f).hideServerDuplicates());
         QVERIFY(Settings(f).ytmSeparateTab());
+        QVERIFY(!Settings(f).ytmPlaylistsInPlaylists());
     }
 
     void scales()

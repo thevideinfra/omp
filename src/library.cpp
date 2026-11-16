@@ -104,6 +104,7 @@ Library::Library(const QStringList &roots, const QString &scanProgram, const QSt
     , m_folder(folderRoles())
     , m_songs(Track::roleNames())
     , m_separateSongs(Track::roleNames())
+    , m_separateAlbums({"key", "title", "subtitle", "meta", "cover"})
     , m_results(Track::roleNames())
 {
     for (QString &r : m_roots)
@@ -425,15 +426,81 @@ void Library::rebuildSeparate()
     QVector<Track> songs;
     for (const QString &id : std::as_const(m_separate))
         songs += m_remote.value(id);
-    if (!m_separateSort.isEmpty())
-        sortSongList(songs, m_separateSort, m_separateDescending);
-    else if (m_separateDescending)
-        std::reverse(songs.begin(), songs.end());
-    QVector<QVariantMap> rows;
-    rows.reserve(songs.size());
+    // The albums come from every song, the song list is what the filter leaves.
+    m_sepByAlbum.clear();
     for (const Track &t : std::as_const(songs))
+        m_sepByAlbum[albumKey(t)].append(t);
+    for (QVector<Track> &list : m_sepByAlbum)
+        std::sort(list.begin(), list.end(), trackLess);
+
+    const QStringList terms = m_separateFilter.toLower().split(' ', Qt::SkipEmptyParts);
+    const auto matches = [&](const QString &hay) {
+        return std::all_of(terms.cbegin(), terms.cend(), [&](const QString &term) { return hay.contains(term); });
+    };
+    QVector<Track> shown;
+    for (const Track &t : std::as_const(songs))
+        if (terms.isEmpty() || matches((t.title + ' ' + t.artist + ' ' + t.album).toLower()))
+            shown.append(t);
+    if (!m_separateSort.isEmpty())
+        sortSongList(shown, m_separateSort, m_separateDescending);
+    else if (m_separateDescending)
+        std::reverse(shown.begin(), shown.end());
+    QVector<QVariantMap> rows;
+    rows.reserve(shown.size());
+    for (const Track &t : std::as_const(shown))
         rows.append(t.toMap());
     m_separateSongs.setRows(rows);
+
+    struct Album { QString key, name, artist; QVector<Track> tracks; };
+    QVector<Album> albums;
+    for (auto it = m_sepByAlbum.cbegin(); it != m_sepByAlbum.cend(); ++it) {
+        const Track &first = it.value().first();
+        if (terms.isEmpty() || matches((first.album + ' ' + first.albumArtist).toLower()))
+            albums.append({it.key(), first.album, first.albumArtist, it.value()});
+    }
+    std::sort(albums.begin(), albums.end(), [](const Album &a, const Album &b) {
+        const int c = QString::compare(a.name, b.name, Qt::CaseInsensitive);
+        return c != 0 ? c < 0 : ciLess(a.artist, b.artist);
+    });
+    QVector<QVariantMap> albumRows;
+    for (const Album &a : std::as_const(albums)) {
+        int year = 0;
+        for (const Track &t : a.tracks)
+            if (t.year > 0 && (year == 0 || t.year < year))
+                year = t.year;
+        albumRows.append({{"key", a.key},
+                          {"title", a.name},
+                          {"subtitle", year > 0 ? QStringLiteral("%1  ·  %2").arg(a.artist).arg(year) : a.artist},
+                          {"meta", QStringLiteral("%1 tracks").arg(a.tracks.size())},
+                          {"cover", a.tracks.first().path}});
+    }
+    m_separateAlbums.setRows(albumRows);
+}
+
+void Library::setSeparateFilter(const QString &text)
+{
+    if (text == m_separateFilter)
+        return;
+    m_separateFilter = text;
+    rebuildSeparate();
+}
+
+QVariantList Library::separateAlbumTracks(const QString &key) const
+{
+    return toList(m_sepByAlbum.value(key));
+}
+
+QVariantList Library::albumTracksOf(const QString &path) const
+{
+    const auto it = m_byPath.constFind(Track::normalized(path));
+    if (it == m_byPath.cend())
+        return {};
+    const QString key = albumKey(*it);
+    QVector<Track> tracks = m_byAlbum.value(key);
+    if (tracks.isEmpty())
+        tracks = m_sepByAlbum.value(key);
+    std::sort(tracks.begin(), tracks.end(), trackLess);
+    return toList(tracks);
 }
 
 void Library::setSeparateSort(const QString &key)

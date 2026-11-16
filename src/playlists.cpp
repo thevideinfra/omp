@@ -173,20 +173,46 @@ void Playlists::reload()
                      {"serverId", QString()},
                      {"playlistId", QString()}});
     }
-    for (const QList<ServerList> &lists : std::as_const(m_server)) {
-        for (const ServerList &s : lists) {
-            rows.append({{"key", serverKey(s)},
-                         {"title", s.name},
-                         {"subtitle", QStringLiteral("%1 songs").arg(s.paths.size())},
-                         {"meta", s.source},
-                         {"cover", QString()},
-                         {"readOnly", s.readOnly},
-                         {"serverId", s.serverId},
-                         {"playlistId", s.id}});
-        }
-    }
+    const auto rowOf = [](const ServerList &s) {
+        return QVariantMap{{"key", serverKey(s)},
+                           {"title", s.name},
+                           {"subtitle", QStringLiteral("%1 songs").arg(s.paths.size())},
+                           {"meta", s.source},
+                           {"cover", QString()},
+                           {"readOnly", s.readOnly},
+                           {"serverId", s.serverId},
+                           {"playlistId", s.id}};
+    };
+    for (const QList<ServerList> &lists : std::as_const(m_server))
+        for (const ServerList &s : lists)
+            if (!m_hidden.contains(s.serverId))
+                rows.append(rowOf(s));
     m_list.setRows(rows);
+    for (auto it = m_sourceLists.cbegin(); it != m_sourceLists.cend(); ++it) {
+        QVector<QVariantMap> own;
+        for (const ServerList &s : m_server.value(it.key()))
+            own.append(rowOf(s));
+        it.value()->setRows(own);
+    }
     emit changed();
+}
+
+RowsModel *Playlists::listOf(const QString &serverId)
+{
+    RowsModel *&model = m_sourceLists[serverId];
+    if (!model) {
+        model = new RowsModel({"key", "title", "subtitle", "meta", "cover", "readOnly", "serverId", "playlistId"}, this);
+        reload();
+    }
+    return model;
+}
+
+void Playlists::setHiddenSources(const QStringList &serverIds)
+{
+    if (serverIds == m_hidden)
+        return;
+    m_hidden = serverIds;
+    reload();
 }
 
 bool Playlists::create(const QString &name)

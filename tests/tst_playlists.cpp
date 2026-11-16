@@ -97,6 +97,31 @@ private slots:
         QCOMPARE(p.list()->rowCount(), 2);
     }
 
+    void aSourceCanKeepItsListsOutOfThePlaylistsTabYetStillHaveAListOfItsOwn()
+    {
+        QTemporaryDir dir;
+        Playlists p(dir.path());
+        QVERIFY(p.create("Mine"));
+        p.setServerLists("s1", {{"Road", {"subsonic:s1/1"}, "p1", "s1", "Home"}});
+        p.setServerLists("ytm", {{"Mix", {"ytm:a", "ytm:b"}, "PL1", "ytm", "YouTube Music"}, {"Liked", {"ytm:a"}, "LM", "ytm", "YouTube Music"}});
+        RowsModel *own = p.listOf("ytm");
+        QCOMPARE(p.list()->rowCount(), 4);                                    // shown with the others at first
+        QCOMPARE(own->rowCount(), 2);
+        QCOMPARE(own->get(0).value("title").toString(), QString("Mix"));
+
+        p.setHiddenSources({"ytm"});
+        QCOMPARE(p.list()->rowCount(), 2);                                    // Mine and Road
+        QCOMPARE(own->rowCount(), 2);                                         // its own list is untouched
+        const QString key = own->get(0).value("key").toString();
+        QCOMPARE(p.paths(key), QStringList({"ytm:a", "ytm:b"}));              // and can still be opened
+        QCOMPARE(p.namesFor("ytm:a"), QStringList({"Mix", "Liked"}));         // a song still knows its playlists
+
+        p.setServerLists("ytm", {});
+        QCOMPARE(own->rowCount(), 0);
+        p.setHiddenSources({});
+        QCOMPARE(p.list()->rowCount(), 2);
+    }
+
     void eachServerHasItsOwnPlaylistsEvenWithTheSameName()
     {
         QTemporaryDir dir;

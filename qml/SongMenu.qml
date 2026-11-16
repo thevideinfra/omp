@@ -29,6 +29,11 @@ Menu {
     function play() { player.playTracks(tracks, 0) }
     function enqueue() { player.enqueueTracks(tracks) }
     function playNext() { player.playNext(tracks) }
+    // The whole album of a single song, from its first track.
+    function playAlbum() {
+        const album = library.albumTracksOf(tracks[0].path)
+        player.playTracks(album.length > 0 ? album : tracks, 0)
+    }
     function removeFromQueue() { player.removeAt(queueRow) }
     function moveInQueue(delta) { player.moveRow(queueRow, queueRow + delta) }
     function toggleFavorite() { subsonic.toggleStar(tracks[0].path) }
@@ -50,6 +55,7 @@ Menu {
     MenuEntry { objectName: "play"; text: qsTr("Play"); enabled: root.tracks.length > 0; onTriggered: root.play() }
     MenuEntry { objectName: "next"; text: qsTr("Play next"); enabled: root.tracks.length > 0; onTriggered: root.playNext() }
     MenuEntry { objectName: "queue"; text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onTriggered: root.enqueue() }
+    MenuEntry { objectName: "playAlbum"; wanted: root.single; text: qsTr("Play album"); onTriggered: root.playAlbum() }
     MenuEntry { objectName: "removeQueue"; wanted: root.queueRow >= 0; text: qsTr("Remove from queue"); onTriggered: root.removeFromQueue() }
     MenuEntry { objectName: "moveUp"; wanted: root.queueRow >= 0; enabled: root.queueRow > 0; text: qsTr("Move up"); onTriggered: root.moveInQueue(-1) }
     MenuEntry { objectName: "moveDown"; wanted: root.queueRow >= 0; enabled: root.queueRow < root.queueCount - 1; text: qsTr("Move down"); onTriggered: root.moveInQueue(1) }

@@ -112,6 +112,14 @@ ColumnLayout {
         onToggled: (v) => settingsStore.set("ytmSeparateTab", v)
     }
 
+    ToggleRow {
+        visible: settingsStore.ytmSeparateTab
+        Layout.fillWidth: true
+        label: qsTr("Show YouTube Music playlists in Playlists")
+        checked: settingsStore.ytmPlaylistsInPlaylists
+        onToggled: (v) => settingsStore.set("ytmPlaylistsInPlaylists", v)
+    }
+
     UiText {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap

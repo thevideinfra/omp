@@ -150,6 +150,12 @@ int main(int argc, char *argv[])
     QObject::connect(&settings, &Settings::changed, &settings, storeSort);   // switching the option on stores the current ones
 
     Playlists playlists;   // declared before the engine: its context property must outlive the QML
+    const auto ytmPlaylists = [&] {   // in its own area, its playlists leave the Playlists tab unless asked to stay
+        playlists.setHiddenSources(settings.ytmSeparateTab() && !settings.ytmPlaylistsInPlaylists()
+                                       ? QStringList{QString::fromLatin1(YtmSource::kId)} : QStringList());
+    };
+    ytmPlaylists();
+    QObject::connect(&settings, &Settings::changed, &playlists, ytmPlaylists);
     Autostart autostart;
     Secrets secrets;
     Servers servers;

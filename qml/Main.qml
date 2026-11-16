@@ -16,7 +16,7 @@ ApplicationWindow {
     visible: false
     color: theme.background
 
-    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "YouTube Music", "Libraries", "Queue", "Settings"]
+    readonly property var tabNames: ["Albums", "Artists", "Songs", "Playlists", "Libraries", "Queue", "YouTube Music", "Settings"]
     // YouTube Music has a tab only when the setting asks for one and there is a login.
     function tabAvailable(name) { return name !== "YouTube Music" || (settingsStore.ytmSeparateTab && ytm.state !== "off") }
     function isTab(name) { return tabNames[tab] === name }
@@ -29,7 +29,7 @@ ApplicationWindow {
     }
     Connections { target: settingsStore; function onChanged() { win.ensureShownTab() } }
     Component.onCompleted: ensureShownTab()
-    readonly property bool searching: searchField.text.length > 0
+    readonly property bool searching: searchField.text.length > 0 && !isTab("YouTube Music")   // there the box filters the area instead
 
     // Close-to-tray, unless there is no tray to bring the window back from.
     onClosing: (close) => {
@@ -44,16 +44,6 @@ ApplicationWindow {
         } else {
             library.songSort = key
             library.songDescending = false
-        }
-    }
-
-    // The same for the YouTube Music tab, which starts in the order YouTube gave the songs.
-    function sortSeparateBy(key) {
-        if (library.separateSort === key) {
-            library.separateDescending = !library.separateDescending
-        } else {
-            library.separateSort = key
-            library.separateDescending = false
         }
     }
 
@@ -92,7 +82,8 @@ ApplicationWindow {
     }
 
     function currentList() {
-        return stack.children[stack.currentIndex]
+        const page = stack.children[stack.currentIndex]
+        return page.current ?? page   // the YouTube Music area hands over the list it is showing
     }
 
     // Called by Shell::showSettings() (the panel's gear).
@@ -173,7 +164,7 @@ ApplicationWindow {
                     id: rail
                     readonly property bool collapsed: settingsStore.railCollapsed
                     Layout.fillHeight: true
-                    Layout.preferredWidth: collapsed ? S.sp(60) : S.sp(168)
+                    Layout.preferredWidth: collapsed ? S.sp(60) : S.sp(196)
                     color: theme.sunken
                     clip: true
                     Behavior on Layout.preferredWidth { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
@@ -248,13 +239,26 @@ ApplicationWindow {
                         anchors.bottomMargin: S.sp(100)
                         spacing: S.sp(4)
                         Repeater {
-                            model: win.tabNames.filter(n => n !== "Settings" && win.tabAvailable(n) && settingsStore.hiddenTabs.indexOf(n) < 0)
+                            model: win.tabNames.filter(n => n !== "Settings" && n !== "YouTube Music" && settingsStore.hiddenTabs.indexOf(n) < 0)
                             delegate: RailRow {
                                 required property string modelData
                                 width: parent.width
                                 tabIndex: win.tabNames.indexOf(modelData)
                                 label: modelData
                             }
+                        }
+                        // YouTube Music has an area of its own, below a line.
+                        Item {
+                            visible: win.tabAvailable("YouTube Music")
+                            width: parent.width
+                            height: visible ? S.sp(13) : 0
+                            Rectangle { anchors.centerIn: parent; width: parent.width - S.sp(8); height: 1; color: Qt.alpha(theme.foreground, 0.2) }
+                        }
+                        RailRow {
+                            visible: win.tabAvailable("YouTube Music")
+                            width: parent.width
+                            tabIndex: win.tabNames.indexOf("YouTube Music")
+                            label: "YouTube Music"
                         }
                     }
 
@@ -316,14 +320,17 @@ ApplicationWindow {
                         TextField {
                             id: searchField
                             Layout.fillWidth: true
-                            placeholderText: qsTr("Search ( / )")
+                            placeholderText: win.isTab("YouTube Music") ? qsTr("Filter by title, artist or album ( / )") : qsTr("Search ( / )")
                             color: theme.foreground
                             placeholderTextColor: theme.muted
                             selectByMouse: true
                             font.pixelSize: S.fs(13)
                             font.family: ui.fontFamily !== "" ? ui.fontFamily : Qt.application.font.family
                             background: Rectangle { radius: S.sp(6); color: theme.surface }
-                            onTextChanged: library.setQuery(text)
+                            onTextChanged: {   // in the YouTube Music area the box filters its songs and albums
+                                if (win.isTab("YouTube Music")) { library.setQuery(""); library.setSeparateFilter(text) }
+                                else { library.setQuery(text); library.setSeparateFilter("") }
+                            }
                             Keys.onEscapePressed: { text = ""; keyRoot.forceActiveFocus() }
                             Keys.onReturnPressed: keyRoot.forceActiveFocus()
                         }
@@ -432,23 +439,6 @@ ApplicationWindow {
                             onNewPlaylistRequested: picker.openNew([])
                         }
 
-                        BrowseList {   // YouTube Music, when it has a tab of its own
-                            onClicked: keyRoot.forceActiveFocus()
-                            songRows: true
-                            table: true
-                            columns: settingsStore.songColumns
-                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
-                            sortable: true
-                            sortKey: library.separateSort
-                            sortDescending: library.separateDescending
-                            onSortRequested: (key) => win.sortSeparateBy(key)
-                            model: library.separateSongs
-                            onActivated: (row) => player.playTracks([library.separateSongs.get(row)], 0)
-                            onEnqueued: (row) => player.enqueue(library.separateSongs.get(row))
-                            onMenuRequested: (row) => picker.openFor([library.separateSongs.get(row)])
-                            onContextRequested: (row, x, y) => win.showContext([library.separateSongs.get(row)], x, y, false)
-                        }
-
                         BrowseList {
                             onClicked: keyRoot.forceActiveFocus()   // Folders: names and paths, no table header
                             songRows: true
@@ -504,6 +494,14 @@ ApplicationWindow {
                             reorderable: true
                             onRemoveRequested: (row) => { player.removeAt(row); currentIndex = Math.min(row, player.queue.count - 1) }
                             onMoveRequested: (from, to) => { player.moveRow(from, to); currentIndex = to }
+                        }
+
+                        YtmArea {   // YouTube Music, when it has an area of its own
+                            id: ytmArea
+                            onClicked: keyRoot.forceActiveFocus()
+                            onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
+                            onPickRequested: (tracks) => picker.openFor(tracks)
+                            onContextRequested: (tracks, x, y, canRemove) => win.showContext(tracks, x, y, canRemove)
                         }
 
                         SettingsForm { }   // Settings

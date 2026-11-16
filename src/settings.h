@@ -25,6 +25,7 @@ class Settings : public QObject
     Q_PROPERTY(bool gapless READ gapless NOTIFY changed)
     Q_PROPERTY(bool hideServerDuplicates READ hideServerDuplicates NOTIFY changed)
     Q_PROPERTY(bool ytmSeparateTab READ ytmSeparateTab NOTIFY changed)
+    Q_PROPERTY(bool ytmPlaylistsInPlaylists READ ytmPlaylistsInPlaylists NOTIFY changed)
     Q_PROPERTY(bool railCollapsed READ railCollapsed NOTIFY changed)
     Q_PROPERTY(bool showSourceTags READ showSourceTags NOTIFY changed)
     Q_PROPERTY(bool serverEnabled READ serverEnabled NOTIFY changed)
@@ -79,6 +80,8 @@ public:
     bool hideServerDuplicates() const { return m_values.value("hideServerDuplicates").toBool(); }
     // YouTube Music songs get a tab of their own instead of joining the Songs, Albums and Artists lists.
     bool ytmSeparateTab() const { return m_values.value("ytmSeparateTab").toBool(); }
+    // With YouTube Music in its own area: its playlists also appear in the Playlists tab (on by default).
+    bool ytmPlaylistsInPlaylists() const { return m_values.value("ytmPlaylistsInPlaylists").toBool(); }
     bool gapless() const { return m_values.value("gapless").toBool(); }
     bool saveSort() const { return m_values.value("saveSort").toBool(); }
     QString sortSongs() const { return m_values.value("sortSongs").toString(); }

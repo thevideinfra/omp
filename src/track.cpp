@@ -33,6 +33,7 @@ Track Track::fromJsonLine(const QByteArray &line, bool *ok)
     t.mtime = o.value("mtime").toInteger();
     t.coverId = o.value("cover_id").toString();
     t.starred = o.value("starred").toBool();
+    t.albumId = o.value("album_id").toString();
     return t;
 }
 
@@ -56,6 +57,8 @@ QByteArray Track::toJsonLine() const
         o.insert("cover_id", coverId);
     if (starred)
         o.insert("starred", true);
+    if (!albumId.isEmpty())
+        o.insert("album_id", albumId);
     return QJsonDocument(o).toJson(QJsonDocument::Compact);
 }
 
@@ -75,6 +78,7 @@ QVariantMap Track::toMap() const
         {"meta", formatTime(duration)},
         {"coverId", coverId},
         {"starred", starred},
+        {"albumId", albumId},
         {"remote", isRemote()},
         {"cover", path},   // a song shows the art of its folder; resolved lazily by Library::coverFor()
     };
@@ -83,7 +87,7 @@ QVariantMap Track::toMap() const
 QStringList Track::roleNames()
 {
     return {"path", "title", "artist", "albumArtist", "album", "track",
-            "disc", "year", "duration", "subtitle", "meta", "cover", "coverId", "starred", "remote"};
+            "disc", "year", "duration", "subtitle", "meta", "cover", "coverId", "starred", "remote", "albumId"};
 }
 
 QString Track::formatTime(double seconds)

@@ -5,6 +5,8 @@
     omp-ytm browsers  prints the browser profiles that could hold a login: [{"label", "spec"}]
     omp-ytm check     stdin: the login; prints {"ok": true, "name": ...}
     omp-ytm sync      stdin: the login; prints JSON lines: progress, tracks and playlists
+    omp-ytm search Q  stdin: the login; prints JSON lines: tracks and albums that match Q on YouTube Music
+    omp-ytm album ID  stdin: the login; prints the tracks of the album with that browse id
 
 The login is either the JSON of `login` or a browser spec, "browser:<browser>:<profile folder>" (as printed
 by `browsers`): the cookies are then read from that browser's profile on every run, so they stay fresh.
@@ -120,7 +122,7 @@ def bigger(url):
     return re.sub(r"=w\d+-h\d+", "=w544-h544", url) if "=w" in url else url
 
 
-def track(raw, album=None, year=0, number=0):
+def track(raw, album=None, year=0, number=0, album_id=None):
     video = raw.get("videoId")
     if not video or raw.get("isAvailable") is False:
         return None
@@ -144,7 +146,42 @@ def track(raw, album=None, year=0, number=0):
         out["year"] = int(year or raw.get("year"))
     if thumbs:
         out["cover_id"] = bigger(thumbs[-1]["url"])
+    album_id = (raw.get("album") or {}).get("id") or album_id
+    if album_id:
+        out["album_id"] = album_id
     return out
+
+
+def album_tracks(api, browse_id):
+    full = api.get_album(browse_id)
+    out = []
+    for n, raw in enumerate(full.get("tracks") or [], 1):
+        raw.setdefault("album", {"name": full.get("title")})
+        if not raw.get("thumbnails"):
+            raw["thumbnails"] = full.get("thumbnails") or []
+        t = track(raw, album=full.get("title"), year=full.get("year") or 0, number=raw.get("trackNumber") or n, album_id=browse_id)
+        if t:
+            out.append(t)
+    return out
+
+
+def search(api, query):
+    if not query.strip():
+        fail("other", OTHER, "nothing to search for")
+    for raw in api.search(query, filter="songs", limit=20):
+        t = track(raw)
+        if t:
+            emit(t)
+    for raw in api.search(query, filter="albums", limit=20):
+        if not raw.get("browseId"):
+            continue
+        thumbs = raw.get("thumbnails") or []
+        out = {"kind": "album", "id": raw["browseId"], "title": raw.get("title") or "",
+               "artist": ", ".join(a["name"] for a in (raw.get("artists") or []) if a.get("name")) or "Unknown",
+               "year": int(raw.get("year") or 0), "type": raw.get("type") or "Album"}
+        if thumbs:
+            out["cover_id"] = bigger(thumbs[-1]["url"])
+        emit(out)
 
 
 def emit(obj):
@@ -172,12 +209,13 @@ def sync(api):
     done = 0
     for a in albums:
         try:
-            full = api.get_album(a["browseId"])
+            tracks = album_tracks(api, a["browseId"])
         except Exception:
-            full = None   # one album that will not open does not stop the rest
-        for n, raw in enumerate((full or {}).get("tracks") or [], 1):
-            raw.setdefault("album", {"name": full.get("title")})
-            add(raw, album=full.get("title"), year=full.get("year") or 0, number=raw.get("trackNumber") or n)
+            tracks = []   # one album that will not open does not stop the rest
+        for t in tracks:
+            if t["path"] not in seen:
+                seen.add(t["path"])
+                emit(t)
         done += 1
         emit({"kind": "progress", "done": done, "total": total})
     for p in playlists:
@@ -207,13 +245,19 @@ def main():
     try:
         if command == "login":
             print(setup_browser(None, headers_from_paste(stdin)))
-        elif command in ("check", "sync"):
+        elif command in ("check", "sync", "search", "album"):
             login = stdin.strip()
             if login.startswith("browser:"):
                 login = setup_browser(None, headers_from_browser(login))
             api = YTMusic(login)
+            argument = sys.argv[2] if len(sys.argv) > 2 else ""
             if command == "check":
                 emit({"ok": True, "name": api.get_account_info().get("accountName", "")})
+            elif command == "search":
+                search(api, argument)
+            elif command == "album":
+                for t in album_tracks(api, argument):
+                    emit(t)
             else:
                 sync(api)
         else:

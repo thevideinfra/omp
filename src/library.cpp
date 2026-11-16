@@ -517,6 +517,17 @@ QVariantList Library::separateArtistTracks(const QString &key) const
     return toList(tracks);
 }
 
+void Library::setTransientTracks(const QString &group, QVector<Track> tracks)
+{
+    for (Track &t : tracks)
+        t.path = Track::normalized(t.path);
+    if (tracks.isEmpty())
+        m_transient.remove(group);
+    else
+        m_transient.insert(group, tracks);
+    rebuildGroups();   // m_byPath is rebuilt from the lists and the transient groups
+}
+
 void Library::setSeparateFilter(const QString &text)
 {
     if (text == m_separateFilter)
@@ -835,6 +846,10 @@ void Library::rebuildGroups()
 
     for (const Track &t : std::as_const(m_hidden))
         m_byPath.insert(t.path, t);   // left out of the lists, but a playlist can still find it
+    for (const QVector<Track> &group : std::as_const(m_transient))
+        for (const Track &t : group)
+            if (!m_byPath.contains(t.path))
+                m_byPath.insert(t.path, t);
     for (const Track &t : std::as_const(m_tracks)) {
         m_byPath.insert(t.path, t);
         m_byAlbum[albumKey(t)].append(t);

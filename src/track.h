@@ -19,6 +19,7 @@ struct Track
     qint64 mtime = 0;
     QString coverId;       // a server song's cover art id
     bool starred = false;  // a server song marked as a favorite
+    QString albumId;       // a YouTube Music song's album, by its browse id (to play the whole album)
 
     bool isRemote() const { return isRemotePath(path); }
 

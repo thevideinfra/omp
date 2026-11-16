@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "library.h"
+#include "rowsmodel.h"
 #include "playlists.h"
 #include "secrets.h"
 
@@ -20,6 +21,11 @@ class YtmSource : public QObject
     Q_PROPERTY(bool syncing READ syncing NOTIFY changed)
     // The browser profiles a login can be taken from: label and spec ("browser:<browser>:<folder>").
     Q_PROPERTY(QVariantList browsers READ browsers NOTIFY browsersChanged)
+    // The last search: song rows (the library's song roles) and album rows (key, title, subtitle, meta, cover).
+    Q_PROPERTY(RowsModel *searchSongs READ searchSongs CONSTANT)
+    Q_PROPERTY(RowsModel *searchAlbums READ searchAlbums CONSTANT)
+    Q_PROPERTY(bool searching READ searching NOTIFY searchChanged)
+    Q_PROPERTY(QString searchStatus READ searchStatus NOTIFY searchChanged)
 
 public:
     static constexpr const char *kId = "ytm";
@@ -39,6 +45,15 @@ public:
     bool fetchCover(const QString &coverId, const QString &dest);
 
     QVariantList browsers() const { return m_browsers; }
+    RowsModel *searchSongs() { return &m_searchSongs; }
+    RowsModel *searchAlbums() { return &m_searchAlbums; }
+    bool searching() const { return m_searching; }
+    QString searchStatus() const { return m_searchStatus; }
+    // Looks up songs and albums on YouTube Music (the answer fills searchSongs and searchAlbums).
+    Q_INVOKABLE void search(const QString &query);
+    // Reads the songs of an album from YouTube Music; they come back with `albumFetched` (empty on failure).
+    // `purpose` is handed back untouched ("play", "queue", "menu"...).
+    Q_INVOKABLE void fetchAlbum(const QString &browseId, const QString &purpose);
     // Looks for the browsers on this computer (the answer arrives as `browsers`).
     Q_INVOKABLE void findBrowsers();
     // Logs in with the cookies of a browser profile (a spec from `browsers`), read again on every sync.
@@ -52,6 +67,8 @@ public:
 signals:
     void changed();
     void browsersChanged();
+    void searchChanged();
+    void albumFetched(const QString &browseId, const QString &purpose, const QVariantList &tracks);
 
 private:
     struct Result
@@ -62,7 +79,7 @@ private:
         QString errorCode;  // "auth", "missing" or "other"
     };
     // Runs the helper with `input` on stdin; `lineRead` sees each line of output as it comes.
-    void runHelper(const QString &command, const QByteArray &input, std::function<void(const QByteArray &)> lineRead,
+    void runHelper(const QString &command, const QStringList &args, const QByteArray &input, std::function<void(const QByteArray &)> lineRead,
                    std::function<void(const Result &)> done);
     void setState(const QString &state, const QString &status);
     void finishSync(const QVector<Track> &tracks, const QList<Playlists::ServerList> &lists);
@@ -75,6 +92,11 @@ private:
     QString m_loginJson;       // what the keyring holds: the pasted login, or a browser spec
     bool m_unsaved = false;    // a login not yet proven by a sync, so not yet in the keyring
     QVariantList m_browsers;
+    RowsModel m_searchSongs;
+    RowsModel m_searchAlbums;
+    bool m_searching = false;
+    QString m_searchStatus;
+    int m_searchRun = 0;       // a newer search makes the answer of an older one worthless
     QString m_state = QStringLiteral("off");
     QString m_status;
     bool m_running = false;

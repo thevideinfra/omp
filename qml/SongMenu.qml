@@ -29,9 +29,12 @@ Menu {
     function play() { player.playTracks(tracks, 0) }
     function enqueue() { player.enqueueTracks(tracks) }
     function playNext() { player.playNext(tracks) }
-    // The whole album of a single song, from its first track.
+    // The whole album of a single song, from its first track. A YouTube Music song's album is read from
+    // YouTube Music (the Main window plays it when it arrives); any other from the library.
     function playAlbum() {
-        const album = library.albumTracksOf(tracks[0].path)
+        const t = tracks[0]
+        if ((t.albumId ?? "") !== "") { ytm.fetchAlbum(t.albumId, "playAlbum:" + t.path); return }
+        const album = library.albumTracksOf(t.path)
         player.playTracks(album.length > 0 ? album : tracks, 0)
     }
     function removeFromQueue() { player.removeAt(queueRow) }

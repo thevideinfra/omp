@@ -188,6 +188,75 @@ private slots:
         QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);                   // the cached songs stay
     }
 
+    void aSearchFillsSongsAndAlbumsAndTheSongsAreKnownByPath()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.search("gamma ray");
+        QVERIFY(e.source.searching());
+        QTRY_VERIFY(!e.source.searching());
+        QFile q(dir.path() + "/query");
+        QVERIFY(q.open(QIODevice::ReadOnly));
+        QCOMPARE(q.readAll().trimmed(), QByteArray("gamma ray"));              // the words reach the helper as one argument
+        QCOMPARE(e.source.searchSongs()->rowCount(), 2);
+        QCOMPARE(e.source.searchSongs()->get(0).value("title").toString(), QString("Found One"));
+        QCOMPARE(e.source.searchSongs()->get(0).value("path").toString(), QString("ytm:s1"));
+        QCOMPARE(e.source.searchAlbums()->rowCount(), 2);
+        QCOMPARE(e.source.searchAlbums()->get(0).value("key").toString(), QString("MPREb_g"));
+        QCOMPARE(e.source.searchAlbums()->get(0).value("subtitle").toString(), QString("Zed  ·  2019"));
+        QCOMPARE(e.source.searchAlbums()->get(0).value("meta").toString(), QString("Album"));
+        QCOMPARE(e.source.searchAlbums()->get(1).value("subtitle").toString(), QString("Yan"));   // no year known
+        QCOMPARE(e.source.searchAlbums()->get(1).value("meta").toString(), QString("Single"));
+        QCOMPARE(e.library.tracksForPaths({"ytm:s1"}).size(), 1);              // so a queue, a cover or a playlist can find it
+        const QString cover = e.source.searchAlbums()->get(0).value("cover").toString();
+        QVERIFY(!cover.isEmpty());
+        QCOMPARE(e.library.trackInfo(cover).value("albumArtist").toString(), QString("Zed"));   // the album's picture resolves through it
+        QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);                   // the library itself is untouched
+    }
+
+    void aFailedOrEmptySearchSaysSoAndAnExpiredLoginIsNoticed()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.search("anything");                                           // not logged in
+        QCOMPARE(e.source.searchStatus(), QString("Log in first"));
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        qputenv("FAKE_YTM_MODE", "crash");
+        e.source.search("anything");
+        QTRY_VERIFY(!e.source.searching());
+        QVERIFY(e.source.searchStatus().contains("boom"));
+        qputenv("FAKE_YTM_MODE", "auth");
+        e.source.search("anything");
+        QTRY_COMPARE(e.source.state(), QString("expired"));
+        QVERIFY(!e.source.searching());
+        e.source.search("   ");                                                 // nothing to look for: nothing is asked
+        QVERIFY(!e.source.searching());
+    }
+
+    void anAlbumIsFetchedForAPurposeAndItsSongsAreKnownByPath()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        QSignalSpy spy(&e.source, &YtmSource::albumFetched);
+        e.source.fetchAlbum("MPREb_g", "play");
+        QTRY_COMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toString(), QString("MPREb_g"));
+        QCOMPARE(spy.at(0).at(1).toString(), QString("play"));
+        const QVariantList tracks = spy.at(0).at(2).toList();
+        QCOMPARE(tracks.size(), 2);
+        QCOMPARE(tracks.at(1).toMap().value("title").toString(), QString("Gamma Two"));
+        QCOMPARE(e.library.tracksForPaths({"ytm:g1"}).size(), 1);
+        QFile id(dir.path() + "/albumid");
+        QVERIFY(id.open(QIODevice::ReadOnly));
+        QCOMPARE(id.readAll().trimmed(), QByteArray("MPREb_g"));
+        qputenv("FAKE_YTM_MODE", "crash");
+        e.source.fetchAlbum("MPREb_x", "queue");
+        QTRY_COMPARE(spy.count(), 2);
+        QVERIFY(spy.at(1).at(2).toList().isEmpty());                            // a failure answers with no songs
+    }
+
     void aSongPlaysFromItsWatchAddress()
     {
         QCOMPARE(YtmSource::streamUrl("ytm:lKVZKG7CcMU"), QString("https://music.youtube.com/watch?v=lKVZKG7CcMU"));

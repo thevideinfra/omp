@@ -18,6 +18,18 @@ input=$(cat)
 case "$cmd" in
   login)
     case "$input" in *curl*) printf '{"cookie": "c1"}\n' ;; *) echo '{"code":"other","error":"no cookie"}' >&2; exit 1 ;; esac ;;
+  search)
+    case "$FAKE_YTM_MODE" in auth) echo '{"code":"auth","error":"signed out"}' >&2; exit 2 ;; crash) echo boom >&2; exit 1 ;; esac
+    echo "$2" > "$FAKE_YTM_DIR/query"
+    echo '{"kind":"track","path":"ytm:s1","title":"Found One","artist":"Zed","album_artist":"Zed","album":"Gamma","duration":215,"cover_id":"https://x/s=w544-h544"}'
+    echo '{"kind":"track","path":"ytm:s2","title":"Found Two","artist":"Yan","album_artist":"Yan","album":"Omega","duration":100}'
+    echo '{"kind":"album","id":"MPREb_g","title":"Gamma","artist":"Zed","year":2019,"type":"Album","cover_id":"https://x/a=w544-h544"}'
+    printf '{"kind":"album","id":"MPREb_o","title":"Omega","artist":"Yan","year":0,"type":"Single"}' ;;
+  album)
+    case "$FAKE_YTM_MODE" in crash) echo boom >&2; exit 1 ;; esac
+    echo "$2" > "$FAKE_YTM_DIR/albumid"
+    echo '{"kind":"track","path":"ytm:g1","title":"Gamma One","artist":"Zed","album_artist":"Zed","album":"Gamma","track":1,"duration":200}'
+    printf '{"kind":"track","path":"ytm:g2","title":"Gamma Two","artist":"Zed","album_artist":"Zed","album":"Gamma","track":2,"duration":210}' ;;
   sync)
     case "$FAKE_YTM_MODE" in
       auth) echo '{"code":"auth","error":"signed out"}' >&2; exit 2 ;;

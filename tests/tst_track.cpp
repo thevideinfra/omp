@@ -84,6 +84,17 @@ private slots:
         QVERIFY(!Track::isRemotePath("/music/ytm:x"));
     }
 
+    void aYoutubeMusicSongKeepsItsAlbumIdThroughTheCacheAndIntoTheRows()
+    {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(R"({"path":"ytm:aaa","title":"T","album":"A","album_id":"MPREb_x"})", &ok);
+        QVERIFY(ok);
+        QCOMPARE(t.albumId, QString("MPREb_x"));
+        QCOMPARE(Track::fromJsonLine(t.toJsonLine()).albumId, QString("MPREb_x"));
+        QCOMPARE(t.toMap().value("albumId").toString(), QString("MPREb_x"));
+        QVERIFY(!QString::fromUtf8(Track::fromJsonLine(R"({"path":"/m/a.flac"})").toJsonLine()).contains("album_id"));   // not for others
+    }
+
     void fillsDefaults()
     {
         bool ok = false;

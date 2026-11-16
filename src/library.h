@@ -106,6 +106,9 @@ public:
     // The same by artist (the album artist), by name; an artist's songs by album, then track order.
     RowsModel *separateArtists() { return &m_separateArtists; }
     Q_INVOKABLE QVariantList separateArtistTracks(const QString &key) const;
+    // Songs known by path (so their cover, favorite state and info resolve, and a queue or playlist can hold
+    // them) without being listed: a search's results. One group replaces the last of the same name.
+    void setTransientTracks(const QString &group, QVector<Track> tracks);
     // Only the songs and albums whose title, artist or album hold every word of the text.
     Q_INVOKABLE void setSeparateFilter(const QString &text);
     // The songs of the same album as this one (any source), in track order; empty for an unknown path.
@@ -194,6 +197,7 @@ private:
     QVector<Track> m_local;    // scanned from the music folders
     QMap<QString, QVector<Track>> m_remote;   // server id -> its songs
     QVector<Track> m_tracks;   // both, what the lists are built from
+    QMap<QString, QVector<Track>> m_transient;   // by group (see setTransientTracks)
     QVector<Track> m_hidden;   // server songs left out because the same song is local
     bool m_hideDuplicates = false;
     QStringList m_separate;   // sources kept out of the lists

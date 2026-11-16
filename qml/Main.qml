@@ -781,6 +781,15 @@ ApplicationWindow {
         }
     }
     SleepMenu { id: sleepMenu; onClosed: keyRoot.forceActiveFocus() }
+    // "Play album" on a YouTube Music song: the album arrives from YouTube Music, or the library's own songs of it do.
+    Connections {
+        target: ytm
+        function onAlbumFetched(id, purpose, tracks) {
+            if (!purpose.startsWith("playAlbum:")) return
+            const own = tracks.length > 0 ? tracks : library.albumTracksOf(purpose.substring(10))
+            if (own.length > 0) player.playTracks(own, 0)
+        }
+    }
     PlaylistPicker { id: picker }
     ColumnMenu { id: columnMenu; onClosed: keyRoot.forceActiveFocus() }
     SongMenu {

@@ -8,9 +8,11 @@
 #include "library.h"
 #include "lookscope.h"
 #include "playlists.h"
+#include "secrets.h"
 #include "settings.h"
 #include "theme.h"
 #include "track.h"
+#include "ytmsource.h"
 
 class AreaPlayer : public QObject
 {
@@ -52,6 +54,8 @@ class TstYtmArea : public QObject
     Library *library = nullptr;
     Playlists *playlists = nullptr;
     AreaPlayer player;
+    Secrets *secrets = nullptr;
+    YtmSource *ytm = nullptr;
     QQmlEngine *engine = nullptr;
     QQuickWindow *window = nullptr;
     QQuickItem *area = nullptr;
@@ -64,6 +68,8 @@ private slots:
         theme = new Theme(dir.filePath("none.toml"), this);
         library = new Library({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
         playlists = new Playlists(dir.filePath("pl"), this);
+        secrets = new Secrets(QStringLiteral("/nonexistent-secret-tool"), this);
+        ytm = new YtmSource(*library, *playlists, *secrets, QStringLiteral("/nonexistent-helper"), this);
 
         engine = new QQmlEngine(this);
         auto *ctx = new QQmlContext(engine->rootContext(), engine);
@@ -73,6 +79,7 @@ private slots:
         ctx->setContextProperty("player", &player);
         ctx->setContextProperty("library", library);
         ctx->setContextProperty("playlists", playlists);
+        ctx->setContextProperty("ytm", ytm);
         QQmlComponent comp(engine, QUrl::fromLocalFile(QStringLiteral(OMA_QML_DIR "/YtmArea.qml")));
         QObject *o = comp.create(ctx);
         QVERIFY2(o, qPrintable(comp.errorString()));
@@ -112,6 +119,8 @@ private slots:
         QTRY_COMPARE(list()->property("model").value<QObject *>(), qobject_cast<QObject *>(library->separateAlbums()));
         area->setProperty("section", "Playlists");
         QTRY_COMPARE(list()->property("model").value<QObject *>(), qobject_cast<QObject *>(playlists->listOf("ytm")));
+        area->setProperty("section", "Search");
+        QTRY_COMPARE(list()->property("model").value<QObject *>(), qobject_cast<QObject *>(ytm->searchSongs()));   // the keyboard works on the songs found
         area->setProperty("section", "Library");
     }
 

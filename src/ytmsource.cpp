@@ -20,6 +20,8 @@ const QString kAccount = QStringLiteral("ytmusic@youtube");
 
 YtmSource::YtmSource(Library &library, Playlists &playlists, Secrets &secrets, const QString &helper, QObject *parent)
     : QObject(parent)
+    , m_searchSongs(Track::roleNames())
+    , m_searchAlbums({"key", "title", "subtitle", "meta", "cover"})
     , m_library(library)
     , m_playlists(playlists)
     , m_secrets(secrets)
@@ -54,7 +56,7 @@ void YtmSource::start()
     });
 }
 
-void YtmSource::runHelper(const QString &command, const QByteArray &input,
+void YtmSource::runHelper(const QString &command, const QStringList &args, const QByteArray &input,
                           std::function<void(const QByteArray &)> lineRead, std::function<void(const Result &)> done)
 {
     auto *p = new QProcess(this);
@@ -93,14 +95,14 @@ void YtmSource::runHelper(const QString &command, const QByteArray &input,
             lineRead(*buffer);
         finish(code, QString());
     });
-    p->start(m_helper, {command});
+    p->start(m_helper, QStringList{command} + args);
     p->write(input);
     p->closeWriteChannel();
 }
 
 void YtmSource::findBrowsers()
 {
-    runHelper(QStringLiteral("browsers"), {}, nullptr, [this](const Result &r) {
+    runHelper(QStringLiteral("browsers"), {}, {}, nullptr, [this](const Result &r) {
         m_browsers.clear();
         if (r.exitCode == 0)
             for (const QJsonValue &v : QJsonDocument::fromJson(r.out).array())
@@ -123,7 +125,7 @@ void YtmSource::login(const QString &pasted)
     if (pasted.trimmed().isEmpty())
         return;
     setState(QStringLiteral("syncing"), tr("Logging in"));
-    runHelper(QStringLiteral("login"), pasted.toUtf8(), nullptr, [this](const Result &r) {
+    runHelper(QStringLiteral("login"), {}, pasted.toUtf8(), nullptr, [this](const Result &r) {
         if (r.exitCode != 0) {
             setState(r.errorCode == QLatin1String("missing") ? QStringLiteral("missing") : QStringLiteral("off"),
                      r.error.isEmpty() ? tr("The pasted text is not usable") : r.error);
@@ -165,7 +167,7 @@ void YtmSource::sync()
             setState(QStringLiteral("syncing"), tr("Syncing %1/%2").arg(o.value("done").toInt()).arg(o.value("total").toInt()));
         }
     };
-    runHelper(QStringLiteral("sync"), m_loginJson.toUtf8(), onLine, [this, tracks, lists](const Result &r) {
+    runHelper(QStringLiteral("sync"), {}, m_loginJson.toUtf8(), onLine, [this, tracks, lists](const Result &r) {
         m_running = false;
         if (r.exitCode == 0) {
             if (m_unsaved)
@@ -207,6 +209,102 @@ void YtmSource::publish(const QList<Playlists::ServerList> &lists)
 {
     m_lists = lists;
     m_playlists.setServerLists(QString::fromLatin1(kId), lists);
+}
+
+void YtmSource::search(const QString &query)
+{
+    const QString q = query.trimmed();
+    if (q.isEmpty())
+        return;
+    if (m_loginJson.isEmpty()) {
+        m_searchStatus = tr("Log in first");
+        emit searchChanged();
+        return;
+    }
+    const int run = ++m_searchRun;
+    m_searching = true;
+    m_searchStatus = tr("Searching…");
+    emit searchChanged();
+    auto songs = std::make_shared<QVector<Track>>();
+    struct Album { QString id, title, artist, type, cover; int year = 0; };
+    auto albums = std::make_shared<QVector<Album>>();
+    const auto onLine = [songs, albums](const QByteArray &line) {
+        const QJsonObject o = QJsonDocument::fromJson(line).object();
+        if (o.value("kind").toString() == QLatin1String("track")) {
+            bool ok = false;
+            const Track t = Track::fromJsonLine(line, &ok);
+            if (ok)
+                songs->append(t);
+        } else if (o.value("kind").toString() == QLatin1String("album")) {
+            albums->append({o.value("id").toString(), o.value("title").toString(), o.value("artist").toString(),
+                            o.value("type").toString(), o.value("cover_id").toString(), o.value("year").toInt()});
+        }
+    };
+    runHelper(QStringLiteral("search"), {q}, m_loginJson.toUtf8(), onLine, [this, run, songs, albums](const Result &r) {
+        if (run != m_searchRun)
+            return;   // a newer search is under way
+        m_searching = false;
+        if (r.exitCode != 0) {
+            if (r.errorCode == QLatin1String("auth"))
+                setState(QStringLiteral("expired"), tr("Login expired: log in again"));
+            m_searchStatus = r.errorCode == QLatin1String("auth") ? tr("Login expired: log in again")
+                                                                  : tr("Search failed: %1").arg(r.error);
+            emit searchChanged();
+            return;
+        }
+        // The albums have no song to show a picture for, so each gets a stand-in track that carries the cover.
+        QVector<Track> known = *songs;
+        QVector<QVariantMap> songRows, albumRows;
+        for (const Track &t : std::as_const(*songs))
+            songRows.append(t.toMap());
+        for (const Album &a : std::as_const(*albums)) {
+            Track stand;
+            stand.path = QStringLiteral("ytm:album:") + a.id;
+            stand.title = a.title;
+            stand.artist = stand.albumArtist = a.artist;
+            stand.album = a.title;
+            stand.year = a.year;
+            stand.coverId = a.cover;
+            known.append(stand);
+            albumRows.append({{"key", a.id},
+                              {"title", a.title},
+                              {"subtitle", a.year > 0 ? QStringLiteral("%1  ·  %2").arg(a.artist).arg(a.year) : a.artist},
+                              {"meta", a.type},
+                              {"cover", stand.path}});
+        }
+        m_library.setTransientTracks(QStringLiteral("search"), known);
+        m_searchSongs.setRows(songRows);
+        m_searchAlbums.setRows(albumRows);
+        m_searchStatus = songRows.isEmpty() && albumRows.isEmpty() ? tr("Nothing found") : QString();
+        emit searchChanged();
+    });
+}
+
+void YtmSource::fetchAlbum(const QString &browseId, const QString &purpose)
+{
+    if (m_loginJson.isEmpty() || browseId.isEmpty()) {
+        emit albumFetched(browseId, purpose, {});
+        return;
+    }
+    auto tracks = std::make_shared<QVector<Track>>();
+    const auto onLine = [tracks](const QByteArray &line) {
+        bool ok = false;
+        const Track t = Track::fromJsonLine(line, &ok);
+        if (ok)
+            tracks->append(t);
+    };
+    runHelper(QStringLiteral("album"), {browseId}, m_loginJson.toUtf8(), onLine, [this, browseId, purpose, tracks](const Result &r) {
+        QVariantList out;
+        if (r.exitCode == 0) {
+            m_library.setTransientTracks(QStringLiteral("album:") + browseId, *tracks);   // so covers and queues find them
+            for (const Track &t : std::as_const(*tracks))
+                out << t.toMap();
+        } else {
+            m_searchStatus = tr("Cannot read the album: %1").arg(r.error);
+            emit searchChanged();
+        }
+        emit albumFetched(browseId, purpose, out);
+    });
 }
 
 void YtmSource::logout()

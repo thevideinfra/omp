@@ -46,6 +46,14 @@ class YTMusic:
         return {"title": "Delta", "year": "2019", "tracks": [
             {"videoId": "ccc", "title": "Album Song", "artists": [{"name": "Wen"}], "duration_seconds": 61, "trackNumber": 1,
              "thumbnails": [{"url": "https://i.ytimg.com/vi/ccc/hq.jpg"}]}]}
+    def search(self, query, filter=None, limit=20, ignore_spelling=False):
+        if filter == "songs":
+            return [{"videoId": "s1", "title": "Found " + query, "artists": [{"name": "Zed"}], "album": {"name": "Gamma", "id": "MPREb_g"},
+                     "duration_seconds": 215, "thumbnails": [{"url": "https://lh3.googleusercontent.com/s=w60-h60-l90-rj"}]},
+                    {"videoId": None, "title": "Gone", "artists": []}]
+        return [{"browseId": "MPREb_g", "title": "Gamma", "artists": [{"name": "Zed"}], "year": "2019", "type": "Album",
+                 "thumbnails": [{"url": "https://lh3.googleusercontent.com/a=w60-h60-l90-rj"}]},
+                {"browseId": "MPREb_s", "title": "Tiny", "artists": [{"name": "Yan"}], "year": None, "type": "Single", "thumbnails": []}]
     def get_library_playlists(self, limit=None):
         return [{"playlistId": "LM", "title": "Liked Music"}, {"playlistId": "SE", "title": "Episodes for Later"},
                 {"playlistId": "PL1", "title": "Mix"}]
@@ -192,6 +200,33 @@ class OmpYtm(unittest.TestCase):
             self.assertEqual(sorted(found), ["Brave Browser (Profile 1)", "Brave Origin", "Chrome", "Firefox"])
             self.assertEqual(found["Brave Origin"], "browser:brave:%s/.config/BraveSoftware/Brave-Origin/Default" % home)
             self.assertTrue(found["Firefox"].startswith("browser:firefox:") and found["Firefox"].endswith("abc.default-release"))
+
+    def test_search_lists_songs_and_albums_with_what_omp_needs(self):
+        r = subprocess.run([sys.executable, str(YTM), "search", "gamma ray"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = [json.loads(l) for l in r.stdout.splitlines()]
+        songs = [o for o in out if o["kind"] == "track"]
+        albums = [o for o in out if o["kind"] == "album"]
+        self.assertEqual([t["path"] for t in songs], ["ytm:s1"])                  # a song with no id is left out
+        self.assertEqual((songs[0]["title"], songs[0]["album"], songs[0]["duration"]), ("Found gamma ray", "Gamma", 215))
+        self.assertIn("=w544-h544", songs[0]["cover_id"])
+        self.assertEqual(songs[0]["album_id"], "MPREb_g")                          # to play the whole album later
+        self.assertEqual([a["id"] for a in albums], ["MPREb_g", "MPREb_s"])
+        self.assertEqual((albums[0]["title"], albums[0]["artist"], albums[0]["year"], albums[0]["type"]), ("Gamma", "Zed", 2019, "Album"))
+        self.assertIn("=w544-h544", albums[0]["cover_id"])
+        self.assertNotIn("cover_id", albums[1])
+        self.assertEqual(albums[1]["year"], 0)
+
+    def test_an_empty_search_is_refused_and_an_album_lists_its_songs(self):
+        env = dict(os.environ, PYTHONPATH=str(self.tmp.name))
+        r = subprocess.run([sys.executable, str(YTM), "search", "  "], input='{"cookie": "ok"}', capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 1)
+        a = subprocess.run([sys.executable, str(YTM), "album", "MPREb_1"], input='{"cookie": "ok"}', capture_output=True, text=True, env=env)
+        self.assertEqual(a.returncode, 0, a.stderr)
+        tracks = [json.loads(l) for l in a.stdout.splitlines()]
+        self.assertEqual([(t["path"], t["album"], t["year"], t["track"]) for t in tracks], [("ytm:ccc", "Delta", 2019, 1)])
+        self.assertEqual(tracks[0]["album_id"], "MPREb_1")
 
     def test_login_turns_a_pasted_curl_into_the_login(self):
         paste = "curl 'https://music.youtube.com/youtubei/v1/browse' \\\n  -H 'x-goog-authuser: 0' \\\n  -b 'SID=abc; HSID=def' \\\n  -H 'origin: https://music.youtube.com'"

@@ -617,6 +617,23 @@ private slots:
         QCOMPARE(lib.separateSongs()->rowCount(), 0);
     }
 
+    void transientTracksAreKnownByPathButNeverListed()
+    {
+        Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+        lib.setTracks({mk("/m/a.flac", "Local", "Amy", "Beta", 1)});
+        Track found = mk("ytm:s1", "Found", "Zed", "Gamma", 1);
+        found.coverId = "https://example.org/c=w544-h544";
+        lib.setTransientTracks("search", {found});
+        QCOMPARE(lib.songs()->rowCount(), 1);                                  // not in the lists
+        QCOMPARE(lib.albums()->rowCount(), 1);
+        QCOMPARE(lib.tracksForPaths({"ytm:s1"}).size(), 1);                    // but known by path (cover, favorite, info)
+        QCOMPARE(lib.trackInfo("ytm:s1").value("albumArtist").toString(), QString("Zed"));
+        lib.setTracks({mk("/m/a.flac", "Local", "Amy", "Beta", 1), mk("/m/b.flac", "Two", "Amy", "Beta", 2)});   // a rebuild keeps them
+        QCOMPARE(lib.tracksForPaths({"ytm:s1"}).size(), 1);
+        lib.setTransientTracks("search", {});
+        QCOMPARE(lib.tracksForPaths({"ytm:s1"}).size(), 0);
+    }
+
     void theOwnTabFiltersByTitleArtistAndAlbumAndKeepsItsAlbumsAndAlbumPlay()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

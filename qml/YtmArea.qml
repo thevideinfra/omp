@@ -3,11 +3,15 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "Scale.js" as S
 
-// The YouTube Music area: your library as songs, as artists, as albums and as playlists. The search box above
-// the window filters the songs and albums by title, artist and album.
+// The YouTube Music area. A top bar chooses Library or Search; Library has Songs (a table) and Artists, Albums
+// and Playlists (grids of cards). Opening a card shows its page (an album, a playlist or an artist) with a
+// Back button. The search box above the window filters the Library views by title, artist and album.
 Item {
     id: root
-    property string section: "Library"   // Library, Artists, Albums, Playlists or Search
+    property string section: "Library"   // Library or Search
+    property string view: "Songs"        // in Library: Songs, Artists, Albums or Playlists
+    property var pages: []               // the pages opened, one on top of the other; the last one shows
+    readonly property var page: pages.length > 0 ? pages[pages.length - 1] : null
     signal clicked()
     signal columnsRequested(real x, real y)
     signal pickRequested(var tracks)
@@ -24,8 +28,51 @@ Item {
         }
     }
 
-    // The list the keyboard works on (the same calls as the other tabs); in Search, the songs found.
-    readonly property var current: root.section === "Search" ? foundSongs : stack.children[stack.currentIndex]
+    // Goes back one page; false when there is none (the key handler then does something else with the key).
+    function back() {
+        if (pages.length === 0) return false
+        pages = pages.slice(0, -1)
+        return true
+    }
+    function push(p) { pages = pages.concat([p]) }
+
+    function minutes(tracks) {
+        let total = 0
+        tracks.forEach(t => total += t.duration ?? 0)
+        return qsTr("%1 songs  ·  %2 min").arg(tracks.length).arg(Math.max(1, Math.round(total / 60)))
+    }
+
+    function openAlbum(key, title, subtitle, cover) {
+        const tracks = library.separateAlbumTracks(key)
+        push({ kind: "album", key: key, title: title, subtitle: subtitle, cover: cover,
+               albumId: tracks.length > 0 ? (tracks[0].albumId ?? "") : "", meta: minutes(tracks), tracks: tracks })
+    }
+
+    function openArtist(key, title, cover) {
+        const tracks = library.separateArtistTracks(key)
+        const seen = {}, albums = []
+        tracks.forEach(t => {
+            const k = library.albumKeyFor(t.path)
+            if (k === "" || seen[k]) return
+            seen[k] = true
+            const group = tracks.filter(x => library.albumKeyFor(x.path) === k)
+            const year = Math.min(...group.map(x => (x.year ?? 0) > 0 ? x.year : 9999))
+            albums.push({ key: k, title: t.album, subtitle: year < 9999 ? String(year) : "", cover: t.path })
+        })
+        push({ kind: "artist", key: key, title: title, subtitle: qsTr("%1 albums").arg(albums.length), cover: cover,
+               meta: minutes(tracks), tracks: tracks, albums: albums })
+    }
+
+    function openPlaylist(key, title, playlistId, editable, cover) {
+        const tracks = library.tracksForPaths(playlists.paths(key))
+        push({ kind: "playlist", key: key, title: title, subtitle: "YouTube Music", cover: cover,
+               meta: minutes(tracks), playlistId: playlistId, editable: editable, tracks: tracks })
+    }
+
+    // The list the keyboard works on (the same calls as the other tabs).
+    readonly property var current: root.page ? pageView.list
+                                   : root.section === "Search" ? foundSongs
+                                   : stack.children[stack.currentIndex]
 
     // Where an album's menu was asked for: the songs arrive a moment later.
     property real menuX: 0
@@ -41,67 +88,116 @@ Item {
         }
     }
 
+    // The songs a card of a grid stands for.
+    function albumSongs(row) { return library.separateAlbumTracks(library.separateAlbums.get(row).key) }
+    function artistSongs(row) { return library.separateArtistTracks(library.separateArtists.get(row).key) }
+    function playlistSongs(row) { return library.tracksForPaths(playlists.paths(playlists.listOf("ytm").get(row).key)) }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        Segmented {
+        RowLayout {   // the top bar
+            Layout.fillWidth: true
             Layout.margins: S.sp(8)
-            options: ["Library", "Artists", "Albums", "Playlists", "Search"]
-            selected: root.section
-            onPicked: (value) => { root.section = value; root.clicked() }
+            spacing: S.sp(12)
+
+            ChipButton { visible: root.page !== null; text: "‹  " + qsTr("Back"); onClicked: { root.back(); root.clicked() } }
+            Segmented {
+                visible: root.page === null
+                options: ["Library", "Search"]
+                selected: root.section
+                onPicked: (value) => { root.section = value; root.clicked() }
+            }
+            Segmented {
+                visible: root.page === null && root.section === "Library"
+                options: ["Songs", "Artists", "Albums", "Playlists"]
+                selected: root.view
+                onPicked: (value) => { root.view = value; root.clicked() }
+            }
+            Item { Layout.fillWidth: true }
+            ChipButton {
+                visible: root.page === null && root.section === "Library" && root.view === "Playlists" && ytm.loggedIn
+                text: qsTr("New playlist")
+                onClicked: root.newPlaylistRequested()
+            }
         }
 
-        StackLayout {
-            id: stack
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: ["Library", "Artists", "Albums", "Playlists", "Search"].indexOf(root.section)
 
-            BrowseList {   // the songs, in the order YouTube gives them until a header is clicked
+            YtmHeaderPage {
+                id: pageView
+                visible: root.page !== null
+                anchors.fill: parent
+                page: root.page ?? ({})
+                tracks: { playlists.revision; return !root.page ? [] : root.page.kind === "playlist" ? library.tracksForPaths(playlists.paths(root.page.key)) : root.page.tracks }
                 onClicked: root.clicked()
-                songRows: true
-                table: true
-                columns: settingsStore.songColumns
-                onColumnsRequested: (x, y) => root.columnsRequested(x, y)
-                sortable: true
-                sortKey: library.separateSort
-                sortDescending: library.separateDescending
-                onSortRequested: (key) => root.sortBy(key)
-                model: library.separateSongs
-                onActivated: (row) => player.playTracks([library.separateSongs.get(row)], 0)
-                onEnqueued: (row) => player.enqueue(library.separateSongs.get(row))
-                onMenuRequested: (row) => root.pickRequested([library.separateSongs.get(row)])
-                onContextRequested: (row, x, y) => root.contextRequested([library.separateSongs.get(row)], x, y, false)
-            }
-
-            DrillList {
-                kind: "artist"
-                source: "ytm"
-                model: library.separateArtists
-                onClicked: root.clicked()
+                onPlayRequested: (tracks, start) => player.playTracks(tracks, start)
+                onEnqueueRequested: (tracks) => player.enqueueTracks(tracks)
                 onPickRequested: (tracks) => root.pickRequested(tracks)
                 onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)
+                onAlbumOpened: (key, title, subtitle, cover) => root.openAlbum(key, title, subtitle, cover)
+                onLikeAlbumRequested: (id) => ytm.likeAlbum(id)
+                onRenameRequested: (name) => { ytm.renamePlaylist("ytm", root.page.playlistId, name); root.back() }
+                onDeleteRequested: { ytm.deletePlaylist("ytm", root.page.playlistId); root.back() }
+                onRemoveRequested: (index) => ytm.removeFromPlaylist("ytm", root.page.playlistId, index)
             }
 
-            DrillList {
-                kind: "album"
-                source: "ytm"
-                model: library.separateAlbums
-                onClicked: root.clicked()
-                onPickRequested: (tracks) => root.pickRequested(tracks)
-                onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)
-            }
+            StackLayout {
+                id: stack
+                visible: root.page === null
+                anchors.fill: parent
+                currentIndex: root.section === "Search" ? 4 : ["Songs", "Artists", "Albums", "Playlists"].indexOf(root.view)
 
-            DrillList {
-                kind: "playlist"
-                allowNew: ytm.loggedIn
-                model: playlists.listOf("ytm")
-                onNewPlaylistRequested: root.newPlaylistRequested()
-                onClicked: root.clicked()
-                onPickRequested: (tracks) => root.pickRequested(tracks)
-                onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)
-            }
+                BrowseList {   // the songs, in the order YouTube gives them until a header is clicked
+                    onClicked: root.clicked()
+                    songRows: true
+                    table: true
+                    columns: settingsStore.songColumns
+                    onColumnsRequested: (x, y) => root.columnsRequested(x, y)
+                    sortable: true
+                    sortKey: library.separateSort
+                    sortDescending: library.separateDescending
+                    onSortRequested: (key) => root.sortBy(key)
+                    model: library.separateSongs
+                    onActivated: (row) => player.playTracks([library.separateSongs.get(row)], 0)
+                    onEnqueued: (row) => player.enqueue(library.separateSongs.get(row))
+                    onMenuRequested: (row) => root.pickRequested([library.separateSongs.get(row)])
+                    onContextRequested: (row, x, y) => root.contextRequested([library.separateSongs.get(row)], x, y, false)
+                }
+
+                YtmGrid {
+                    round: true
+                    icon: "artists"
+                    model: library.separateArtists
+                    onOpened: (row) => { const a = library.separateArtists.get(row); root.openArtist(a.key, a.title, a.cover); root.clicked() }
+                    onPlayed: (row) => player.playTracks(root.artistSongs(row), 0)
+                    onQueued: (row) => player.enqueueTracks(root.artistSongs(row))
+                    onMenuRequested: (row) => root.pickRequested(root.artistSongs(row))
+                    onContextRequested: (row, x, y) => root.contextRequested(root.artistSongs(row), x, y, false)
+                }
+
+                YtmGrid {
+                    icon: "albums"
+                    model: library.separateAlbums
+                    onOpened: (row) => { const a = library.separateAlbums.get(row); root.openAlbum(a.key, a.title, a.subtitle, a.cover); root.clicked() }
+                    onPlayed: (row) => player.playTracks(root.albumSongs(row), 0)
+                    onQueued: (row) => player.enqueueTracks(root.albumSongs(row))
+                    onMenuRequested: (row) => root.pickRequested(root.albumSongs(row))
+                    onContextRequested: (row, x, y) => root.contextRequested(root.albumSongs(row), x, y, false)
+                }
+
+                YtmGrid {
+                    icon: "playlists"
+                    model: playlists.listOf("ytm")
+                    onOpened: (row) => { const l = playlists.listOf("ytm").get(row); root.openPlaylist(l.key, l.title, l.playlistId, !l.readOnly, root.playlistSongs(row)[0]?.path ?? ""); root.clicked() }
+                    onPlayed: (row) => player.playTracks(root.playlistSongs(row), 0)
+                    onQueued: (row) => player.enqueueTracks(root.playlistSongs(row))
+                    onMenuRequested: (row) => root.pickRequested(root.playlistSongs(row))
+                    onContextRequested: (row, x, y) => root.contextRequested(root.playlistSongs(row), x, y, false)
+                }
 
             ColumnLayout {   // songs and albums from all of YouTube Music, not only your library
                 spacing: 0
@@ -192,4 +288,5 @@ Item {
             }
         }
     }
+}
 }

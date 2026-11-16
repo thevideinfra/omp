@@ -56,6 +56,11 @@ qt_add_qml_module(omp
         qml/LibraryForm.qml
         qml/ServerForm.qml
         qml/YtmArea.qml
+        qml/YtmCard.qml
+        qml/YtmCover.qml
+        qml/YtmGrid.qml
+        qml/YtmHeaderPage.qml
+        qml/YtmShelf.qml
         qml/YtmForm.qml
         qml/ChipButton.qml
         qml/TabIcon.qml

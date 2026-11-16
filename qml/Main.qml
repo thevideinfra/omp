@@ -126,10 +126,12 @@ ApplicationWindow {
         case Qt.Key_Enter: currentList().activate(); break
         case Qt.Key_A: currentList().enqueue(); break
         case Qt.Key_Right:
-            if (!win.searching && win.drillTab) currentList().focusRight()
+            if (win.isTab("YouTube Music")) { const l = currentList(); if (l.step) l.step(1) }   // along a grid of cards
+            else if (!win.searching && win.drillTab) currentList().focusRight()
             break
         case Qt.Key_Left:
-            if (!win.searching && win.drillTab) currentList().back()
+            if (win.isTab("YouTube Music")) { const l = currentList(); if (l.step) l.step(-1) }
+            else if (!win.searching && win.drillTab) currentList().back()
             break
         case Qt.Key_R: library.rescan(); subsonic.sync(); break
         case Qt.Key_S: player.shuffle = !player.shuffle; break
@@ -138,11 +140,13 @@ ApplicationWindow {
         case Qt.Key_O: player.cycleRepeat(); break
         case Qt.Key_F: win.toggleFavorite(player.current.path ?? ""); break
         case Qt.Key_Backspace:
+            if (win.isTab("YouTube Music")) { ytmArea.back(); break }   // back from an album, playlist or artist page
             if (win.searching) break
             if (win.isTab("Libraries")) library.up()
             else if (win.drillTab) currentList().back()
             break
         case Qt.Key_Escape:
+            if (win.isTab("YouTube Music") && ytmArea.back()) break
             if (!win.searching && win.drillTab && currentList().back()) break
             searchField.text = ""
             break

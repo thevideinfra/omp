@@ -178,7 +178,7 @@ void Playlists::reload()
                            {"title", s.name},
                            {"subtitle", QStringLiteral("%1 songs").arg(s.paths.size())},
                            {"meta", s.source},
-                           {"cover", QString()},
+                           {"cover", s.paths.value(0)},   // the first song's art stands for the playlist
                            {"readOnly", s.readOnly},
                            {"serverId", s.serverId},
                            {"playlistId", s.id}};

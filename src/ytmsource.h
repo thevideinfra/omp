@@ -26,6 +26,8 @@ class YtmSource : public QObject
     Q_PROPERTY(RowsModel *searchAlbums READ searchAlbums CONSTANT)
     Q_PROPERTY(bool searching READ searching NOTIFY searchChanged)
     Q_PROPERTY(QString searchStatus READ searchStatus NOTIFY searchChanged)
+    // The last search came back as full as asked for, and a bigger one is allowed.
+    Q_PROPERTY(bool canShowMore READ canShowMore NOTIFY searchChanged)
 
 public:
     static constexpr const char *kId = "ytm";
@@ -49,8 +51,11 @@ public:
     RowsModel *searchAlbums() { return &m_searchAlbums; }
     bool searching() const { return m_searching; }
     QString searchStatus() const { return m_searchStatus; }
+    bool canShowMore() const;
     // Looks up songs and albums on YouTube Music (the answer fills searchSongs and searchAlbums).
-    Q_INVOKABLE void search(const QString &query);
+    Q_INVOKABLE void search(const QString &query, int limit = 40);
+    // The same search asking for the most results there is (120).
+    Q_INVOKABLE void showMore() { search(m_lastQuery, kMostResults); }
     // Reads the songs of an album from YouTube Music; they come back with `albumFetched` (empty on failure).
     // `purpose` is handed back untouched ("play", "queue", "menu"...).
     Q_INVOKABLE void fetchAlbum(const QString &browseId, const QString &purpose);
@@ -96,6 +101,9 @@ private:
     RowsModel m_searchAlbums;
     bool m_searching = false;
     QString m_searchStatus;
+    static constexpr int kMostResults = 120;
+    QString m_lastQuery;
+    int m_lastLimit = 0;
     int m_searchRun = 0;       // a newer search makes the answer of an older one worthless
     QString m_state = QStringLiteral("off");
     QString m_status;

@@ -211,7 +211,13 @@ void YtmSource::publish(const QList<Playlists::ServerList> &lists)
     m_playlists.setServerLists(QString::fromLatin1(kId), lists);
 }
 
-void YtmSource::search(const QString &query)
+bool YtmSource::canShowMore() const
+{
+    return !m_searching && m_lastLimit > 0 && m_lastLimit < kMostResults
+           && qMax(m_searchSongs.rowCount(), m_searchAlbums.rowCount()) >= m_lastLimit;
+}
+
+void YtmSource::search(const QString &query, int limit)
 {
     const QString q = query.trimmed();
     if (q.isEmpty())
@@ -222,6 +228,8 @@ void YtmSource::search(const QString &query)
         return;
     }
     const int run = ++m_searchRun;
+    m_lastQuery = q;
+    m_lastLimit = limit;
     m_searching = true;
     m_searchStatus = tr("Searching…");
     emit searchChanged();
@@ -240,7 +248,7 @@ void YtmSource::search(const QString &query)
                             o.value("type").toString(), o.value("cover_id").toString(), o.value("year").toInt()});
         }
     };
-    runHelper(QStringLiteral("search"), {q}, m_loginJson.toUtf8(), onLine, [this, run, songs, albums](const Result &r) {
+    runHelper(QStringLiteral("search"), {q, QString::number(limit)}, m_loginJson.toUtf8(), onLine, [this, run, songs, albums](const Result &r) {
         if (run != m_searchRun)
             return;   // a newer search is under way
         m_searching = false;

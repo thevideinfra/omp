@@ -122,6 +122,7 @@ Item {
                         Keys.onEscapePressed: root.clicked()
                     }
                     ChipButton { text: qsTr("Search"); enabled: query.text.trim() !== "" && !ytm.searching; onClicked: { ytm.search(query.text); root.clicked() } }
+                    ChipButton { visible: ytm.canShowMore; text: qsTr("Show more results"); onClicked: { ytm.showMore(); root.clicked() } }
                 }
 
                 UiText {

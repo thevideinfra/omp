@@ -215,6 +215,29 @@ private slots:
         QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);                   // the library itself is untouched
     }
 
+    void asksForFortyResultsAndOffersMoreOnlyWhenThereCouldBeMore()
+    {
+        const auto limit = [&] {
+            QFile f(dir.path() + "/limit");
+            return f.open(QIODevice::ReadOnly) ? f.readAll().trimmed() : QByteArray();
+        };
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.search("gamma");
+        QTRY_VERIFY(!e.source.searching());
+        QCOMPARE(limit(), QByteArray("40"));
+        QVERIFY(!e.source.canShowMore());                                       // 2 songs found, far fewer than asked for
+        e.source.search("gamma", 2);                                            // as many as asked for: there may be more
+        QTRY_VERIFY(!e.source.searching());
+        QCOMPARE(limit(), QByteArray("2"));
+        QVERIFY(e.source.canShowMore());
+        e.source.showMore();                                                    // the same words, up to 120
+        QTRY_VERIFY(!e.source.searching());
+        QCOMPARE(limit(), QByteArray("120"));
+        QVERIFY(!e.source.canShowMore());                                       // nothing beyond that
+    }
+
     void aFailedOrEmptySearchSaysSoAndAnExpiredLoginIsNoticed()
     {
         Env e(dir.path(), dir.path() + "/omp-ytm");

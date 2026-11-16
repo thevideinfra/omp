@@ -5,7 +5,7 @@
     omp-ytm browsers  prints the browser profiles that could hold a login: [{"label", "spec"}]
     omp-ytm check     stdin: the login; prints {"ok": true, "name": ...}
     omp-ytm sync      stdin: the login; prints JSON lines: progress, tracks and playlists
-    omp-ytm search Q  stdin: the login; prints JSON lines: tracks and albums that match Q on YouTube Music
+    omp-ytm search Q [N]  stdin: the login; prints JSON lines: up to N (default 40) tracks and albums that match Q
     omp-ytm album ID  stdin: the login; prints the tracks of the album with that browse id
 
 The login is either the JSON of `login` or a browser spec, "browser:<browser>:<profile folder>" (as printed
@@ -165,14 +165,14 @@ def album_tracks(api, browse_id):
     return out
 
 
-def search(api, query):
+def search(api, query, limit=40):
     if not query.strip():
         fail("other", OTHER, "nothing to search for")
-    for raw in api.search(query, filter="songs", limit=20):
+    for raw in api.search(query, filter="songs", limit=limit):
         t = track(raw)
         if t:
             emit(t)
-    for raw in api.search(query, filter="albums", limit=20):
+    for raw in api.search(query, filter="albums", limit=limit):
         if not raw.get("browseId"):
             continue
         thumbs = raw.get("thumbnails") or []
@@ -254,7 +254,8 @@ def main():
             if command == "check":
                 emit({"ok": True, "name": api.get_account_info().get("accountName", "")})
             elif command == "search":
-                search(api, argument)
+                extra = sys.argv[3] if len(sys.argv) > 3 else ""
+                search(api, argument, int(extra) if extra.isdigit() else 40)
             elif command == "album":
                 for t in album_tracks(api, argument):
                     emit(t)

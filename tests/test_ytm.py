@@ -48,7 +48,7 @@ class YTMusic:
              "thumbnails": [{"url": "https://i.ytimg.com/vi/ccc/hq.jpg"}]}]}
     def search(self, query, filter=None, limit=20, ignore_spelling=False):
         if filter == "songs":
-            return [{"videoId": "s1", "title": "Found " + query, "artists": [{"name": "Zed"}], "album": {"name": "Gamma", "id": "MPREb_g"},
+            return [{"videoId": "s1", "title": "Found %s %d" % (query, limit), "artists": [{"name": "Zed"}], "album": {"name": "Gamma", "id": "MPREb_g"},
                      "duration_seconds": 215, "thumbnails": [{"url": "https://lh3.googleusercontent.com/s=w60-h60-l90-rj"}]},
                     {"videoId": None, "title": "Gone", "artists": []}]
         return [{"browseId": "MPREb_g", "title": "Gamma", "artists": [{"name": "Zed"}], "year": "2019", "type": "Album",
@@ -209,7 +209,7 @@ class OmpYtm(unittest.TestCase):
         songs = [o for o in out if o["kind"] == "track"]
         albums = [o for o in out if o["kind"] == "album"]
         self.assertEqual([t["path"] for t in songs], ["ytm:s1"])                  # a song with no id is left out
-        self.assertEqual((songs[0]["title"], songs[0]["album"], songs[0]["duration"]), ("Found gamma ray", "Gamma", 215))
+        self.assertEqual((songs[0]["title"], songs[0]["album"], songs[0]["duration"]), ("Found gamma ray 40", "Gamma", 215))
         self.assertIn("=w544-h544", songs[0]["cover_id"])
         self.assertEqual(songs[0]["album_id"], "MPREb_g")                          # to play the whole album later
         self.assertEqual([a["id"] for a in albums], ["MPREb_g", "MPREb_s"])
@@ -217,6 +217,14 @@ class OmpYtm(unittest.TestCase):
         self.assertIn("=w544-h544", albums[0]["cover_id"])
         self.assertNotIn("cover_id", albums[1])
         self.assertEqual(albums[1]["year"], 0)
+
+    def test_search_takes_how_many_results_to_ask_for(self):
+        r = subprocess.run([sys.executable, str(YTM), "search", "x", "120"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(json.loads(r.stdout.splitlines()[0])["title"], "Found x 120")
+        bad = subprocess.run([sys.executable, str(YTM), "search", "x", "lots"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                             env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(json.loads(bad.stdout.splitlines()[0])["title"], "Found x 40")      # not a number: the default
 
     def test_an_empty_search_is_refused_and_an_album_lists_its_songs(self):
         env = dict(os.environ, PYTHONPATH=str(self.tmp.name))

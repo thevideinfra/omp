@@ -12,6 +12,8 @@ Item {
     property string kind: "album"
     property string source: ""         // "ytm": the albums or artists of YouTube Music's own area
     property bool allowNew: true       // playlists: show the New playlist button
+    // Where a playlist of a server is changed: YouTube Music is "ytm", any other id is a Subsonic server.
+    function serverApi(id) { return id === "ytm" ? ytm : subsonic }
     property var model
     property bool rightFocus: false
     property bool midFocus: false      // artists: the albums column has the keyboard
@@ -151,7 +153,7 @@ Item {
         const name = text.trim()
         selectName = name   // set first: the change signal arrives during rename()
         if (openServerId !== "") {   // a playlist on a server: the server renames it, then the list is fetched again
-            subsonic.renamePlaylist(openServerId, openPlaylistId, name)
+            serverApi(openServerId).renamePlaylist(openServerId, openPlaylistId, name)
             renaming = false
             clicked()
             return
@@ -167,7 +169,7 @@ Item {
         if (kind !== "playlist" || openReadOnly || !rightFocus || rows.length === 0) return
         const r = rows[detail.currentIndex]
         if (r.header) return
-        if (openServerId !== "") subsonic.removeFromPlaylist(openServerId, openPlaylistId, r.plIndex)
+        if (openServerId !== "") serverApi(openServerId).removeFromPlaylist(openServerId, openPlaylistId, r.plIndex)
         else playlists.removeAt(model.get(top.currentIndex).key, r.plIndex)
     }
     // A click on a sort header of the albums or artists list: ascending first, then descending.
@@ -629,7 +631,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             if (root.confirmDelete) {
-                                if (root.openServerId !== "") subsonic.deletePlaylist(root.openServerId, root.openPlaylistId)
+                                if (root.openServerId !== "") root.serverApi(root.openServerId).deletePlaylist(root.openServerId, root.openPlaylistId)
                                 else playlists.remove(root.openTitle)
                             }
                             else { root.confirmDelete = true; confirmTimer.restart() }

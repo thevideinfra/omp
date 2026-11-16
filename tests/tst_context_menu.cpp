@@ -73,6 +73,20 @@ public:
     QStringList toggled;
 };
 
+class StubYtm : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(bool loggedIn MEMBER loggedIn NOTIFY changed)
+public:
+    Q_INVOKABLE void toggleLike(const QString &path) { liked << path; }
+    Q_INVOKABLE void likeAlbum(const QString &id) { albums << id; }
+    Q_INVOKABLE void fetchAlbum(const QString &id, const QString &purpose) { fetched << id + "|" + purpose; }
+    bool loggedIn = false;
+    QStringList liked, albums, fetched;
+signals:
+    void changed();
+};
+
 class TstContextMenu : public QObject
 {
     Q_OBJECT
@@ -83,6 +97,7 @@ class TstContextMenu : public QObject
     StubPlayer player;
     StubLibrary library;
     StubSubsonic subsonic;
+    StubYtm ytm;
     StubPlaylists playlists;
     QQmlEngine *engine = nullptr;
     QQmlContext *context = nullptr;
@@ -106,6 +121,7 @@ private slots:
         ctx->setContextProperty("player", &player);
         ctx->setContextProperty("library", &library);
         ctx->setContextProperty("subsonic", &subsonic);
+        ctx->setContextProperty("ytm", &ytm);
         ctx->setContextProperty("playlists", &playlists);
         // A window to hold the menu, as Main.qml does.
         QQmlComponent holder(engine);
@@ -252,6 +268,88 @@ private slots:
         ++library.revision;
         emit library.changed();
         QCOMPARE(entry("favorite")->property("text").toString(), QString("Remove from favorites"));
+    }
+
+    void aYoutubeMusicSongIsLikedAndItsAlbumGoesIntoTheLibrary()
+    {
+        QVariantMap yt = song("ytm:abc");
+        yt["albumId"] = "MPREb_g";
+        menu->setProperty("tracks", QVariantList{yt});
+        QVERIFY(entry("favorite")->property("wanted").toBool());
+        QCOMPARE(entry("favorite")->property("text").toString(), QString("Like on YouTube Music"));
+        QVERIFY(QMetaObject::invokeMethod(menu, "toggleFavorite"));
+        QCOMPARE(ytm.liked, QStringList({"ytm:abc"}));                       // not the Subsonic star
+        QVERIFY(subsonic.toggled.isEmpty() || subsonic.toggled.last() != "ytm:abc");
+        library.starred.insert("ytm:abc");
+        ++library.revision;
+        emit library.changed();
+        QCOMPARE(entry("favorite")->property("text").toString(), QString("Unlike on YouTube Music"));
+        library.starred.remove("ytm:abc");
+        ++library.revision;
+        emit library.changed();
+
+        QVERIFY(!entry("addAlbum")->property("wanted").toBool());              // not without a login
+        ytm.loggedIn = true;
+        emit ytm.changed();
+        QVERIFY(entry("addAlbum")->property("wanted").toBool());
+        QVERIFY(QMetaObject::invokeMethod(entry("addAlbum"), "triggered"));
+        QCOMPARE(ytm.albums, QStringList({"MPREb_g"}));
+
+        QVariantMap other = song("ytm:def");
+        other["albumId"] = "MPREb_other";
+        menu->setProperty("tracks", QVariantList{yt, other});                 // two albums: no single album to add
+        QVERIFY(!entry("addAlbum")->property("wanted").toBool());
+        other["albumId"] = "MPREb_g";
+        menu->setProperty("tracks", QVariantList{yt, other});                 // a whole album: yes
+        QVERIFY(entry("addAlbum")->property("wanted").toBool());
+        QVERIFY(!entry("favorite")->property("wanted").toBool());              // several songs: no heart
+        menu->setProperty("tracks", QVariantList{song("ytm:album:MPREb_x")});  // a search album's stand-in is no song
+        QVERIFY(!entry("favorite")->property("wanted").toBool());
+        ytm.loggedIn = false;
+        emit ytm.changed();
+    }
+
+    void playAlbumReadsAYoutubeMusicSongsAlbumFromYoutubeMusic()
+    {
+        QVariantMap yt = song("ytm:abc");
+        yt["albumId"] = "MPREb_g";
+        menu->setProperty("tracks", QVariantList{yt});
+        QVERIFY(QMetaObject::invokeMethod(menu, "playAlbum"));
+        QCOMPARE(ytm.fetched, QStringList({"MPREb_g|playAlbum:ytm:abc"}));    // the Main window plays it when it arrives
+    }
+
+    void theSubmenuOffersANewPlaylistOnYoutubeMusicOnlyWithALogin()
+    {
+        menu->setProperty("tracks", QVariantList{song("ytm:abc")});
+        QObject *sub = menu->findChild<QObject *>("playlistMenu");
+        const auto item = [&](int i) {
+            QQuickItem *o = nullptr;
+            QMetaObject::invokeMethod(sub, "itemAt", Q_RETURN_ARG(QQuickItem *, o), Q_ARG(int, i));
+            return static_cast<QObject *>(o);
+        };
+        ytm.loggedIn = true;
+        emit ytm.changed();
+        playlists.serverLists = {QVariantMap{{"name", "Mix"}, {"serverId", "ytm"}, {"playlistId", "PL1"}, {"source", "YouTube Music"}}};
+        ++playlists.revision;
+        emit playlists.changed();
+        // New playlist, new on YouTube Music, a divider, Chill, Road, Mix.
+        QTRY_COMPARE(sub->property("count").toInt(), 6);
+        QCOMPARE(item(1)->property("text").toString(), QString("New playlist on YouTube Music…"));
+        QCOMPARE(item(5)->property("text").toString(), QString("Mix  ·  YouTube Music"));
+        QSignalSpy created(menu, SIGNAL(newServerPlaylist(QString, QVariant)));
+        QVERIFY(QMetaObject::invokeMethod(item(1), "triggered"));
+        QCOMPARE(created.at(0).at(0).toString(), QString("ytm"));
+        QSignalSpy added(menu, SIGNAL(addToServerPlaylist(QString, QString, QVariant)));
+        QVERIFY(QMetaObject::invokeMethod(item(5), "triggered"));
+        QCOMPARE(added.at(0).at(0).toString(), QString("ytm"));
+        QCOMPARE(added.at(0).at(1).toString(), QString("PL1"));
+
+        ytm.loggedIn = false;
+        emit ytm.changed();
+        playlists.serverLists.clear();
+        ++playlists.revision;
+        emit playlists.changed();
+        QTRY_COMPARE(sub->property("count").toInt(), 4);
     }
 
     void severalSongsHaveNoFavoriteAndAPlaylistRowCanBeRemoved()

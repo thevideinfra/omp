@@ -11,7 +11,7 @@ YTM = Path(__file__).resolve().parent.parent / "bin" / "omp-ytm"
 # A stand-in for ytmusicapi: enough of its shape for the helper, with fixed answers.
 STUB = {
     "ytmusicapi/__init__.py": '''
-import os
+import json, os
 from ytmusicapi.exceptions import YTMusicUserError
 
 class YTMusic:
@@ -43,7 +43,7 @@ class YTMusic:
     def get_library_albums(self, limit=None):
         return [{"browseId": "MPREb_1"}]
     def get_album(self, browse_id):
-        return {"title": "Delta", "year": "2019", "tracks": [
+        return {"title": "Delta", "year": "2019", "audioPlaylistId": "OLAK5_delta", "tracks": [
             {"videoId": "ccc", "title": "Album Song", "artists": [{"name": "Wen"}], "duration_seconds": 61, "trackNumber": 1,
              "thumbnails": [{"url": "https://i.ytimg.com/vi/ccc/hq.jpg"}]}]}
     def search(self, query, filter=None, limit=20, ignore_spelling=False):
@@ -54,12 +54,44 @@ class YTMusic:
         return [{"browseId": "MPREb_g", "title": "Gamma", "artists": [{"name": "Zed"}], "year": "2019", "type": "Album",
                  "thumbnails": [{"url": "https://lh3.googleusercontent.com/a=w60-h60-l90-rj"}]},
                 {"browseId": "MPREb_s", "title": "Tiny", "artists": [{"name": "Yan"}], "year": None, "type": "Single", "thumbnails": []}]
+    def _log(self, name, *args):
+        if os.environ.get("OMP_TEST_LOG"):
+            with open(os.environ["OMP_TEST_LOG"], "a") as f:
+                f.write(json.dumps([name, *args]) + "\\n")
+    def create_playlist(self, title, description, privacy_status="PRIVATE", video_ids=None, source_playlist=None):
+        self._log("create_playlist", title, video_ids)
+        return "PLnew"
+    def add_playlist_items(self, playlistId, videoIds=None, source_playlist=None, duplicates=False):
+        self._log("add_playlist_items", playlistId, videoIds, duplicates)
+        if "FAIL" in playlistId:
+            return {"status": "STATUS_FAILED", "playlistEditResults": []}
+        return {"status": "STATUS_SUCCEEDED", "playlistEditResults": [
+            {"playlistEditVideoAddedResultData": {"videoId": v, "setVideoId": "set-" + v}} for v in videoIds]}
+    def remove_playlist_items(self, playlistId, videos):
+        self._log("remove_playlist_items", playlistId, videos)
+        return "STATUS_SUCCEEDED"
+    def edit_playlist(self, playlistId, title=None, description=None, privacyStatus=None, moveItem=None, addPlaylistId=None, addToTop=None):
+        self._log("edit_playlist", playlistId, title)
+        return "STATUS_SUCCEEDED"
+    def delete_playlist(self, playlistId):
+        self._log("delete_playlist", playlistId)
+        return "STATUS_SUCCEEDED"
+    def rate_song(self, videoId, rating="INDIFFERENT"):
+        self._log("rate_song", videoId, rating)
+        return {}
+    def rate_playlist(self, playlistId, rating="INDIFFERENT"):
+        self._log("rate_playlist", playlistId, rating)
+        return {}
     def get_library_playlists(self, limit=None):
         return [{"playlistId": "LM", "title": "Liked Music"}, {"playlistId": "SE", "title": "Episodes for Later"},
-                {"playlistId": "PL1", "title": "Mix"}]
+                {"playlistId": "PL1", "title": "Mix"}, {"playlistId": "PLsaved", "title": "Saved from someone"}]
     def get_playlist(self, playlist_id, limit=None):
-        return {"tracks": [{"videoId": "ddd", "title": "Only In Playlist", "artists": [{"name": "Vic"}], "album": None},
-                           {"videoId": "bbb", "title": "Library Two", "artists": [{"name": "Zed"}]}]}
+        if playlist_id == "PL1":
+            return {"owned": True, "tracks": [{"videoId": "ddd", "setVideoId": "sv1", "title": "Only In Playlist", "artists": [{"name": "Vic"}], "album": None},
+                                              {"videoId": "bbb", "setVideoId": "sv2", "title": "Library Two", "artists": [{"name": "Zed"}]}]}
+        if playlist_id == "PLnew":
+            return {"owned": True, "tracks": [{"videoId": "x1", "setVideoId": "n1", "title": "N", "artists": []}, {"videoId": "x2", "setVideoId": "n2", "title": "M", "artists": []}]}
+        return {"owned": False, "tracks": []}
 ''',
     "yt_dlp/__init__.py": "",
     "yt_dlp/cookies.py": '''
@@ -146,14 +178,18 @@ class OmpYtm(unittest.TestCase):
 
     def test_playlists_list_their_songs_and_skip_episodes(self):
         lists = {o["id"]: o for o in self.sync() if o["kind"] == "playlist"}
-        self.assertEqual(sorted(lists), ["LM", "PL1"])
+        self.assertEqual(sorted(lists), ["LM", "PL1", "PLsaved"])
         self.assertEqual(lists["LM"]["name"], "Liked Music")
         self.assertEqual(lists["LM"]["paths"], ["ytm:aaa", "ytm:vid"])    # unavailable songs are left out
         self.assertEqual(lists["PL1"]["paths"], ["ytm:ddd", "ytm:bbb"])
+        self.assertEqual(lists["PL1"]["set_ids"], ["sv1", "sv2"])                  # to take a song out of the playlist later
+        self.assertTrue(lists["PL1"]["editable"])
+        self.assertFalse(lists["LM"]["editable"])                                  # liked songs are changed by liking
+        self.assertFalse(lists["PLsaved"]["editable"])                             # someone else's playlist
 
     def test_progress_ends_at_the_total(self):
         progress = [o for o in self.sync() if o["kind"] == "progress"]
-        self.assertEqual((progress[-1]["done"], progress[-1]["total"]), (3, 3))   # one album, two playlists
+        self.assertEqual((progress[-1]["done"], progress[-1]["total"]), (4, 4))   # one album, three playlists
 
     def test_check_and_a_login_that_no_longer_works(self):
         ok = run("check", '{"cookie": "ok"}', self.tmp.name)
@@ -200,6 +236,55 @@ class OmpYtm(unittest.TestCase):
             self.assertEqual(sorted(found), ["Brave Browser (Profile 1)", "Brave Origin", "Chrome", "Firefox"])
             self.assertEqual(found["Brave Origin"], "browser:brave:%s/.config/BraveSoftware/Brave-Origin/Default" % home)
             self.assertTrue(found["Firefox"].startswith("browser:firefox:") and found["Firefox"].endswith("abc.default-release"))
+
+    def test_the_songs_in_liked_music_are_marked_liked(self):
+        tracks = {o["path"]: o for o in self.sync() if o["kind"] == "track"}
+        self.assertTrue(tracks["ytm:aaa"].get("starred"))
+        self.assertTrue(tracks["ytm:vid"].get("starred"))
+        self.assertFalse(tracks["ytm:bbb"].get("starred", False))                  # only in the library
+
+    def edit(self, *args):
+        log = os.path.join(self.tmp.name, "calls.log")
+        if os.path.exists(log):
+            os.remove(log)
+        r = subprocess.run([sys.executable, str(YTM), *args], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name), OMP_TEST_LOG=log))
+        calls = [json.loads(l) for l in open(log)] if os.path.exists(log) else []
+        return r, calls
+
+    def test_a_new_playlist_comes_back_with_its_id_and_the_ids_of_its_items(self):
+        r, calls = self.edit("playlist-create", "Road trip", "x1", "x2")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout), {"ok": True, "id": "PLnew", "set_ids": {"x1": "n1", "x2": "n2"}})
+        self.assertEqual(calls, [["create_playlist", "Road trip", ["x1", "x2"]]])
+        r, calls = self.edit("playlist-create", "Empty")
+        self.assertEqual(json.loads(r.stdout), {"ok": True, "id": "PLnew", "set_ids": {}})
+        self.assertEqual(calls, [["create_playlist", "Empty", None]])
+
+    def test_songs_are_added_to_and_removed_from_a_playlist(self):
+        r, calls = self.edit("playlist-add", "PL1", "a1", "a2")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout), {"ok": True, "set_ids": {"a1": "set-a1", "a2": "set-a2"}})
+        self.assertEqual(calls, [["add_playlist_items", "PL1", ["a1", "a2"], False]])
+        bad, _ = self.edit("playlist-add", "PLFAIL", "a1")
+        self.assertEqual(bad.returncode, 1)
+        r, calls = self.edit("playlist-remove", "PL1", "ddd/sv1", "bbb/sv2")
+        self.assertEqual(json.loads(r.stdout), {"ok": True})
+        self.assertEqual(calls, [["remove_playlist_items", "PL1", [{"videoId": "ddd", "setVideoId": "sv1"}, {"videoId": "bbb", "setVideoId": "sv2"}]]])
+
+    def test_a_playlist_is_renamed_and_deleted(self):
+        r, calls = self.edit("playlist-rename", "PL1", "New name")
+        self.assertEqual((r.returncode, calls), (0, [["edit_playlist", "PL1", "New name"]]))
+        r, calls = self.edit("playlist-delete", "PL1")
+        self.assertEqual((r.returncode, calls), (0, [["delete_playlist", "PL1"]]))
+
+    def test_songs_are_liked_and_unliked_and_an_album_goes_into_the_library(self):
+        _, calls = self.edit("like", "a1", "a2")
+        self.assertEqual(calls, [["rate_song", "a1", "LIKE"], ["rate_song", "a2", "LIKE"]])
+        _, calls = self.edit("unlike", "a1")
+        self.assertEqual(calls, [["rate_song", "a1", "INDIFFERENT"]])
+        r, calls = self.edit("like-album", "MPREb_1")
+        self.assertEqual((r.returncode, calls), (0, [["rate_playlist", "OLAK5_delta", "LIKE"]]))   # an album is its audio playlist
 
     def test_search_lists_songs_and_albums_with_what_omp_needs(self):
         r = subprocess.run([sys.executable, str(YTM), "search", "gamma ray"], input='{"cookie": "ok"}', capture_output=True, text=True,

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QObject>
 
@@ -28,6 +29,9 @@ class YtmSource : public QObject
     Q_PROPERTY(QString searchStatus READ searchStatus NOTIFY searchChanged)
     // The last search came back as full as asked for, and a bigger one is allowed.
     Q_PROPERTY(bool canShowMore READ canShowMore NOTIFY searchChanged)
+    // True with a login (changes can be made); and the latest word on a change ("Added 2 songs to Mix", or why it failed).
+    Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY changed)
+    Q_PROPERTY(QString message READ message NOTIFY messageChanged)
 
 public:
     static constexpr const char *kId = "ytm";
@@ -52,6 +56,19 @@ public:
     bool searching() const { return m_searching; }
     QString searchStatus() const { return m_searchStatus; }
     bool canShowMore() const;
+    bool loggedIn() const { return !m_loginJson.isEmpty(); }
+    QString message() const { return m_message; }
+
+    // Playlists, as on a Subsonic server (the `serverId` is only there to match, it is always "ytm"). Only YouTube
+    // Music songs ("ytm:") go in. They show at once and are undone by a sync when YouTube refuses.
+    Q_INVOKABLE void createPlaylist(const QString &serverId, const QString &name, const QStringList &paths);
+    Q_INVOKABLE void renamePlaylist(const QString &serverId, const QString &playlistId, const QString &name);
+    Q_INVOKABLE void deletePlaylist(const QString &serverId, const QString &playlistId);
+    Q_INVOKABLE void addToPlaylist(const QString &serverId, const QString &playlistId, const QStringList &paths);
+    Q_INVOKABLE void removeFromPlaylist(const QString &serverId, const QString &playlistId, int index);
+    // Likes or unlikes a song (the heart), and puts an album into the YouTube Music library.
+    Q_INVOKABLE void toggleLike(const QString &path);
+    Q_INVOKABLE void likeAlbum(const QString &browseId);
     // Looks up songs and albums on YouTube Music (the answer fills searchSongs and searchAlbums).
     Q_INVOKABLE void search(const QString &query, int limit = 40);
     // The same search asking for the most results there is (120).
@@ -73,9 +90,12 @@ signals:
     void changed();
     void browsersChanged();
     void searchChanged();
+    void messageChanged();
     void albumFetched(const QString &browseId, const QString &purpose, const QVariantList &tracks);
 
 private:
+    struct Item { QString path, setId; };   // a song of a playlist, and YouTube's id for it in that playlist
+    struct PlaylistData { QString id, name; bool editable = false; QList<Item> items; };
     struct Result
     {
         int exitCode = -1;
@@ -87,8 +107,14 @@ private:
     void runHelper(const QString &command, const QStringList &args, const QByteArray &input, std::function<void(const QByteArray &)> lineRead,
                    std::function<void(const Result &)> done);
     void setState(const QString &state, const QString &status);
-    void finishSync(const QVector<Track> &tracks, const QList<Playlists::ServerList> &lists);
-    void publish(const QList<Playlists::ServerList> &lists);
+    void finishSync(const QVector<Track> &tracks, const QList<PlaylistData> &lists);
+    void publish();
+    void setMessage(const QString &message);
+    // Runs a change on YouTube Music; `ok(output)` on success. A failure says so and syncs, so what is shown is what is there.
+    void edit(const QString &command, const QStringList &args, std::function<void(const QJsonObject &)> ok, const QString &failure,
+              std::function<void()> undo = {});
+    static QStringList videoIds(const QStringList &paths);   // the YouTube Music songs among them, by video id
+    PlaylistData *playlist(const QString &id);
 
     Library &m_library;
     Playlists &m_playlists;
@@ -108,6 +134,7 @@ private:
     QString m_state = QStringLiteral("off");
     QString m_status;
     bool m_running = false;
-    QList<Playlists::ServerList> m_lists;   // from the last sync
+    QList<PlaylistData> m_data;   // the playlists as of the last sync and the changes since
+    QString m_message;
     QNetworkAccessManager m_net;
 };

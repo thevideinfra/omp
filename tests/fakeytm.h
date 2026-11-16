@@ -31,6 +31,19 @@ case "$cmd" in
     echo "$2" > "$FAKE_YTM_DIR/albumid"
     echo '{"kind":"track","path":"ytm:g1","title":"Gamma One","artist":"Zed","album_artist":"Zed","album":"Gamma","track":1,"duration":200}'
     printf '{"kind":"track","path":"ytm:g2","title":"Gamma Two","artist":"Zed","album_artist":"Zed","album":"Gamma","track":2,"duration":210}' ;;
+  playlist-create|playlist-add|playlist-remove|playlist-rename|playlist-delete|like|unlike|like-album)
+    case "$FAKE_YTM_MODE" in crash) echo boom >&2; exit 1 ;; esac
+    [ "$FAKE_YTM_EDITS" = fail ] && { echo '{"code":"other","error":"refused"}' >&2; exit 1; }
+    shift
+    echo "$cmd $*" >> "$FAKE_YTM_DIR/edits"
+    case "$cmd" in
+      playlist-create) shift; out='{"ok":true,"id":"PLnew","set_ids":{' ;;
+      playlist-add) shift; out='{"ok":true,"set_ids":{' ;;
+      *) echo '{"ok":true}'; exit 0 ;;
+    esac
+    sep=""
+    for v in "$@"; do out="$out$sep\"$v\":\"set-$v\""; sep=","; done
+    echo "$out}}" ;;
   sync)
     case "$FAKE_YTM_MODE" in
       auth) echo '{"code":"auth","error":"signed out"}' >&2; exit 2 ;;
@@ -41,7 +54,8 @@ case "$cmd" in
     echo '{"kind":"progress","done":0,"total":1}'
     echo '{"kind":"track","path":"ytm:aaa","title":"One","artist":"Zed","album_artist":"Zed","album":"Gamma","duration":200,"cover_id":"https://x/a=w544-h544"}'
     echo '{"kind":"track","path":"ytm:bbb","title":"Two","artist":"Zed","album_artist":"Zed","album":"Gamma","duration":100}'
-    echo '{"kind":"playlist","id":"PL1","name":"Mix","paths":["ytm:bbb","ytm:aaa"]}'
+    echo '{"kind":"playlist","id":"PL1","name":"Mix","paths":["ytm:bbb","ytm:aaa"],"set_ids":["sv-b","sv-a"],"editable":true}'
+    echo '{"kind":"playlist","id":"LM","name":"Liked Music","paths":["ytm:aaa"],"set_ids":[""],"editable":false}'
     printf '{"kind":"progress","done":1,"total":1}' ;;
 esac
 )SH");

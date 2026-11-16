@@ -35,7 +35,7 @@ Popup {
         const name = nameField.text.trim()
         if (name === "") return
         if (targetServer !== "") {   // on a server: it makes the playlist, then it shows up in the list
-            subsonic.createPlaylist(targetServer, name, paths)
+            (targetServer === "ytm" ? ytm : subsonic).createPlaylist(targetServer, name, paths)
             close()
             return
         }
@@ -90,7 +90,7 @@ Popup {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (serverId !== "") subsonic.addToPlaylist(serverId, playlistId, root.paths)   // on a server
+                        if (serverId !== "") (serverId === "ytm" ? ytm : subsonic).addToPlaylist(serverId, playlistId, root.paths)   // on a server
                         else playlists.addPaths(title, root.paths)
                         root.close()
                     }

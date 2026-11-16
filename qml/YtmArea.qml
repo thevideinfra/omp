@@ -12,6 +12,7 @@ Item {
     signal columnsRequested(real x, real y)
     signal pickRequested(var tracks)
     signal contextRequested(var tracks, real x, real y, bool canRemove)
+    signal newPlaylistRequested()
 
     // A click on a column header: the first click sorts ascending, the next on the same one descending.
     function sortBy(key) {
@@ -94,8 +95,9 @@ Item {
 
             DrillList {
                 kind: "playlist"
-                allowNew: false
+                allowNew: ytm.loggedIn
                 model: playlists.listOf("ytm")
+                onNewPlaylistRequested: root.newPlaylistRequested()
                 onClicked: root.clicked()
                 onPickRequested: (tracks) => root.pickRequested(tracks)
                 onContextRequested: (tracks, x, y, canRemove) => root.contextRequested(tracks, x, y, canRemove)

@@ -47,6 +47,12 @@ ApplicationWindow {
         }
     }
 
+    // The heart: a YouTube Music song is liked there, a server's song is starred on its server.
+    function toggleFavorite(path) {
+        if (path.indexOf("ytm:") === 0) ytm.toggleLike(path)
+        else subsonic.toggleStar(path)
+    }
+
     // Opens a tab with this row selected.
     function goTo(tabName, tabItem, key) {
         searchField.text = ""
@@ -130,7 +136,7 @@ ApplicationWindow {
         case Qt.Key_M: { const l = currentList(); if (l.pick) l.pick() } break
         case Qt.Key_Delete: { const l = currentList(); if (l.removeSelected) l.removeSelected() } break
         case Qt.Key_O: player.cycleRepeat(); break
-        case Qt.Key_F: subsonic.toggleStar(player.current.path ?? ""); break
+        case Qt.Key_F: win.toggleFavorite(player.current.path ?? ""); break
         case Qt.Key_Backspace:
             if (win.searching) break
             if (win.isTab("Libraries")) library.up()
@@ -502,6 +508,7 @@ ApplicationWindow {
                             onColumnsRequested: (x, y) => columnMenu.openAt(x, y)
                             onPickRequested: (tracks) => picker.openFor(tracks)
                             onContextRequested: (tracks, x, y, canRemove) => win.showContext(tracks, x, y, canRemove)
+                            onNewPlaylistRequested: picker.openNew([], "ytm")
                         }
 
                         SettingsForm { }   // Settings
@@ -548,6 +555,7 @@ ApplicationWindow {
                     text: player.error !== "" ? player.error
                           : library.scanning ? qsTr("Scanning…")
                           : subsonic.status.indexOf("Server offline") === 0 || subsonic.status.indexOf("Syncing") === 0 ? subsonic.status
+                          : ytm.message !== "" ? ytm.message
                           : player.sleepAfterSong ? qsTr("Sleep: after this song")
                           : player.sleepRemaining >= 0 ? qsTr("Sleep in %1").arg(Fmt.time(player.sleepRemaining)) : ""
                 }
@@ -606,11 +614,12 @@ ApplicationWindow {
                                 active: player.repeat !== "off"
                                 onClicked: { player.cycleRepeat(); keyRoot.forceActiveFocus() }
                             }
-                            TransportButton {   // a server song: star it
+                            TransportButton {   // a server song: star it; a YouTube Music song: like it
                                 icon: "heart"
                                 visible: (player.current.path ?? "").indexOf("subsonic:") === 0
+                                         || ((player.current.path ?? "").indexOf("ytm:") === 0 && (player.current.path ?? "").indexOf("ytm:album:") !== 0)
                                 active: { library.starredRevision; return library.isStarred(player.current.path ?? "") }
-                                onClicked: { subsonic.toggleStar(player.current.path ?? ""); keyRoot.forceActiveFocus() }
+                                onClicked: { win.toggleFavorite(player.current.path ?? ""); keyRoot.forceActiveFocus() }
                             }
                             TransportButton {
                                 id: sleepButton
@@ -796,7 +805,7 @@ ApplicationWindow {
         id: contextMenu
         onNewPlaylist: (tracks) => picker.openNew(tracks)
         onNewServerPlaylist: (serverId, tracks) => picker.openNew(tracks, serverId)
-        onAddToServerPlaylist: (serverId, playlistId, tracks) => subsonic.addToPlaylist(serverId, playlistId, tracks.map(t => t.path))
+        onAddToServerPlaylist: (serverId, playlistId, tracks) => (serverId === "ytm" ? ytm : subsonic).addToPlaylist(serverId, playlistId, tracks.map(t => t.path))
         onAddToPlaylistNamed: (name, tracks) => playlists.addPaths(name, tracks.map(t => t.path))
         onGoToArtist: (path) => win.goTo("Artists", artistsTab, library.artistKeyFor(path))
         onGoToAlbum: (path) => win.goTo("Albums", albumsTab, library.albumKeyFor(path))

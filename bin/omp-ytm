@@ -7,6 +7,9 @@
     omp-ytm sync      stdin: the login; prints JSON lines: progress, tracks and playlists
     omp-ytm search Q [N]  stdin: the login; prints JSON lines: up to N (default 40) tracks and albums that match Q
     omp-ytm album ID  stdin: the login; prints the tracks of the album with that browse id
+    omp-ytm playlist-create TITLE [VIDEO...] | playlist-add ID VIDEO... | playlist-remove ID VIDEO/SETID...
+    omp-ytm playlist-rename ID TITLE | playlist-delete ID | like VIDEO... | unlike VIDEO... | like-album BROWSE_ID
+                      stdin: the login; each prints {"ok": true, ...} or fails
 
 The login is either the JSON of `login` or a browser spec, "browser:<browser>:<profile folder>" (as printed
 by `browsers`): the cookies are then read from that browser's profile on every run, so they stay fresh.
@@ -122,7 +125,7 @@ def bigger(url):
     return re.sub(r"=w\d+-h\d+", "=w544-h544", url) if "=w" in url else url
 
 
-def track(raw, album=None, year=0, number=0, album_id=None):
+def track(raw, album=None, year=0, number=0, album_id=None, liked=False):
     video = raw.get("videoId")
     if not video or raw.get("isAvailable") is False:
         return None
@@ -146,6 +149,8 @@ def track(raw, album=None, year=0, number=0, album_id=None):
         out["year"] = int(year or raw.get("year"))
     if thumbs:
         out["cover_id"] = bigger(thumbs[-1]["url"])
+    if liked:
+        out["starred"] = True
     album_id = (raw.get("album") or {}).get("id") or album_id
     if album_id:
         out["album_id"] = album_id
@@ -200,7 +205,7 @@ def sync(api):
 
     liked = api.get_liked_songs(limit=None).get("tracks", [])
     for raw in liked:
-        add(raw)
+        add(raw, liked=True)
     for raw in api.get_library_songs(limit=None):
         add(raw)
     albums = api.get_library_albums(limit=None)
@@ -220,14 +225,78 @@ def sync(api):
         emit({"kind": "progress", "done": done, "total": total})
     for p in playlists:
         pid = p.get("playlistId")
+        owned = False
         try:
-            tracks = liked if pid == "LM" else api.get_playlist(pid, limit=None).get("tracks", [])
+            if pid == "LM":
+                tracks = liked
+            else:
+                full = api.get_playlist(pid, limit=None)
+                tracks, owned = full.get("tracks", []), bool(full.get("owned"))
         except Exception:
             tracks = []
-        paths = [x for x in (add(raw) for raw in tracks) if x]
-        emit({"kind": "playlist", "id": pid, "name": p.get("title") or pid, "paths": paths})
+        items = [(x, raw.get("setVideoId") or "") for raw in tracks for x in [add(raw)] if x]
+        emit({"kind": "playlist", "id": pid, "name": p.get("title") or pid, "paths": [i[0] for i in items],
+              "set_ids": [i[1] for i in items], "editable": owned and pid not in ("LM", "SE")})
         done += 1
         emit({"kind": "progress", "done": done, "total": total})
+
+
+def check_status(result, what):
+    status = result.get("status") if isinstance(result, dict) else result
+    if status not in (None, "STATUS_SUCCEEDED") and not isinstance(status, dict):
+        fail("other", OTHER, "%s was refused (%s)" % (what, status))
+
+
+def set_ids(result):
+    """{video id: setVideoId} from the answer to adding songs to a playlist."""
+    out = {}
+    for e in (result.get("playlistEditResults") or []) if isinstance(result, dict) else []:
+        d = e.get("playlistEditVideoAddedResultData", e)
+        if d.get("videoId"):
+            out[d["videoId"]] = d.get("setVideoId") or ""
+    return out
+
+
+def edit(api, command, args):
+    if command == "playlist-create":
+        if not args or not args[0].strip():
+            fail("other", OTHER, "a playlist needs a name")
+        ids = args[1:]
+        pid = api.create_playlist(args[0], "", video_ids=ids or None)
+        if not isinstance(pid, str):
+            fail("other", OTHER, "the playlist was not created: %s" % (pid,))
+        out = {"ok": True, "id": pid, "set_ids": {}}
+        if ids:
+            out["set_ids"] = {t["videoId"]: t.get("setVideoId") or "" for t in api.get_playlist(pid, limit=None).get("tracks", []) if t.get("videoId")}
+        return out
+    if command == "playlist-add":
+        result = api.add_playlist_items(args[0], args[1:], duplicates=False)
+        check_status(result, "adding the songs")
+        return {"ok": True, "set_ids": set_ids(result)}
+    if command == "playlist-remove":
+        pairs = [a.split("/", 1) for a in args[1:]]
+        check_status(api.remove_playlist_items(args[0], [{"videoId": v, "setVideoId": s} for v, s in pairs]), "removing the songs")
+        return {"ok": True}
+    if command == "playlist-rename":
+        check_status(api.edit_playlist(args[0], title=args[1]), "renaming the playlist")
+        return {"ok": True}
+    if command == "playlist-delete":
+        check_status(api.delete_playlist(args[0]), "deleting the playlist")
+        return {"ok": True}
+    if command in ("like", "unlike"):
+        for video in args:
+            api.rate_song(video, "LIKE" if command == "like" else "INDIFFERENT")
+        return {"ok": True}
+    if command == "like-album":
+        audio = api.get_album(args[0]).get("audioPlaylistId")
+        if not audio:
+            fail("other", OTHER, "that album has no playlist to add to the library")
+        api.rate_playlist(audio, "LIKE")
+        return {"ok": True}
+    fail("other", OTHER, "unknown command %r" % command)
+
+
+EDITS = ("playlist-create", "playlist-add", "playlist-remove", "playlist-rename", "playlist-delete", "like", "unlike", "like-album")
 
 
 def main():
@@ -245,7 +314,7 @@ def main():
     try:
         if command == "login":
             print(setup_browser(None, headers_from_paste(stdin)))
-        elif command in ("check", "sync", "search", "album"):
+        elif command in ("check", "sync", "search", "album") + EDITS:
             login = stdin.strip()
             if login.startswith("browser:"):
                 login = setup_browser(None, headers_from_browser(login))
@@ -259,6 +328,8 @@ def main():
             elif command == "album":
                 for t in album_tracks(api, argument):
                     emit(t)
+            elif command in EDITS:
+                emit(edit(api, command, sys.argv[2:]))
             else:
                 sync(api)
         else:

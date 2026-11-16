@@ -23,7 +23,13 @@ Menu {
     signal goToAlbum(string path)
 
     readonly property bool single: tracks.length === 1
-    readonly property bool remoteSingle: single && (tracks[0].path ?? "").indexOf("subsonic:") === 0
+    readonly property bool youtubeSingle: single && (tracks[0].path ?? "").indexOf("ytm:") === 0 && (tracks[0].path ?? "").indexOf("ytm:album:") !== 0
+    readonly property bool remoteSingle: single && (tracks[0].path ?? "").indexOf("subsonic:") === 0 || youtubeSingle
+    // The YouTube Music album every one of the songs belongs to (empty when they are not all of one).
+    readonly property string albumId: {
+        const id = tracks.length > 0 ? (tracks[0].albumId ?? "") : ""
+        return id !== "" && tracks.every(t => (t.albumId ?? "") === id) ? id : ""
+    }
     readonly property bool starred: { library.starredRevision; return remoteSingle && library.isStarred(tracks[0].path) }
 
     function play() { player.playTracks(tracks, 0) }
@@ -39,7 +45,10 @@ Menu {
     }
     function removeFromQueue() { player.removeAt(queueRow) }
     function moveInQueue(delta) { player.moveRow(queueRow, queueRow + delta) }
-    function toggleFavorite() { subsonic.toggleStar(tracks[0].path) }
+    function toggleFavorite() {
+        if (youtubeSingle) ytm.toggleLike(tracks[0].path)
+        else subsonic.toggleStar(tracks[0].path)
+    }
 
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     padding: S.sp(4)
@@ -88,6 +97,8 @@ Menu {
                 if (s.active)
                     out.push({ kind: "newOn", text: qsTr("New playlist on %1…").arg(s.title), serverId: s.id, name: "newOn:" + s.id })
             }
+            if (ytm.loggedIn)
+                out.push({ kind: "newOn", text: qsTr("New playlist on YouTube Music…"), serverId: "ytm", name: "newOn:ytm" })
             out.push({ kind: "divider", text: "", name: "divider" })
             playlists.names().forEach(n => out.push({ kind: "local", text: n, name: "pl:" + n }))
             playlists.editableServerLists().forEach(l => out.push({ kind: "server", text: l.name + "  ·  " + l.source,
@@ -115,8 +126,15 @@ Menu {
     MenuEntry {
         objectName: "favorite"
         wanted: root.remoteSingle
-        text: root.starred ? qsTr("Remove from favorites") : qsTr("Add to favorites")
+        text: root.youtubeSingle ? (root.starred ? qsTr("Unlike on YouTube Music") : qsTr("Like on YouTube Music"))
+                                 : root.starred ? qsTr("Remove from favorites") : qsTr("Add to favorites")
         onTriggered: root.toggleFavorite()
+    }
+    MenuEntry {
+        objectName: "addAlbum"
+        wanted: root.albumId !== "" && ytm.loggedIn
+        text: qsTr("Add album to YouTube Music library")
+        onTriggered: ytm.likeAlbum(root.albumId)
     }
     MenuEntry {
         objectName: "removeFolder"

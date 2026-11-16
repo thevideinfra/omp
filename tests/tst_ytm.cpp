@@ -34,6 +34,7 @@ class TstYtm : public QObject
         qputenv("FAKE_SECRET_DIR", dir.path().toUtf8());
         qputenv("FAKE_YTM_DIR", dir.path().toUtf8());
         qputenv("FAKE_YTM_MODE", "ok");
+        qunsetenv("FAKE_YTM_EDITS");
         writeFake(dir.path());
         writeHelper(dir.path());
     }
@@ -58,10 +59,11 @@ private slots:
         QCOMPARE(e.source.status(), QString("Connected: 2 songs"));
         QCOMPARE(e.library.remoteTracksOf("ytm").size(), 2);
         QVERIFY(QFileInfo::exists(dir.path() + "/subsonic-ytm.jsonl"));
-        QCOMPARE(e.playlists.list()->rowCount(), 1);
+        QCOMPARE(e.playlists.list()->rowCount(), 2);
         QCOMPARE(e.playlists.list()->get(0).value("title").toString(), QString("Mix"));
         QCOMPARE(e.playlists.list()->get(0).value("meta").toString(), QString("YouTube Music"));
-        QVERIFY(e.playlists.list()->get(0).value("readOnly").toBool());
+        QVERIFY(!e.playlists.list()->get(0).value("readOnly").toBool());                    // yours: it can be changed
+        QVERIFY(e.playlists.list()->get(1).value("readOnly").toBool());                     // Liked Music is changed by liking
         QCOMPARE(e.playlists.paths(e.playlists.list()->get(0).value("key").toString()), (QStringList{"ytm:bbb", "ytm:aaa"}));
         QCOMPARE(e.library.tracksForPaths({"ytm:aaa"}).size(), 1);
         QFile seen(dir.path() + "/seen");                                      // the helper got the login on stdin
@@ -278,6 +280,142 @@ private slots:
         e.source.fetchAlbum("MPREb_x", "queue");
         QTRY_COMPARE(spy.count(), 2);
         QVERIFY(spy.at(1).at(2).toList().isEmpty());                            // a failure answers with no songs
+    }
+
+    // ----- editing -----
+
+    static QStringList edits(const QString &dir)
+    {
+        QFile f(dir + "/edits");
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()).split('\n', Qt::SkipEmptyParts) : QStringList();
+    }
+    static QString titleOf(Env &e, int row) { return e.playlists.list()->get(row).value("title").toString(); }
+    static QStringList pathsOf(Env &e, int row) { return e.playlists.paths(e.playlists.list()->get(row).value("key").toString()); }
+
+    void yourPlaylistsAreEditableAndOnlyThoseAreOfferedToAddTo()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        const QVariantList editable = e.playlists.editableServerLists();
+        QCOMPARE(editable.size(), 1);
+        QCOMPARE(editable.at(0).toMap().value("name").toString(), QString("Mix"));
+        QCOMPARE(editable.at(0).toMap().value("serverId").toString(), QString("ytm"));
+        QCOMPARE(editable.at(0).toMap().value("playlistId").toString(), QString("PL1"));
+        QVERIFY(e.source.loggedIn());
+    }
+
+    void aNewPlaylistTakesOnlyYoutubeMusicSongsAndShowsUpWhenYouTubeHasMadeIt()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.createPlaylist("ytm", "Road trip", {"ytm:aaa", "/m/local.flac", "ytm:album:MPREb_x", "subsonic:s1/4"});
+        QTRY_COMPARE(e.playlists.list()->rowCount(), 3);
+        QCOMPARE(edits(dir.path()), QStringList{"playlist-create Road trip aaa"});          // the other songs never leave the computer
+        QCOMPARE(titleOf(e, 2), QString("Road trip"));
+        QCOMPARE(pathsOf(e, 2), QStringList{"ytm:aaa"});
+        QVERIFY(!e.playlists.list()->get(2).value("readOnly").toBool());
+        QCOMPARE(e.playlists.list()->get(2).value("playlistId").toString(), QString("PLnew"));
+        // its songs can be taken out again: the id YouTube gave each one was kept
+        e.source.removeFromPlaylist("ytm", "PLnew", 0);
+        QCOMPARE(pathsOf(e, 2), QStringList());                                                // at once
+        QTRY_COMPARE(edits(dir.path()).size(), 2);
+        QCOMPARE(edits(dir.path()).at(1), QString("playlist-remove PLnew aaa/set-aaa"));
+    }
+
+    void songsAddedToAPlaylistKeepTheirIdsSoTheyCanBeRemoved()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.addToPlaylist("ytm", "PL1", {"/m/local.flac", "ytm:album:Z"});             // nothing of YouTube Music's: nothing asked
+        QTest::qWait(150);
+        QVERIFY(edits(dir.path()).isEmpty());
+        e.source.addToPlaylist("ytm", "PL1", {"ytm:aaa"});
+        QTRY_COMPARE(pathsOf(e, 0).size(), 3);                                                // Mix had two songs
+        QCOMPARE(edits(dir.path()), QStringList{"playlist-add PL1 aaa"});
+        QCOMPARE(pathsOf(e, 0).last(), QString("ytm:aaa"));
+        e.source.removeFromPlaylist("ytm", "PL1", 2);
+        QTRY_COMPARE(edits(dir.path()).size(), 2);
+        QCOMPARE(edits(dir.path()).at(1), QString("playlist-remove PL1 aaa/set-aaa"));
+        e.source.removeFromPlaylist("ytm", "PL1", 0);                                         // a song of the first sync
+        QTRY_COMPARE(edits(dir.path()).size(), 3);
+        QCOMPARE(edits(dir.path()).at(2), QString("playlist-remove PL1 bbb/sv-b"));
+        QCOMPARE(pathsOf(e, 0), QStringList{"ytm:aaa"});
+    }
+
+    void aPlaylistIsRenamedAndDeletedAtOnceAndTheWordsReachYouTube()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.renamePlaylist("ytm", "PL1", "Better name");
+        QCOMPARE(titleOf(e, 0), QString("Better name"));
+        QTRY_COMPARE(edits(dir.path()), QStringList{"playlist-rename PL1 Better name"});
+        e.source.deletePlaylist("ytm", "PL1");
+        QCOMPARE(e.playlists.list()->rowCount(), 1);                                           // only Liked Music is left
+        QTRY_COMPARE(edits(dir.path()).size(), 2);
+        QCOMPARE(edits(dir.path()).at(1), QString("playlist-delete PL1"));
+    }
+
+    void aRefusedEditIsReportedAndTheListsComeBackFromYouTube()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        qputenv("FAKE_YTM_EDITS", "fail");
+        e.source.deletePlaylist("ytm", "PL1");
+        QCOMPARE(e.playlists.list()->rowCount(), 1);                                           // optimistic, as it is shown at once
+        QTRY_VERIFY(e.source.message().contains("refused"));
+        QTRY_COMPARE(e.playlists.list()->rowCount(), 2);                                       // the sync that follows a failure restores it
+        QCOMPARE(titleOf(e, 0), QString("Mix"));
+        qunsetenv("FAKE_YTM_EDITS");
+    }
+
+    void editsDoNothingWithoutALogin()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.createPlaylist("ytm", "X", {"ytm:aaa"});
+        e.source.addToPlaylist("ytm", "PL1", {"ytm:aaa"});
+        e.source.toggleLike("ytm:aaa");
+        QCOMPARE(e.source.message(), QString("Log in first"));
+        QTest::qWait(150);
+        QVERIFY(edits(dir.path()).isEmpty());
+    }
+
+    void likingASongIsShownAtOnceAndUndoneWhenYouTubeRefuses()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        QVERIFY(!e.library.isStarred("ytm:bbb"));
+        e.source.toggleLike("ytm:bbb");
+        QVERIFY(e.library.isStarred("ytm:bbb"));                                               // the heart at once
+        QTRY_COMPARE(edits(dir.path()), QStringList{"like bbb"});
+        e.source.toggleLike("ytm:bbb");
+        QVERIFY(!e.library.isStarred("ytm:bbb"));
+        QTRY_COMPARE(edits(dir.path()).size(), 2);
+        QCOMPARE(edits(dir.path()).at(1), QString("unlike bbb"));
+        qputenv("FAKE_YTM_EDITS", "fail");
+        e.source.toggleLike("ytm:bbb");
+        QTRY_VERIFY(e.source.message().contains("refused"));
+        QVERIFY(!e.library.isStarred("ytm:bbb"));                                              // put back
+        qunsetenv("FAKE_YTM_EDITS");
+        e.source.toggleLike("/m/local.flac");                                                  // not a YouTube Music song: ignored
+        e.source.toggleLike("ytm:album:MPREb_x");
+        QTest::qWait(150);
+        QCOMPARE(edits(dir.path()).size(), 2);
+    }
+
+    void anAlbumIsAddedToTheLibrary()
+    {
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.likeAlbum("MPREb_g");
+        QTRY_COMPARE(edits(dir.path()), QStringList{"like-album MPREb_g"});
+        QTRY_VERIFY(e.source.message().contains("library"));
     }
 
     void aSongPlaysFromItsWatchAddress()

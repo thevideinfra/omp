@@ -15,6 +15,11 @@ ColumnLayout {
     signal played(int row)
     signal contextRequested(int row, real x, real y)
     signal seeAll()
+    // Sorting chips in the heading: [[key, label]...], the key the list is sorted by and which way.
+    property var sortOptions: []
+    property string sortKey: ""
+    property bool sortDescending: false
+    signal sortRequested(string key)
 
     spacing: S.sp(4)
 
@@ -23,6 +28,14 @@ ColumnLayout {
         Layout.leftMargin: S.sp(12)
         Layout.rightMargin: S.sp(8)
         UiText { text: root.heading; font.bold: true; px: 16; Layout.fillWidth: true }
+        Repeater {
+            model: root.sortOptions
+            ChipButton {
+                required property var modelData
+                text: modelData[1] + (root.sortKey === modelData[0] ? (root.sortDescending ? "  ▼" : "  ▲") : "")
+                onClicked: root.sortRequested(modelData[0])
+            }
+        }
         ChipButton { visible: root.showSeeAll; text: qsTr("See all"); onClicked: root.seeAll() }
         ChipButton { text: "‹"; enabled: !row.atXBeginning; onClicked: row.scrollBy(-row.width * 0.8) }
         ChipButton { text: "›"; enabled: !row.atXEnd; onClicked: row.scrollBy(row.width * 0.8) }
@@ -50,9 +63,28 @@ ColumnLayout {
             required property string title
             required property string subtitle
             required property string cover
-            width: root.cardWidth
+            readonly property bool isDivider: cover === "--divider--"   // a line with a label between two kinds of card
+            width: isDivider ? S.sp(64) : root.cardWidth
             height: row.height
+            Rectangle {
+                visible: cell.isDivider
+                x: parent.width / 2 + S.sp(8)
+                y: S.sp(12)
+                width: 1
+                height: root.cardWidth - S.sp(16)
+                color: Qt.alpha(theme.foreground, 0.28)
+            }
+            UiText {
+                visible: cell.isDivider
+                text: cell.title
+                color: theme.dimForeground
+                px: 12
+                rotation: -90
+                x: parent.width / 2 - S.sp(10) - width / 2
+                y: S.sp(12) + (root.cardWidth - S.sp(16)) / 2 - height / 2
+            }
             YtmCard {
+                visible: !cell.isDivider
                 cardWidth: root.cardWidth
                 title: cell.title
                 subtitle: cell.subtitle

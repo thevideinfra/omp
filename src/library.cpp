@@ -24,6 +24,30 @@ QString fold(const QString &s)
     return s.trimmed().toCaseFolded();
 }
 
+// YouTube Music lists a song under one id in a playlist or in the liked songs (no track number) and under another in
+// its album. In an album or an artist the song shows once, the copy the album has (the one with a track number).
+QVector<Track> withoutRepeats(const QVector<Track> &tracks)
+{
+    QHash<QString, int> at;
+    QVector<Track> out;
+    out.reserve(tracks.size());
+    for (const Track &t : tracks) {
+        if (!Track::isYoutubePath(t.path)) {
+            out.append(t);
+            continue;
+        }
+        const QString key = fold(t.album) + QChar(0x1f) + fold(t.title);
+        const auto it = at.constFind(key);
+        if (it == at.cend()) {
+            at.insert(key, out.size());
+            out.append(t);
+        } else if (out[*it].track == 0 && t.track > 0) {
+            out[*it] = t;
+        }
+    }
+    return out;
+}
+
 QString albumKey(const Track &t)
 {
     // A server album never merges with a local album of the same name.
@@ -431,8 +455,10 @@ void Library::rebuildSeparate()
     m_sepByAlbum.clear();
     for (const Track &t : std::as_const(songs))
         m_sepByAlbum[albumKey(t)].append(t);
-    for (QVector<Track> &list : m_sepByAlbum)
+    for (QVector<Track> &list : m_sepByAlbum) {
         std::sort(list.begin(), list.end(), trackLess);
+        list = withoutRepeats(list);
+    }
 
     const QStringList terms = m_separateFilter.toLower().split(' ', Qt::SkipEmptyParts);
     const auto matches = [&](const QString &hay) {
@@ -481,6 +507,8 @@ void Library::rebuildSeparate()
     m_sepByArtist.clear();
     for (const Track &t : std::as_const(songs))
         m_sepByArtist[t.albumArtist].append(t);
+    for (auto it = m_sepByArtist.begin(); it != m_sepByArtist.end(); ++it)
+        it.value() = withoutRepeats(it.value());
     QStringList names = m_sepByArtist.keys();
     std::sort(names.begin(), names.end(), [](const QString &a, const QString &b) { return ciLess(a, b); });
     QVector<QVariantMap> artistRows;
@@ -867,6 +895,11 @@ void Library::rebuildGroups()
         m_byAlbum[albumKey(t)].append(t);
         m_byArtist[display.value(fold(t.albumArtist))].append(t);
     }
+
+    for (auto it = m_byAlbum.begin(); it != m_byAlbum.end(); ++it)
+        it.value() = withoutRepeats(it.value());
+    for (auto it = m_byArtist.begin(); it != m_byArtist.end(); ++it)
+        it.value() = withoutRepeats(it.value());
 
     rebuildAlbums();
     rebuildSongs();

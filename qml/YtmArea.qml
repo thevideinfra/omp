@@ -54,6 +54,9 @@ Item {
         const wanted = pendingAlbums
         wanted[browseId] = { title: title, subtitle: subtitle, cover: cover }
         pendingAlbums = wanted
+        // The page opens at once; its songs fill in when YouTube has answered (at once for one read before).
+        push({ kind: "album", key: browseId, title: title, subtitle: subtitle, cover: cover, albumId: browseId,
+               meta: qsTr("Loading…"), tracks: [], loading: true })
         ytm.fetchAlbum(browseId, "open")
     }
 
@@ -103,9 +106,11 @@ Item {
         function onAlbumFetched(id, purpose, tracks) {
             if (purpose === "open") {
                 const info = root.pendingAlbums[id]
-                if (!info || tracks.length === 0) return
-                root.push({ kind: "album", key: id, title: info.title, subtitle: info.subtitle, cover: info.cover, albumId: id,
-                            meta: root.minutes(tracks), tracks: tracks })
+                const at = root.pages.findIndex(p => p.key === id && p.loading)
+                if (!info || at < 0) return               // the page was left meanwhile
+                if (tracks.length === 0) { root.pages = root.pages.filter((p, i) => i !== at); return }   // it failed: the player bar says why
+                root.pages = root.pages.map((p, i) => i === at ? { kind: "album", key: id, title: info.title, subtitle: info.subtitle,
+                                                                   cover: info.cover, albumId: id, meta: root.minutes(tracks), tracks: tracks } : p)
                 return
             }
             if (tracks.length === 0) return

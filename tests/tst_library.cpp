@@ -634,6 +634,35 @@ private slots:
         QCOMPARE(lib.tracksForPaths({"ytm:s1"}).size(), 0);
     }
 
+    void aYoutubeMusicSongListedTwiceUnderTwoIdsShowsOnceInItsAlbumAndArtist()
+    {
+        // YouTube Music lists a song under one id in a playlist or the liked songs (track number 0) and another in its album.
+        Track playlistCopy = mk("ytm:pl1", "Caravel", "Zed", "Garden", 0);
+        Track albumCopy = mk("ytm:al1", "Caravel", "Zed", "Garden", 9);
+        Track other = mk("ytm:al2", "Built", "Zed", "Garden", 4);
+        Track otherCopy = mk("ytm:pl2", "Built", "Zed", "Garden", 0);
+        Track local = mk("/m/a.flac", "Caravel", "Zed", "Garden", 1);                       // a local song of the same name is its own
+        for (const bool separate : {false, true}) {
+            Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");
+            lib.setTracks({local});
+            lib.setRemoteTracks("ytm", {playlistCopy, albumCopy, otherCopy, other});
+            if (separate)
+                lib.setSeparateSources({"ytm"});
+            const RowsModel *albums = separate ? lib.separateAlbums() : lib.albums();
+            const QString key = separate ? albums->get(0).value("key").toString() : lib.albumKeyFor("ytm:al1");
+            const QVariantList songs = separate ? lib.separateAlbumTracks(key) : lib.albumTracks(key);
+            QCOMPARE(songs.size(), 2);                                                      // Caravel and Built, once each
+            QStringList paths;
+            for (const QVariant &v : songs)
+                paths << v.toMap().value("path").toString();
+            QVERIFY(paths.contains("ytm:al1"));                                             // the album's own copy (it has a track number)
+            QVERIFY(paths.contains("ytm:al2"));
+            QVERIFY(!paths.contains("ytm:pl1"));
+            QCOMPARE(separate ? lib.separateArtistTracks("Zed").size() : lib.artistTracks("Zed").size(), separate ? 2 : 3);   // the local one stays with the artist
+            QCOMPARE(separate ? lib.separateSongs()->rowCount() : lib.songs()->rowCount(), separate ? 4 : 5);   // the Songs list keeps both ids
+        }
+    }
+
     void theLikedSongsOfAnOwnSourceComeInItsOrderUpToALimit()
     {
         Library lib({"/m"}, "/nonexistent-scanner", "/nonexistent/cache");

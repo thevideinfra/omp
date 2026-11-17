@@ -529,6 +529,11 @@ void YtmSource::fetchAlbum(const QString &browseId, const QString &purpose)
         emit albumFetched(browseId, purpose, {});
         return;
     }
+    const auto cached = m_albumCache.constFind(browseId);
+    if (cached != m_albumCache.cend()) {   // read before: no need to ask YouTube again
+        emit albumFetched(browseId, purpose, cached.value());
+        return;
+    }
     auto tracks = std::make_shared<QVector<Track>>();
     const auto onLine = [tracks](const QByteArray &line) {
         bool ok = false;
@@ -542,6 +547,8 @@ void YtmSource::fetchAlbum(const QString &browseId, const QString &purpose)
             m_library.setTransientTracks(QStringLiteral("album:") + browseId, *tracks);   // so covers and queues find them
             for (const Track &t : std::as_const(*tracks))
                 out << t.toMap();
+            if (!out.isEmpty())
+                m_albumCache.insert(browseId, out);
         } else {
             m_searchStatus = tr("Cannot read the album: %1").arg(r.error);
             emit searchChanged();
@@ -644,6 +651,7 @@ void YtmSource::logout()
     m_library.setRemoteTracks(id, {});
     m_library.removeRemoteCache(id);
     m_data.clear();
+    m_albumCache.clear();
     publish();
     m_history.setRows({});
     m_library.setTransientTracks(QStringLiteral("history"), {});

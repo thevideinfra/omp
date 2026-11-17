@@ -12,6 +12,10 @@ Item {
     property var tracks: []
     property bool renaming: false
     property bool confirmDelete: false
+    property string songSortKey: ""          // the songs as given until a header is clicked
+    property bool songSortDescending: false
+    property string albumSortKey: ""         // an artist's albums and singles, as given until a sort is chosen
+    property bool albumSortDescending: false
     readonly property string kind: page.kind ?? ""
     readonly property alias list: songs   // the list the keyboard works on
     signal playRequested(var tracks, int start)
@@ -30,8 +34,56 @@ Item {
 
     function removeSelected() { songs.removeSelected() }
 
+    // The songs as shown: sorted by the header that was clicked, else as given.
+    readonly property var shown: { songSortKey; songSortDescending; return sortSongs(tracks) }
+    function sortSongs(list) {
+        if (songSortKey === "") return list
+        const key = songSortKey, sign = songSortDescending ? -1 : 1
+        const text = (a, b) => (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base", numeric: true })
+        const copy = list.slice()
+        copy.sort((a, b) => {
+            let c = 0
+            switch (key) {
+            case "title": c = text(a.title, b.title); break
+            case "artist": c = text(a.artist, b.artist); break
+            case "album": c = text(a.album, b.album); break
+            case "albumartist": c = text(a.albumArtist, b.albumArtist); break
+            case "year": c = (a.year ?? 0) === (b.year ?? 0) ? 0 : (a.year ?? 0) === 0 ? 1 : (b.year ?? 0) === 0 ? -1 : (a.year - b.year); break
+            case "track": c = ((a.disc ?? 0) - (b.disc ?? 0)) || ((a.track ?? 0) - (b.track ?? 0)); break
+            case "length": c = (a.duration ?? 0) - (b.duration ?? 0); break
+            case "favorite": c = (b.starred ? 1 : 0) - (a.starred ? 1 : 0); break
+            }
+            return c !== 0 ? sign * c : text(a.title, b.title)
+        })
+        return copy
+    }
+    function sortSongsBy(key) {
+        if (songSortKey === key) songSortDescending = !songSortDescending
+        else { songSortKey = key; songSortDescending = false }
+    }
+    function sortAlbumsBy(key) {
+        if (albumSortKey === key) albumSortDescending = !albumSortDescending
+        else { albumSortKey = key; albumSortDescending = false }
+    }
+    // Cards by year or by name (a card without a year goes last).
+    function sortCards(list) {
+        if (albumSortKey === "") return list
+        const sign = albumSortDescending ? -1 : 1
+        const year = c => parseInt(c.subtitle) || 0
+        const copy = list.slice()
+        copy.sort((a, b) => {
+            let c = 0
+            if (albumSortKey === "year") c = year(a) === year(b) ? 0 : year(a) === 0 ? 1 : year(b) === 0 ? -1 : sign * (year(a) - year(b))
+            else c = sign * (a.title ?? "").localeCompare(b.title ?? "", undefined, { sensitivity: "base", numeric: true })
+            return c
+        })
+        return copy
+    }
+    onAlbumSortKeyChanged: rebuild()
+    onAlbumSortDescendingChanged: rebuild()
+
     function shuffled() {
-        const copy = tracks.slice()
+        const copy = shown.slice()
         for (let i = copy.length - 1; i > 0; --i) {
             const j = Math.floor(Math.random() * (i + 1))
             const t = copy[i]; copy[i] = copy[j]; copy[j] = t
@@ -41,22 +93,25 @@ Item {
 
     function rebuild() {
         songModel.clear()
-        tracks.forEach(t => songModel.append({ title: t.title ?? "", subtitle: (t.artist ?? "") + " — " + (t.album ?? ""),
+        shown.forEach(t => songModel.append({ title: t.title ?? "", subtitle: (t.artist ?? "") + " — " + (t.album ?? ""),
                                                meta: t.meta ?? "", cover: t.path ?? "" }))
         albumModel.clear()
-        ;(page.albums ?? []).forEach(a => albumModel.append({ key: a.key, title: a.title, subtitle: a.subtitle, cover: a.cover }))
-        singleModel.clear()
-        ;(page.singles ?? []).forEach(a => singleModel.append({ key: a.key, title: a.title, subtitle: a.subtitle, cover: a.cover }))
+        const row = a => ({ key: a.key, title: a.title, subtitle: a.subtitle, cover: a.cover })
+        sortCards(page.albums ?? []).forEach(a => albumModel.append(row(a)))
+        const singles = sortCards(page.singles ?? [])
+        if (singles.length > 0) {   // the singles and EPs follow the albums, after a divider
+            albumModel.append({ key: "", title: qsTr("Singles and EPs"), subtitle: "", cover: "--divider--" })
+            singles.forEach(a => albumModel.append(row(a)))
+        }
     }
-    onTracksChanged: rebuild()
+    onShownChanged: rebuild()
     onPageChanged: { renaming = false; confirmDelete = false; rebuild() }
     Component.onCompleted: rebuild()
 
     ListModel { id: songModel }
     ListModel { id: albumModel }
-    ListModel { id: singleModel }
     // The song a radio starts from: the first one shown.
-    readonly property string radioPath: tracks.length > 0 ? (tracks[0].path ?? "") : ""
+    readonly property string radioPath: shown.length > 0 ? (shown[0].path ?? "") : ""
 
     component Pill: Rectangle {
         id: pill
@@ -144,9 +199,9 @@ Item {
                     RowLayout {
                         Layout.topMargin: S.sp(8)
                         spacing: S.sp(8)
-                        Pill { text: "▶  " + qsTr("Play"); primary: true; enabled: root.tracks.length > 0; onClicked: root.playRequested(root.tracks, 0) }
-                        Pill { text: qsTr("Shuffle"); enabled: root.tracks.length > 0; onClicked: root.playRequested(root.shuffled(), 0) }
-                        Pill { text: qsTr("Add to queue"); enabled: root.tracks.length > 0; onClicked: root.enqueueRequested(root.tracks) }
+                        Pill { text: "▶  " + qsTr("Play"); primary: true; enabled: root.shown.length > 0; onClicked: root.playRequested(root.shown, 0) }
+                        Pill { text: qsTr("Shuffle"); enabled: root.shown.length > 0; onClicked: root.playRequested(root.shuffled(), 0) }
+                        Pill { text: qsTr("Add to queue"); enabled: root.shown.length > 0; onClicked: root.enqueueRequested(root.shown) }
                         Pill { visible: ytm.loggedIn && root.radioPath.indexOf("ytm:") === 0; text: qsTr("Radio"); onClicked: root.radioRequested(root.radioPath) }
                         Pill {
                             visible: root.kind === "album" && (root.page.albumId ?? "") !== "" && ytm.loggedIn
@@ -164,30 +219,24 @@ Item {
                 }
             }
 
-            YtmShelf {   // an artist's albums
+            YtmShelf {   // an artist's albums, then its singles and EPs after a divider
                 visible: root.kind === "artist" && albumModel.count > 0
                 Layout.fillWidth: true
                 heading: qsTr("Albums")
                 model: albumModel
-                onOpened: (row) => { const a = albumModel.get(row); root.albumOpened(a.key, a.title, a.subtitle, a.cover) }
-                onPlayed: (row) => root.albumPlayRequested(albumModel.get(row).key)
-                onContextRequested: (row, x, y) => root.albumMenuRequested(albumModel.get(row).key, x, y)
-            }
-
-            YtmShelf {   // singles and EPs
-                visible: root.kind === "artist" && singleModel.count > 0
-                Layout.fillWidth: true
-                heading: qsTr("Singles and EPs")
-                model: singleModel
-                onOpened: (row) => { const a = singleModel.get(row); root.albumOpened(a.key, a.title, a.subtitle, a.cover) }
-                onPlayed: (row) => root.albumPlayRequested(singleModel.get(row).key)
-                onContextRequested: (row, x, y) => root.albumMenuRequested(singleModel.get(row).key, x, y)
+                sortOptions: [["year", qsTr("Year")], ["title", qsTr("Name")]]
+                sortKey: root.albumSortKey
+                sortDescending: root.albumSortDescending
+                onSortRequested: (key) => root.sortAlbumsBy(key)
+                onOpened: (row) => { const a = albumModel.get(row); if (a.key !== "") root.albumOpened(a.key, a.title, a.subtitle, a.cover) }
+                onPlayed: (row) => { const a = albumModel.get(row); if (a.key !== "") root.albumPlayRequested(a.key) }
+                onContextRequested: (row, x, y) => { const a = albumModel.get(row); if (a.key !== "") root.albumMenuRequested(a.key, x, y) }
             }
             }
         }
 
         UiText {
-            visible: root.tracks.length > 0
+            visible: root.shown.length > 0
             Layout.leftMargin: S.sp(16)
             Layout.topMargin: S.sp(6)
             Layout.bottomMargin: S.sp(4)
@@ -206,11 +255,15 @@ Item {
             model: songModel
             removable: root.kind === "playlist" && (root.page.editable ?? false)
             onClicked: root.clicked()
-            onActivated: (row) => root.playRequested(root.tracks, row)
-            onEnqueued: (row) => root.enqueueRequested([root.tracks[row]])
-            onMenuRequested: (row) => root.pickRequested([root.tracks[row]])
-            onContextRequested: (row, x, y) => root.contextRequested([root.tracks[row]], x, y, root.kind === "playlist" && (root.page.editable ?? false))
-            onRemoveRequested: (row) => root.removeRequested(root.tracks[row].playlistIndex ?? row)
+            sortable: true
+            sortKey: root.songSortKey
+            sortDescending: root.songSortDescending
+            onSortRequested: (key) => root.sortSongsBy(key)
+            onActivated: (row) => root.playRequested(root.shown, row)
+            onEnqueued: (row) => root.enqueueRequested([root.shown[row]])
+            onMenuRequested: (row) => root.pickRequested([root.shown[row]])
+            onContextRequested: (row, x, y) => root.contextRequested([root.shown[row]], x, y, root.kind === "playlist" && (root.page.editable ?? false))
+            onRemoveRequested: (row) => root.removeRequested(root.shown[row].playlistIndex ?? row)
         }
     }
 

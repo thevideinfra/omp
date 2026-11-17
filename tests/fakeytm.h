@@ -47,6 +47,7 @@ case "$cmd" in
   album)
     case "$FAKE_YTM_MODE" in crash) echo boom >&2; exit 1 ;; esac
     echo "$2" > "$FAKE_YTM_DIR/albumid"
+    echo called >> "$FAKE_YTM_DIR/album-calls"
     echo '{"kind":"track","path":"ytm:g1","title":"Gamma One","artist":"Zed","album_artist":"Zed","album":"Gamma","track":1,"duration":200}'
     printf '{"kind":"track","path":"ytm:g2","title":"Gamma Two","artist":"Zed","album_artist":"Zed","album":"Gamma","track":2,"duration":210}' ;;
   playlist-create|playlist-add|playlist-remove|playlist-rename|playlist-delete|like|unlike|like-album)

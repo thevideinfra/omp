@@ -326,15 +326,35 @@ private slots:
         QCOMPARE(page.value("singles").toList().size(), 1);
         QCOMPARE(area->property("pages").toList().size(), 1);                                // replaced in place, not added
         // an album of YouTube's shelf: its songs are read, then the page opens on top
-        QVERIFY(QMetaObject::invokeMethod(area, "openYoutubeAlbum", Q_ARG(QVariant, QString("MPREb_x")), Q_ARG(QVariant, QString("Elsewhere")),
-                                          Q_ARG(QVariant, QString("2020")), Q_ARG(QVariant, QString("ytm:album:MPREb_x"))));
-        QCOMPARE(area->property("pages").toList().size(), 1);                                // not before the songs arrive
+        // (the source here has no login, so it answers at once with nothing; stand in for a real wait by opening the loading page by hand)
+        area->setProperty("pendingAlbums", QVariantMap{{"MPREb_x", QVariantMap{{"title", "Elsewhere"}, {"subtitle", "2020"}, {"cover", "ytm:album:MPREb_x"}}}});
+        const QVariant loading = QVariantMap{{"kind", "album"}, {"key", "MPREb_x"}, {"title", "Elsewhere"}, {"albumId", "MPREb_x"},
+                                             {"meta", "Loading…"}, {"tracks", QVariantList{}}, {"loading", true}};
+        QVERIFY(QMetaObject::invokeMethod(area, "push", Q_ARG(QVariant, loading)));
+        QCOMPARE(area->property("pages").toList().size(), 2);                                // it opens at once, loading
+        QVERIFY(area->property("page").toMap().value("loading").toBool());
+        QCOMPARE(area->property("page").toMap().value("tracks").toList().size(), 0);
         emit ytm->albumFetched("MPREb_x", "open", QVariantList{top});
-        QCOMPARE(area->property("pages").toList().size(), 2);
+        QCOMPARE(area->property("pages").toList().size(), 2);                                // the same page, now with its songs
+        QVERIFY(!area->property("page").toMap().value("loading").toBool());
+        QCOMPARE(area->property("page").toMap().value("tracks").toList().size(), 1);
         QCOMPARE(area->property("page").toMap().value("kind").toString(), QString("album"));
         QCOMPARE(area->property("page").toMap().value("albumId").toString(), QString("MPREb_x"));
         QVERIFY(QMetaObject::invokeMethod(area, "back"));
         QVERIFY(QMetaObject::invokeMethod(area, "back"));
+        QCOMPARE(area->property("pages").toList().size(), 0);
+    }
+
+    void anAlbumThatCouldNotBeReadClosesItsLoadingPageAndOneLeftMeanwhileIsNotReopened()
+    {
+        QVERIFY(QMetaObject::invokeMethod(area, "openYoutubeAlbum", Q_ARG(QVariant, QString("MPREb_bad")), Q_ARG(QVariant, QString("Bad")),
+                                          Q_ARG(QVariant, QString()), Q_ARG(QVariant, QString("ytm:album:MPREb_bad"))));
+        QCOMPARE(area->property("pages").toList().size(), 0);                                // no login: it answered at once, empty, and the loading page closed
+        area->setProperty("pendingAlbums", QVariantMap{{"MPREb_slow", QVariantMap{{"title", "Slow"}, {"subtitle", ""}, {"cover", ""}}}});
+        const QVariant loading = QVariantMap{{"kind", "album"}, {"key", "MPREb_slow"}, {"title", "Slow"}, {"tracks", QVariantList{}}, {"loading", true}};
+        QVERIFY(QMetaObject::invokeMethod(area, "push", Q_ARG(QVariant, loading)));
+        QVERIFY(QMetaObject::invokeMethod(area, "back"));                                    // left before it arrived
+        emit ytm->albumFetched("MPREb_slow", "open", QVariantList{QVariantMap{{"path", "ytm:s"}, {"title", "S"}}});
         QCOMPARE(area->property("pages").toList().size(), 0);
     }
 

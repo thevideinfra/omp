@@ -138,6 +138,7 @@ private:
     RowsModel m_searchSongs;
     RowsModel m_searchAlbums;
     RowsModel m_history;
+    QHash<QString, QVariantList> m_albumCache;   // albums already read, by browse id (until log out)
     qint64 m_historyAt = 0;     // when it was read, in ms since the epoch
     bool m_historyBusy = false;
     bool m_searching = false;

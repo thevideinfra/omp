@@ -448,6 +448,32 @@ private slots:
         QCOMPARE(e.source.history()->rowCount(), 2);                                           // a failure keeps what was there
     }
 
+    void anAlbumAlreadyReadIsAnsweredAtOnceFromMemory()
+    {
+        const auto calls = [&] {
+            QFile f(dir.path() + "/album-calls");
+            return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()).count('\n') : 0;
+        };
+        Env e(dir.path(), dir.path() + "/omp-ytm");
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        QSignalSpy spy(&e.source, &YtmSource::albumFetched);
+        e.source.fetchAlbum("MPREb_g", "open");
+        QTRY_COMPARE(spy.count(), 1);
+        QCOMPARE(calls(), 1);
+        e.source.fetchAlbum("MPREb_g", "play");
+        QCOMPARE(spy.count(), 2);                                                  // answered before the call returns
+        QCOMPARE(spy.at(1).at(1).toString(), QString("play"));
+        QCOMPARE(spy.at(1).at(2).toList().size(), 2);
+        QCOMPARE(calls(), 1);                                                      // YouTube was not asked again
+        e.source.logout();
+        e.source.login("curl x");
+        QTRY_COMPARE(e.source.state(), QString("connected"));
+        e.source.fetchAlbum("MPREb_g", "open");
+        QTRY_COMPARE(spy.count(), 3);
+        QCOMPARE(calls(), 2);                                                      // a new login starts with an empty memory
+    }
+
     void anArtistPageArrivesAsTopSongsAlbumsAndSingles()
     {
         Env e(dir.path(), dir.path() + "/omp-ytm");

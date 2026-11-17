@@ -167,8 +167,6 @@ private slots:
         shot("1-songs");
         area->setProperty("view", "Artists");
         shot("2-artists");
-        area->setProperty("view", "Albums");
-        shot("3-albums");
         area->setProperty("view", "Playlists");
         shot("4-playlists");
         const QString albumKey = library->separateAlbums()->get(0).value("key").toString();
@@ -214,15 +212,13 @@ private slots:
         QCOMPARE(area->property("section").toString(), QString("Home"));                // it opens on the Home page
         QVERIFY(area->property("current").value<QObject *>()->property("empty").isValid());
         area->setProperty("section", "Library");
-        QCOMPARE(area->property("view").toString(), QString("Songs"));
+        QCOMPARE(area->property("view").toString(), QString("Artists"));                // Library opens on Artists
         QCOMPARE(library->separateSongs()->rowCount(), 3);
         const auto model = [&] { return area->property("current").value<QObject *>()->property("model").value<QObject *>(); };
         QVERIFY(area->property("current").value<QObject *>());
-        QCOMPARE(model(), qobject_cast<QObject *>(library->separateSongs()));
-        area->setProperty("view", "Artists");
         QTRY_COMPARE(model(), qobject_cast<QObject *>(library->separateArtists()));
-        area->setProperty("view", "Albums");
-        QTRY_COMPARE(model(), qobject_cast<QObject *>(library->separateAlbums()));
+        area->setProperty("view", "Songs");
+        QTRY_COMPARE(model(), qobject_cast<QObject *>(library->separateSongs()));
         area->setProperty("view", "Playlists");
         QTRY_COMPARE(model(), qobject_cast<QObject *>(playlists->listOf("ytm")));
         area->setProperty("section", "Search");
@@ -244,9 +240,9 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(home, "songsPlayed", Q_ARG(QVariant, one), Q_ARG(int, 0)));
         QCOMPARE(played.count(), 1);
         QCOMPARE(player.played.size(), 1);                                                // a song of a row is played
-        QVERIFY(QMetaObject::invokeMethod(home, "seeAll", Q_ARG(QString, QString("Albums"))));
+        QVERIFY(QMetaObject::invokeMethod(home, "seeAll", Q_ARG(QString, QString("Playlists"))));
         QCOMPARE(area->property("section").toString(), QString("Library"));
-        QCOMPARE(area->property("view").toString(), QString("Albums"));
+        QCOMPARE(area->property("view").toString(), QString("Playlists"));
         ytm->history()->setRows({});
         area->setProperty("view", "Songs");
     }

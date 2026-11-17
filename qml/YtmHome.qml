@@ -106,8 +106,6 @@ Flickable {
             onOpened: (row) => { const a = library.separateAlbums.get(row); root.albumOpened(a.key, a.title, a.subtitle, a.cover) }
             onPlayed: (row) => root.songsPlayed(library.separateAlbumTracks(library.separateAlbums.get(row).key), 0)
             onContextRequested: (row, x, y) => root.contextRequested(library.separateAlbumTracks(library.separateAlbums.get(row).key), x, y, false)
-            showSeeAll: true
-            onSeeAll: root.seeAll("Albums")
         }
 
         YtmShelf {

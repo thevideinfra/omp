@@ -9,7 +9,7 @@ import "Scale.js" as S
 Item {
     id: root
     property string section: "Home"      // Home, Library or Search
-    property string view: "Songs"        // in Library: Songs, Artists, Albums or Playlists
+    property string view: "Artists"      // in Library: Artists, Songs or Playlists
     property var pages: []               // the pages opened, one on top of the other; the last one shows
     readonly property var page: pages.length > 0 ? pages[pages.length - 1] : null
     signal clicked()
@@ -122,7 +122,6 @@ Item {
     }
 
     // The songs a card of a grid stands for.
-    function albumSongs(row) { return library.separateAlbumTracks(library.separateAlbums.get(row).key) }
     function artistSongs(row) { return library.separateArtistTracks(library.separateArtists.get(row).key) }
     function playlistSongs(row) { return library.tracksForPaths(playlists.paths(playlists.listOf("ytm").get(row).key)) }
 
@@ -140,11 +139,19 @@ Item {
                 visible: root.page === null
                 options: ["Home", "Library", "Search"]
                 selected: root.section
-                onPicked: (value) => { root.section = value; root.clicked() }
+                onPicked: (value) => { if (value === "Library" && root.section !== "Library") root.view = "Artists"; root.section = value; root.clicked() }
+            }
+            Rectangle {   // a clear break between the two groups
+                visible: root.page === null && root.section === "Library"
+                Layout.leftMargin: S.sp(16)
+                Layout.rightMargin: S.sp(16)
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: S.sp(26)
+                color: Qt.alpha(theme.foreground, 0.3)
             }
             Segmented {
                 visible: root.page === null && root.section === "Library"
-                options: ["Songs", "Artists", "Albums", "Playlists"]
+                options: ["Artists", "Songs", "Playlists"]
                 selected: root.view
                 onPicked: (value) => { root.view = value; root.clicked() }
             }
@@ -189,7 +196,7 @@ Item {
                 id: stack
                 visible: root.page === null
                 anchors.fill: parent
-                currentIndex: root.section === "Search" ? 5 : root.section === "Home" ? 4 : ["Songs", "Artists", "Albums", "Playlists"].indexOf(root.view)
+                currentIndex: root.section === "Search" ? 4 : root.section === "Home" ? 3 : ["Songs", "Artists", "Playlists"].indexOf(root.view)
 
                 BrowseList {   // the songs, in the order YouTube gives them until a header is clicked
                     onClicked: root.clicked()
@@ -217,16 +224,6 @@ Item {
                     onQueued: (row) => player.enqueueTracks(root.artistSongs(row))
                     onMenuRequested: (row) => root.pickRequested(root.artistSongs(row))
                     onContextRequested: (row, x, y) => root.contextRequested(root.artistSongs(row), x, y, false)
-                }
-
-                YtmGrid {
-                    icon: "albums"
-                    model: library.separateAlbums
-                    onOpened: (row) => { const a = library.separateAlbums.get(row); root.openAlbum(a.key, a.title, a.subtitle, a.cover); root.clicked() }
-                    onPlayed: (row) => player.playTracks(root.albumSongs(row), 0)
-                    onQueued: (row) => player.enqueueTracks(root.albumSongs(row))
-                    onMenuRequested: (row) => root.pickRequested(root.albumSongs(row))
-                    onContextRequested: (row, x, y) => root.contextRequested(root.albumSongs(row), x, y, false)
                 }
 
                 YtmGrid {

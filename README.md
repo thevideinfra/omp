@@ -1,6 +1,6 @@
 # OMP
 
-OMP (Omarchy Music Player) is a Qt 6 music player for Omarchy. It was called omamusic until 2026-10-19: on first start it moves your old settings, playlists, caches, saved server password and start-at-login entry to the new names. It browses local folders by album, artist, folder and queue, and plays through an `mpv` child process. A standalone window is tiled by Hyprland, and a tray icon opens a compact popup panel. It follows the Omarchy theme. Library is read-only.
+OMP (Omarchy Music Player) is a Qt 6 music player for Omarchy. It was called omamusic until 2026-10-19: on first start it moves your old settings, playlists, caches, saved server password and start-at-login entry to the new names. It browses local folders by album, artist, folder and queue, adds Subsonic servers (Navidrome and others) and YouTube Music, and plays through an `mpv` child process. A standalone window is tiled by Hyprland, and a tray icon opens a compact popup panel. It follows the Omarchy theme. Your music files are never changed.
 
 ## Install
 
@@ -13,7 +13,7 @@ This puts `omp` and `omp-scan` in `~/.local/bin` and adds a launcher entry and i
 
 ## Dependencies
 
-Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `qt6-svg` (tray icon), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`, and `libsecret` (its `secret-tool` keeps the Subsonic password in the keyring; only needed for a server).
+Qt 6 (Core, Gui, Widgets, Network, Quick, QuickControls2), `qt6-svg` (tray icon), `mpv`, `ffmpeg` (for `ffprobe`), `python3`, `cmake`, `ninja`, and `libsecret` (its `secret-tool` keeps server passwords and the YouTube Music login in the keyring; only needed for those). YouTube Music also needs `python-ytmusicapi` and `yt-dlp`.
 
 ## Build
 
@@ -83,7 +83,7 @@ Main window:
 | n / p | next / previous |
 | h / l | seek -10 s / +10 s |
 | / | focus search |
-| Tab | next tab (Albums, Artists, Songs, Playlists, Libraries, Queue, Settings) |
+| Tab | next tab (Albums, Artists, Songs, Playlists, Libraries, Queue, then YouTube Music when it has its own tab, Settings) |
 | Right / Left | Albums, Artists, Playlists: move into / out of the song pane |
 | j / k, Down / Up | move selection |
 | Enter | play selection |
@@ -152,7 +152,47 @@ Settings > Library > Subsonic servers lists your servers (Navidrome, Airsonic, S
 
 ## YouTube Music
 
-Optional, and unofficial. Install `python-ytmusicapi` and `yt-dlp`. Sign in to music.youtube.com in your browser, then in Settings > Library > YouTube Music pick that browser (OMP lists the Brave, Chromium, Chrome, Edge, Vivaldi and Firefox profiles it finds). The `omp-ytm` helper reads the YouTube and Google cookies of that profile through `yt-dlp`'s cookie reader on every sync, so the login stays as fresh as the browser's own; only the browser's name is kept in the system keyring (through `secret-tool`), never a cookie. If it says "Not signed in", sign in again in that browser. "Paste a request instead" is the fallback: a request copied as cURL from music.youtube.com (F12 > Network, filter "browse", right-click > Copy > Copy as cURL), kept in the keyring, which goes stale when the browser refreshes its cookies. Your liked songs, library songs, saved albums and playlists join the library with a **YT** tag (cached in `subsonic-ytm.jsonl` in the state folder, shown at once on the next start, refreshed in the background; Refresh does it by hand). Your own playlists can be changed from OMP (see below); ones you saved from others, and Liked Music, are read-only. A song plays from `https://music.youtube.com/watch?v=<id>` through mpv and `yt-dlp`, which YouTube's terms of service do not allow and which can break when YouTube changes. There is no ReplayGain or scrobbling for these songs, and gapless is unreliable. The heart (in a menu as **Like on YouTube Music**, the heart in the bottom bar, or `f`) likes or unlikes a song on YouTube Music; the songs of Liked Music carry a heart. "YouTube Music in its own tab" gives it an area of its own: a **YouTube Music** row at the bottom of the left rail, below Queue and a line, and its songs leave Songs, Albums and Artists. The area opens on **Home**, rows of cards from your account: **Listen again** (what you played lately on YouTube Music, read from its history), **Liked songs**, **Your playlists**, **Your albums** and **Your artists** (a row with nothing in it is left out; **See all** opens that view of the Library (not for albums, which have no view of their own); click a song card to play it and the songs after it, an album, artist or playlist card to open its page). A bar across the top chooses **Home**, **Library** or **Search**; Library, after a divider, has **Artists** (the one it opens on), **Songs** (a table in the order YouTube gives them; a click on a header sorts, as in Songs) and **Playlists**; Artists and Playlists are grids of cover cards, and albums are reached through an artist, the Home row of albums or a search (a round cover for an artist; the first song's art stands for a playlist). Hover a card for a round Play button, click it to open its page, right-click it for the menu. A page (**Back**, `Esc` or `Backspace` goes back) has a big cover, the title and buttons (**Play**, **Shuffle**, **Add to queue**, **＋ Library** on an album, **Rename** and **Delete** on your own playlists) above its songs; an artist's page opens at once with your songs by that artist and then, when YouTube answers, turns into YouTube's own page: its **Top songs**, one shelf of **Albums** with the **Singles and EPs** after a vertical divider (the whole shelf, not only what you have; **Year** and **Name** above it sort the albums and the singles, a click again turns it round; an album of it opens at once, shows Loading… and is read from YouTube, and an album read once opens instantly after that). **Radio** on a page, or **Start radio** in the menu of a YouTube Music song, plays an endless-style list of songs like it (the song first). The top of a tall page scrolls so the songs stay in reach. The songs table of every page sorts by a click on a header, as in Songs. An album or artist shows a YouTube Music song once even when YouTube lists it under two ids (one in a playlist or your liked songs, one in the album); the Songs table keeps both, because liking and playlists need each id. The arrow keys move over the cards. **Search**: type words and press Enter to look up songs and albums on all of YouTube Music, not only your library. A search asks for up to 40 songs and 40 albums; **Show more results** (it appears when the search came back full) asks for up to 120. A song plays or queues like any other (double-click, `a`, right-click); double-click an album to play it, `a` to queue it, or right-click it for the menu. The search box above the window filters the Library, Artists and Albums views by title, artist and album while that area is open. "Show YouTube Music playlists in Playlists" (on by default) decides whether its playlists are also listed in the Playlists tab. The **Playlists** grid has a **New playlist** button; your own playlists can be renamed, deleted and have songs removed (`Delete`) like local ones, and any YouTube Music song can be added to one from the right-click menu (Add to playlist, or **New playlist on YouTube Music…**). A change shows at once and a refusal puts it back and says why at the top right of the player bar. **Add album to YouTube Music library** (right-click a song or an album of YouTube Music) saves an album to your library. Right-click a song and choose **Play album** to play its whole album from the first track: a YouTube Music song plays the full album as YouTube has it, any other song the album's songs in your library.
+Optional and unofficial. It needs `python-ytmusicapi` and `yt-dlp`.
+
+### Sign in
+
+Sign in to music.youtube.com in your browser. Then pick that browser in Settings > Library > YouTube Music (OMP lists the Brave, Chromium, Chrome, Edge, Vivaldi and Firefox profiles it finds). The `omp-ytm` helper reads the YouTube and Google cookies of that profile through `yt-dlp`'s cookie reader on every sync, so the login stays as fresh as the browser's own. Only the browser's name is kept in the system keyring (through `secret-tool`), never a cookie. If OMP says "Not signed in", sign in again in that browser.
+
+"Paste a request instead" is the fallback: copy a request as cURL from music.youtube.com (F12 > Network, filter "browse", right-click > Copy > Copy as cURL). It is kept in the keyring and goes stale when the browser refreshes its cookies.
+
+### In your library
+
+Your liked songs, library songs, saved albums and playlists join the library with a **YT** tag. They are cached in `subsonic-ytm.jsonl` in the state folder, shown at once on the next start and refreshed in the background (Refresh does it by hand). A song plays from `https://music.youtube.com/watch?v=<id>` through mpv and `yt-dlp`. YouTube's terms of service do not allow this, and it can break when YouTube changes. There is no ReplayGain or scrobbling for these songs, and gapless is unreliable.
+
+The heart (**Like on YouTube Music** in a menu, the heart in the bottom bar, or `f`) likes or unlikes a song. Songs of Liked Music carry a heart. "Show YouTube Music playlists in Playlists" (on by default) lists its playlists in the Playlists tab too.
+
+### The YouTube Music area
+
+"YouTube Music in its own tab" gives it an area of its own: a **YouTube Music** row at the bottom of the left rail, below Queue and a line. Its songs then leave Songs, Albums and Artists. A bar across the top chooses **Home**, **Library** or **Search**.
+
+- **Home:** rows of cards from your account: **Listen again** (your recent plays, read from YouTube Music's history), **Liked songs**, **Your playlists**, **Your albums** and **Your artists**. A row with nothing in it is left out. **See all** opens that view of the Library (albums have no view of their own). Click a song card to play it and the songs after it. Click an album, artist or playlist card to open its page.
+- **Library:** after a divider the views are **Artists** (the one it opens on), **Songs** and **Playlists**. Artists and Playlists are grids of cover cards (a round cover for an artist). Songs is a table in the order YouTube gives them; a click on a header sorts. Albums are reached through an artist, the Home row of albums or a search. The **Playlists** grid has a **New playlist** button.
+- **Search:** type words and press Enter to look up songs and albums on all of YouTube Music, not only your library. A search asks for up to 40 songs and 40 albums. **Show more results** (it appears when the search came back full) asks for up to 120. Songs play or queue like any other (double-click, `a`, right-click). Double-click an album to play it, `a` to queue it, or right-click it for the menu. While the area is open, the search box above the window filters the Library views by title, artist and album.
+
+Hover a card for a round Play button, click it to open its page, right-click it for the menu. The arrow keys move over the cards.
+
+### Pages
+
+**Back**, `Esc` or `Backspace` goes back. A page has a big cover, the title and buttons (**Play**, **Shuffle**, **Add to queue**, **＋ Library** on an album, **Rename** and **Delete** on your own playlists) above its songs. The top of a tall page scrolls so the songs stay in reach, and the songs table sorts by a click on a header, as in Songs.
+
+An artist's page opens at once with your songs by that artist, then turns into YouTube's own page when YouTube answers:
+
+- **Top songs.**
+- One shelf of **Albums**, with the **Singles and EPs** after a vertical divider. It holds the whole shelf, not only what you have. **Year** and **Name** above it sort the albums and the singles; a click again turns the order round.
+- An album opens at once, shows Loading… and is read from YouTube. An album read once opens instantly after that.
+
+An album or artist shows a song once even when YouTube lists it under two ids (one in a playlist or your liked songs, one in the album). The Songs table keeps both, because liking and playlists need each id.
+
+**Radio** on a page, or **Start radio** in the menu of a YouTube Music song, plays an endless-style list of songs like it, the song first.
+
+### Editing
+
+Your own playlists can be renamed, deleted and have songs removed (`Delete`) like local ones. Any YouTube Music song can be added to one from the right-click menu (Add to playlist, or **New playlist on YouTube Music…**). Playlists you saved from others, and Liked Music, are read-only. A change shows at once; a refusal puts it back and says why at the top right of the player bar. **Add album to YouTube Music library** (right-click a song or an album) saves an album to your library. **Play album** (right-click a song) plays its whole album from the first track: a YouTube Music song plays the album as YouTube has it, any other song plays the album's songs in your library.
 
 ## Hyprland panel rule
 

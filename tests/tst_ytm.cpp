@@ -280,6 +280,7 @@ private slots:
         e.source.fetchAlbum("MPREb_x", "queue");
         QTRY_COMPARE(spy.count(), 2);
         QVERIFY(spy.at(1).at(2).toList().isEmpty());                            // a failure answers with no songs
+        QVERIFY(e.source.message().contains("Cannot read the album"));          // and says so, so a click is never silent
     }
 
     // ----- editing -----

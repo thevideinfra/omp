@@ -44,7 +44,7 @@ class YTMusic:
         return [{"browseId": "MPREb_1"}]
     def get_album(self, browse_id):
         return {"title": "Delta", "year": "2019", "audioPlaylistId": "OLAK5_delta", "tracks": [
-            {"videoId": "ccc", "title": "Album Song", "artists": [{"name": "Wen"}], "duration_seconds": 61, "trackNumber": 1,
+            {"videoId": "ccc", "title": "Album Song", "artists": [{"name": "Wen"}], "duration_seconds": 61, "trackNumber": 1, "album": "Delta",
              "thumbnails": [{"url": "https://i.ytimg.com/vi/ccc/hq.jpg"}]}]}
     def search(self, query, filter=None, limit=20, ignore_spelling=False):
         if filter == "songs":
@@ -372,6 +372,15 @@ class OmpYtm(unittest.TestCase):
         bad = subprocess.run([sys.executable, str(YTM), "search", "x", "lots"], input='{"cookie": "ok"}', capture_output=True, text=True,
                              env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
         self.assertEqual(json.loads(bad.stdout.splitlines()[0])["title"], "Found x 40")      # not a number: the default
+
+    def test_an_albums_tracks_name_the_album_as_plain_text_and_still_list(self):
+        # YouTube Music gives "album": "Delta" (a string) in an album's own tracks, and {"name", "id"} elsewhere
+        a = subprocess.run([sys.executable, str(YTM), "album", "MPREb_1"], input='{"cookie": "ok"}', capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONPATH=str(self.tmp.name)))
+        self.assertEqual(a.returncode, 0, a.stderr)
+        t = json.loads(a.stdout.splitlines()[0])
+        self.assertEqual((t["album"], t["album_id"]), ("Delta", "MPREb_1"))
+        self.assertIn("ytm:ccc", [o["path"] for o in self.sync() if o["kind"] == "track"])   # and the library sync keeps them too
 
     def test_an_empty_search_is_refused_and_an_album_lists_its_songs(self):
         env = dict(os.environ, PYTHONPATH=str(self.tmp.name))

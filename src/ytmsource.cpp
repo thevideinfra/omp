@@ -545,6 +545,7 @@ void YtmSource::fetchAlbum(const QString &browseId, const QString &purpose)
         } else {
             m_searchStatus = tr("Cannot read the album: %1").arg(r.error);
             emit searchChanged();
+            setMessage(tr("Cannot read the album: %1").arg(r.error.isEmpty() ? tr("nothing came back") : r.error));   // so a click is never silent
         }
         emit albumFetched(browseId, purpose, out);
     });

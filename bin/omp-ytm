@@ -139,12 +139,20 @@ def seconds(text):
         return 0
 
 
+def album_of(raw):
+    """(name, id) of a track's album. It is {"name", "id"} in most answers but plain text in an album's own tracks."""
+    a = raw.get("album")
+    if isinstance(a, dict):
+        return a.get("name") or "", a.get("id") or ""
+    return (a or "") if isinstance(a, str) else "", ""
+
+
 def track(raw, album=None, year=0, number=0, album_id=None, liked=False):
     video = raw.get("videoId")
     if not video or raw.get("isAvailable") is False:
         return None
     artists = [a["name"] for a in (raw.get("artists") or []) if a.get("name")]
-    album_name = album or (raw.get("album") or {}).get("name") or "YouTube Music"
+    album_name = album or album_of(raw)[0] or "YouTube Music"
     thumbs = raw.get("thumbnails") or raw.get("thumbnail") or []   # a watch playlist says "thumbnail"
     out = {
         "kind": "track",
@@ -169,7 +177,7 @@ def track(raw, album=None, year=0, number=0, album_id=None, liked=False):
         if a.get("id"):
             out["artist_id"] = a["id"]   # the first artist with one, to open its page
             break
-    album_id = (raw.get("album") or {}).get("id") or album_id
+    album_id = album_of(raw)[1] or album_id
     if album_id:
         out["album_id"] = album_id
     return out
@@ -179,7 +187,6 @@ def album_tracks(api, browse_id):
     full = api.get_album(browse_id)
     out = []
     for n, raw in enumerate(full.get("tracks") or [], 1):
-        raw.setdefault("album", {"name": full.get("title")})
         if not raw.get("thumbnails"):
             raw["thumbnails"] = full.get("thumbnails") or []
         t = track(raw, album=full.get("title"), year=full.get("year") or 0, number=raw.get("trackNumber") or n, album_id=browse_id)
